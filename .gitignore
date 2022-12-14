@@ -1,0 +1,7 @@
+.vscode
+.DS_Store
+__pycache__
+old
+Camera
+
+output.avi
