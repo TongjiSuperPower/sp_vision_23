@@ -7,14 +7,14 @@ class LightBar:
     def __init__(self, len: float, angle: float, center) -> None:
         self.len = len
         self.angle = angle  # 与水平线夹角，顺时针增大
-        self.center = np.array(center)
+        self.center = np.float32(center)
 
         rad = angle / 180 * math.pi
-        self.vector = np.array([-math.cos(rad), -math.sin(rad)])  # 指向灯条的上方
+        self.vector = np.float32([-math.cos(rad), -math.sin(rad)])  # 指向灯条的上方
 
         top = self.center + 0.5 * self.len * self.vector
         bottom = self.center - 0.5 * self.len * self.vector
-        self.points = np.array([top, bottom])
+        self.points = np.float32([top, bottom])
 
     def __str__(self) -> str:
         return f'LightBar({self.len}, {self.angle}, {self.center})'
@@ -29,8 +29,31 @@ class Armor:
         bottomLeft = left.center - left.len * left.vector
         topRight = right.center + right.len * right.vector
         bottomRight = right.center - right.len * right.vector
-        self.points = np.array([topLeft, topRight, bottomRight, bottomLeft])
-        self.imgPoints = np.array([left.points[0], right.points[0], right.points[1], left.points[1]])
+        self.points = np.float32([topLeft, topRight, bottomRight, bottomLeft])
+        self.imgPoints = np.float32([left.points[0], right.points[0], right.points[1], left.points[1]])
+
+        # after self.tagered(...)
+        self.rvec = None
+        self.tvec = None
+        self.center = None
+        self.aimPoint = None
+        self.yaw = None
+        self.pitch = None
+
+    def targeted(self, objPoints, cameraMatrix, distCoeffs):
+        _, self.rvec, self.tvec = cv2.solvePnP(objPoints, self.imgPoints, cameraMatrix, distCoeffs)
+        self.center = cv2.projectPoints(np.float32([[0, 0, 0]]), self.rvec, self.tvec, cameraMatrix, distCoeffs)[0][0][0]
+
+        rotationMatrix, _ = cv2.Rodrigues(self.rvec)
+        self.aimPoint = (np.dot(rotationMatrix, np.float32([0, 0, 0]).reshape(3, 1)) + self.tvec).reshape(1, 3)[0]
+
+        x, y, z = self.aimPoint  # 相机坐标系：相机朝向为z正方向，相机右侧为x正方向，相机下侧为y正方向，符合右手系
+
+        yaw = cv2.fastAtan2(x, (y**2 + z**2)**0.5)
+        self.yaw = yaw - 360 if yaw > 180 else yaw
+
+        pitch = cv2.fastAtan2(y, (x**2 + z**2)**0.5)
+        self.pitch = pitch - 360 if pitch > 180 else pitch
 
     def __str__(self) -> str:
         return f'Armor({self.points})'
