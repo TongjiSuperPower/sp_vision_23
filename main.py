@@ -10,6 +10,7 @@ from modules.utilities import drawContour, drawPoint, drawAxis, putText
 # TODO config.toml
 debug = True
 useCamera = False
+exposureMs = 0.5
 useSerial = False
 port = '/dev/tty.usbserial-A50285BI'  # for ubuntu: '/dev/ttyUSB0'
 cameraMatrix = np.float32([[1.30161072e+03, 0, 6.65920641e+02],
@@ -24,7 +25,7 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
                         [armorWidth / 2, lightBarLength / 2, 0],
                         [-armorWidth / 2, lightBarLength / 2, 0]])
 
-cap = Camera() if useCamera else cv2.VideoCapture('assets/input.avi')
+cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
 detector = Detector()
 if useSerial:
     communicator = Communicator(port)
