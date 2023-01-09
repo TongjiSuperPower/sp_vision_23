@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Camera:
-    def __init__(self, exposureMs: float) -> None:
+    def __init__(self, exposureMs: float = None) -> None:
         # 枚举相机
         devices = mvsdk.CameraEnumerateDevice()
         if len(devices) < 1:
@@ -15,7 +15,7 @@ class Camera:
 
         # 获取相机特性描述
         capability = mvsdk.CameraGetCapability(self.camera)
-        self.isMono = capability.sIspCapacity.bMonoSensor != 0
+        self.isMono = capability.sIspCapacity.bMonoSensor == mvsdk.TRUE
         self.width = capability.sResolutionRange.iWidthMax
         self.height = capability.sResolutionRange.iHeightMax
 
@@ -26,9 +26,11 @@ class Camera:
             mvsdk.CameraSetIspOutFormat(self.camera, mvsdk.CAMERA_MEDIA_TYPE_BGR8)
 
         # 相机参数设置
-        mvsdk.CameraSetTriggerMode(self.camera, 0)  # 连续采集模式
-        mvsdk.CameraSetAeState(self.camera, 0)  # 手动曝光
-        mvsdk.CameraSetExposureTime(self.camera, exposureMs * 1000)  # 曝光时间ms
+        mvsdk.CameraSetTriggerMode(self.camera, mvsdk.FALSE)  # 连续采集模式
+        mvsdk.CameraSetFrameSpeed(self.camera, mvsdk.FRAME_SPEED_HIGH)  # 高帧率模式
+        if exposureMs != None:
+            mvsdk.CameraSetAeState(self.camera, mvsdk.FALSE)  # 手动曝光
+            mvsdk.CameraSetExposureTime(self.camera, exposureMs * 1000)  # 曝光时间ms
 
         # 让SDK内部取图线程开始工作
         mvsdk.CameraPlay(self.camera)
@@ -49,6 +51,9 @@ class Camera:
             return True, frame
         except mvsdk.CameraException:
             return False, None
+
+    def getTimeStampUs(self) -> int:
+        return mvsdk.CameraGetFrameTimeStamp(self.camera)
 
     def release(self) -> None:
         # 关闭相机
