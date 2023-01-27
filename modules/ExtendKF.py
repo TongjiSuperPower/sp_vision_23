@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import math
+import cv2
 
 class EKF():
     '''EKF类,支持2维(xy)和3维(xyz)状态量'''
@@ -8,11 +9,11 @@ class EKF():
         self.stateDimension = _stateDimension
         self.measurementDimension = _measurementDimension
 
-        self.state = np.zeros((self.stateDimension,1))
+        self.state = np.zeros((self.stateDimension,1)) # 状态量，目标在世界坐标系下的位置和速度
         self.measurement = np.zeros((self.measurementDimension,1))
 
         self.gkMatrix = None # 线性化矩阵G_k
-        self.cbnMatrix = None # 云台坐标系姿态矩阵C_b^n
+        self.rotationMatrix = None # 云台坐标系旋转矩阵C_b^n
         self.qMatrix = None # 过程噪声矩阵（需要调参）
         self.rrMatrix = None # 观测噪声矩阵（需要调参,.toml文件中的Rr）
         self.rMatrix = None # 转换后的观测噪声矩阵（由rr矩阵计算得到）
@@ -38,7 +39,8 @@ class EKF():
             hMatrix[i, 2*i] = 1
         
         # pridict:
-        self.state = fMatrix*self.state # 更新x_k
+        # 更新x_k
+        self.state = fMatrix*self.state 
         
         # correct:
         # 更新P_k
@@ -48,9 +50,8 @@ class EKF():
             self.pMatrix = fMatrix*self.pMatrix*fMatrix.T + gammaMatrix*self.qMatrix*gammaMatrix.T
             self.first = False
 
-        # 更新卡尔曼增益K_k
         # 计算R_k矩阵        
-        rotationMatrix = R.from_quat(quaternion).as_matrix()
+        self.rotationMatrix = R.from_quat(quaternion).as_matrix()
 
         [z, alpha, beta] = observation
 
@@ -60,8 +61,9 @@ class EKF():
             [1, 0, 0]
             ])
 
-        self.rMatrix = rotationMatrix * gMatrix * self.rrMatrix * gMatrix.T * rotationMatrix.T
+        self.rMatrix = self.rotationMatrix * gMatrix * self.rrMatrix * gMatrix.T * self.rotationMatrix.T
 
+        # 更新卡尔曼增益K_k
         kGain = (self.pMatrix*hMatrix.T)/(hMatrix*self.pMatrix*hMatrix.T + self.rMatrix)
 
         # 更新状态量
@@ -70,14 +72,42 @@ class EKF():
         # 更新p矩阵
         self.pMatrix = (np.eye(self.stateDimension) - kGain * hMatrix) * self.pMatrix
     
-    def predict(self, time):
-        '''返回时间time后世界坐标系下目标的yaw和pitch值'''
+    def predictInWorld(self, time):
+        '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         predictedPosInWorld = []
         for i in range(self.stateDimension):
-            predictedPosInWorld[i] = self.state[i] + time * self.state[i + 1]
+            predictedPosInWorld[i] = self.state[i] + time * self.state[i + 1] 
         
-        # 转换为yaw和pitch
+        return predictedPosInWorld    
+    
+    def predict(self, time, bulletSpeed):
+        '''返回时间time后云台应该旋转的yaw和pitch值'''
+        # 世界坐标系->云台坐标系
+        predictedPosInWorld = self.predictInWorld(time)
+        predictedPosInTripod = np.linalg.inv(self.rotationMatrix) * predictedPosInWorld
+
+        # 弹道下坠补偿
+        distance = np.linalg.norm(predictedPosInTripod) # 云台坐标系下的距离
+        flyTime = distance/bulletSpeed # 子弹飞行时间
+        dropDistance = 0.5 * 9.8 * flyTime**2 # 下坠距离
+        predictedPosInTripod[1] += dropDistance 
+
+        # 坐标值->yaw、pitch
+        [x,y,z] = predictedPosInTripod
+        yaw = cv2.fastAtan2(x, z)
+        yaw = yaw if yaw<180 else yaw-360
+        pitch = cv2.fastAtan2(-y, math.sqrt(x**2 + z**2))
+        pitch = pitch if pitch<180 else pitch-360
+
+        return yaw, pitch
+
+
+
+
+
+
+
         
 
 
