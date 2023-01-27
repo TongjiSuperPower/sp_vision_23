@@ -1,7 +1,10 @@
+import os
+import sys
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import math
 import cv2
+import toml
 
 class EKF():
     '''EKF类,支持2维(xy)和3维(xyz)状态量'''
@@ -12,14 +15,27 @@ class EKF():
         self.state = np.zeros((self.stateDimension,1)) # 状态量，目标在世界坐标系下的位置和速度
         self.measurement = np.zeros((self.measurementDimension,1))
 
-        self.gkMatrix = None # 线性化矩阵G_k
         self.rotationMatrix = None # 云台坐标系旋转矩阵C_b^n
-        self.qMatrix = None # 过程噪声矩阵（需要调参）
-        self.rrMatrix = None # 观测噪声矩阵（需要调参,.toml文件中的Rr）
+        self.qMatrix, self.rrMatrix = self.readEKFConfig() # 过程噪声矩阵和观测噪声矩阵
         self.rMatrix = None # 转换后的观测噪声矩阵（由rr矩阵计算得到）
         self.pMatrix = None # 预测值的协方差矩阵
 
         self.first = True
+
+    def readEKFConfig():
+        '''读取配置文件'''    
+        cfgFile = 'assets/EKFConfig.toml'
+
+        if not os.path.exists(cfgFile):
+            print(cfgFile + ' not found')
+            sys.exit(-1)
+        
+        content = toml.load(cfgFile) 
+
+        Q = np.float32(content['Q'])  
+        Rr = np.float32(content['Rr']) 
+
+        return Q, Rr
 
     def step(self, deltaT, quaternion, _state, observation):
         '''EKF更新一个周期。deltaT:时间差值,quaternion:陀螺仪传来的四元数,_state:当前时刻的状态量,observation:观测量z、α、β'''          
@@ -90,7 +106,7 @@ class EKF():
         # 弹道下坠补偿
         distance = np.linalg.norm(predictedPosInTripod) # 云台坐标系下的距离
         flyTime = distance/bulletSpeed # 子弹飞行时间
-        dropDistance = 0.5 * 9.8 * flyTime**2 # 下坠距离
+        dropDistance = 0.5 * 9.7940 * flyTime**2 # 下坠距离
         predictedPosInTripod[1] += dropDistance 
 
         # 坐标值->yaw、pitch
