@@ -7,7 +7,7 @@ import cv2
 import toml
 
 class EKF():
-    '''EKF类,支持2维(xy)和3维(xyz)状态量'''
+    '''EKF类,支持2维(xz)和3维(xyz)状态量'''
     def __init__(self, _stateDimension, _measurementDimension) -> None:
         self.stateDimension = _stateDimension
         self.measurementDimension = _measurementDimension
