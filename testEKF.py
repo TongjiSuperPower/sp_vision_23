@@ -19,8 +19,8 @@ ptsInTripod = ptsInCam + np.array([0, 20, 10])
 yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
 xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
 
+# 云台坐标系->世界坐标系
 ptsInWorld = np.zeros((ptsInTripod.shape))
-
 i=0
 for single in ptsInTripod:
     single = np.reshape(single, (3,1))    
@@ -34,11 +34,14 @@ for i in range(ptsInWorld.shape[0]):
     x = ptsInCam[i,0]
     y = ptsInCam[i,1]
     z = ptsInCam[i,2]
-    alpha = math.tan(x/z)
-    beta = math.tan(y/z)
+    alpha = math.atan(x/z)
+    beta = math.atan(y/z)
     observation = [z, alpha, beta]
+    #print(observation)
 
     deltaTime = 0.03
+
+    # ?状态量里的速度怎么计算
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - state[0,0])/deltaTime
@@ -47,9 +50,11 @@ for i in range(ptsInWorld.shape[0]):
     
     state[0,0] = ptsInWorld[i,0]
     state[2,0] = ptsInWorld[i,1]
-    state[4,0] = ptsInWorld[i,2]    
+    state[4,0] = ptsInWorld[i,2]
 
-    predictedPtsInWorld = ekf.step(deltaTime, [yaw,pitch], state, observation)
+    #print(state)    
+
+    predictedPtsInWorld = ekf.step(deltaTime, [yaw,pitch], state, observation, np.reshape(ptsInCam[i], (3,1)))
     ptsEKF[i] = predictedPtsInWorld.T
 
 
