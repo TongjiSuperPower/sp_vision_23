@@ -27,7 +27,7 @@ class EKF():
 
         self.first = True
 
-    def readEKFConfig():
+    def readEKFConfig(self):
         '''读取配置文件'''    
         cfgFile = 'assets/EKFConfig.toml'
 
@@ -42,14 +42,14 @@ class EKF():
 
         return Q, Rr
 
-    def step(self, deltaT, quaternion, _state, observation):
-        '''EKF更新一个周期。deltaT:时间差值,quaternion:陀螺仪传来的四元数,_state:当前时刻的状态量,observation:观测量z、α、β'''          
+    def step(self, deltaT, gesture, _state, observation):
+        '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''          
         # 创建状态转移方程中的系数矩阵
         fMatrix = np.eye(self.stateDimension) # 状态转移矩阵
   
         gammaMatrix = np.zeros((self.stateDimension, self.measurementDimension)) # 过程噪声系数矩阵
         
-        for i in range(self.stateDimension/2):
+        for i in range(int(self.stateDimension/2)):
             fMatrix[2*i, 2*i+1] = deltaT
             gammaMatrix[2*i, i] = deltaT*deltaT/2
             gammaMatrix[2*i+1, i] = deltaT       
@@ -59,18 +59,21 @@ class EKF():
         if self.first:
             self.state = _state
         else:
-            self.state = fMatrix*self.state 
+            self.state = fMatrix @ self.state 
         
         # correct:
         # 更新P_k
         if self.first:
-            self.pMatrix = gammaMatrix*self.qMatrix*gammaMatrix.T
-        else:
-            self.pMatrix = fMatrix*self.pMatrix*fMatrix.T + gammaMatrix*self.qMatrix*gammaMatrix.T
+            self.pMatrix = gammaMatrix @ self.qMatrix @ gammaMatrix.T
             self.first = False
-
-        # 计算R_k矩阵        
-        self.rotationMatrix = R.from_quat(quaternion).as_matrix()
+        else:
+            self.pMatrix = fMatrix @ self.pMatrix @ fMatrix.T + gammaMatrix @ self.qMatrix @ gammaMatrix.T
+            
+        # 计算R_k矩阵   
+        [yaw,pitch] = gesture     
+        yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
+        xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
+        self.rotationMatrix = yRotationMatrix @ xRotationMatrix
 
         [z, alpha, beta] = observation
 
@@ -80,18 +83,18 @@ class EKF():
             [1, 0, 0]
             ])
 
-        self.rMatrix = self.rotationMatrix * gMatrix * self.rrMatrix * gMatrix.T * self.rotationMatrix.T
+        self.rMatrix = self.rotationMatrix @ gMatrix @ self.rrMatrix @ gMatrix.T @ self.rotationMatrix.T
 
         # 更新卡尔曼增益K_k
-        kGain = (self.pMatrix*self.hMatrix.T)/(self.hMatrix*self.pMatrix*self.hMatrix.T + self.rMatrix)
+        kGain = (self.pMatrix @ self.hMatrix.T) @ np.linalg.inv(self.hMatrix @ self.pMatrix @ self.hMatrix.T + self.rMatrix)
 
         # 更新状态量
-        self.state += kGain * (_state - self.hMatrix * self.state)
+        self.state += kGain @ (self.hMatrix @ _state - self.hMatrix @ self.state)
 
         # 更新p矩阵
-        self.pMatrix = (np.eye(self.stateDimension) - kGain * self.hMatrix) * self.pMatrix
+        self.pMatrix = (np.eye(self.stateDimension) - kGain @ self.hMatrix) @ self.pMatrix
 
-        return self.hMatrix*self.state
+        return self.hMatrix @ self.state
     
     def predictInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
@@ -106,7 +109,7 @@ class EKF():
         '''返回时间time后云台应该旋转的yaw和pitch值'''
         # 世界坐标系->云台坐标系
         predictedPosInWorld = self.predictInWorld(time)
-        predictedPosInTripod = np.linalg.inv(self.rotationMatrix) * predictedPosInWorld
+        predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
 
         # 弹道下坠补偿
         distance = np.linalg.norm(predictedPosInTripod) # 云台坐标系下的距离
