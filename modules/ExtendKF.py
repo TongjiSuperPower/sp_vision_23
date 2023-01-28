@@ -20,6 +20,11 @@ class EKF():
         self.rMatrix = None # 转换后的观测噪声矩阵（由rr矩阵计算得到）
         self.pMatrix = None # 预测值的协方差矩阵
 
+        # 创建观测矩阵
+        self.hMatrix = np.zeros((self.measurementDimension, self.stateDimension))
+        for i in range(self.measurementDimension):
+            self.hMatrix[i, 2*i] = 1
+
         self.first = True
 
     def readEKFConfig():
@@ -47,16 +52,14 @@ class EKF():
         for i in range(self.stateDimension/2):
             fMatrix[2*i, 2*i+1] = deltaT
             gammaMatrix[2*i, i] = deltaT*deltaT/2
-            gammaMatrix[2*i+1, i] = deltaT
-        
-        # 创建观测矩阵
-        hMatrix = np.zeros((self.measurementDimension, self.stateDimension))
-        for i in range(self.measurementDimension):
-            hMatrix[i, 2*i] = 1
-        
+            gammaMatrix[2*i+1, i] = deltaT       
+                
         # pridict:
         # 更新x_k
-        self.state = fMatrix*self.state 
+        if self.first:
+            self.state = _state
+        else:
+            self.state = fMatrix*self.state 
         
         # correct:
         # 更新P_k
@@ -80,13 +83,15 @@ class EKF():
         self.rMatrix = self.rotationMatrix * gMatrix * self.rrMatrix * gMatrix.T * self.rotationMatrix.T
 
         # 更新卡尔曼增益K_k
-        kGain = (self.pMatrix*hMatrix.T)/(hMatrix*self.pMatrix*hMatrix.T + self.rMatrix)
+        kGain = (self.pMatrix*self.hMatrix.T)/(self.hMatrix*self.pMatrix*self.hMatrix.T + self.rMatrix)
 
         # 更新状态量
-        self.state += kGain * (_state - hMatrix * self.state)
+        self.state += kGain * (_state - self.hMatrix * self.state)
 
         # 更新p矩阵
-        self.pMatrix = (np.eye(self.stateDimension) - kGain * hMatrix) * self.pMatrix
+        self.pMatrix = (np.eye(self.stateDimension) - kGain * self.hMatrix) * self.pMatrix
+
+        return self.hMatrix*self.state
     
     def predictInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
