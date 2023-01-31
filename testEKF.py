@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import math
 from modules.ExtendKF import EKF
 
-filePath = './assets/ptsInCam.txt'
+filePath = './assets/ptsInCam2.txt'
 
 yaw = 12.0/180*math.pi
 pitch = 2.0/180*math.pi
@@ -44,9 +44,9 @@ for i in range(ptsInWorld.shape[0]):
     # ?状态量里的速度怎么计算
 
     if ekf.first==False:
-        state[1,0] = (ptsInWorld[i,0] - state[0,0])/deltaTime
-        state[3,0] = (ptsInWorld[i,1] - state[2,0])/deltaTime
-        state[5,0] = (ptsInWorld[i,2] - state[4,0])/deltaTime
+        state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
+        state[3,0] = (ptsInWorld[i,1] - ptsInWorld[i-1,1])/deltaTime
+        state[5,0] = (ptsInWorld[i,2] - ptsInWorld[i-1,2])/deltaTime
     
     state[0,0] = ptsInWorld[i,0]
     state[2,0] = ptsInWorld[i,1]
