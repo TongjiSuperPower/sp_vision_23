@@ -68,7 +68,7 @@ x = np.linspace(0, length-1, length)
 
 plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
 plt.legend(['x','y','z','x1','y1','z1'])
-plt.savefig('./assets/ptsInCam.jpg')
+plt.savefig('./assets/ptsInWorld.jpg')
 #plt.show()
 
 

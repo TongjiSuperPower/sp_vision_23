@@ -53,13 +53,13 @@ class EKF():
             fMatrix[2*i, 2*i+1] = deltaT
             gammaMatrix[2*i, i] = deltaT*deltaT/2
             gammaMatrix[2*i+1, i] = deltaT       
-
+        k = _state
         # pridict:
         # 更新x_k
         if self.first:
-            self.state = _state
+            self.state = _state.copy()
         else:
-            self.state = fMatrix @ self.state 
+            self.state = fMatrix @ self.state.copy() 
         
         # correct:
         # 更新P_k
@@ -89,12 +89,12 @@ class EKF():
         kGain = (self.pMatrix @ self.hMatrix.T) @ np.linalg.inv(self.hMatrix @ self.pMatrix @ self.hMatrix.T + self.rMatrix)
 
         # 更新状态量
-        self.state += kGain @ (ptsInCam - self.hMatrix @ self.state)
+        self.state = self.state.copy() + kGain @ (self.hMatrix @ _state - self.hMatrix @ self.state.copy())
 
         # 更新p矩阵
         self.pMatrix = (np.eye(self.stateDimension) - kGain @ self.hMatrix) @ self.pMatrix
-
-        return self.hMatrix @ self.state
+        res = self.hMatrix @ self.state
+        return res
     
     def predictInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
