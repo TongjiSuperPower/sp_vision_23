@@ -87,7 +87,7 @@ class EKF():
 
         # 更新卡尔曼增益K_k
         kGain = (self.pMatrix @ self.hMatrix.T) @ np.linalg.inv(self.hMatrix @ self.pMatrix @ self.hMatrix.T + self.rMatrix)
-
+        print(self.pMatrix.max())
         # 更新状态量
         self.state = self.state.copy() + kGain @ (self.hMatrix @ _state - self.hMatrix @ self.state.copy())
 

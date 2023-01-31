@@ -30,6 +30,9 @@ for single in ptsInTripod:
 ptsEKF = np.zeros((ptsInWorld.shape))
 ekf = EKF(6, 3)
 state = np.zeros((6,1))
+all_z = []
+all_alpha = []
+all_beta = []
 for i in range(ptsInWorld.shape[0]):
     x = ptsInCam[i,0]
     y = ptsInCam[i,1]
@@ -37,11 +40,13 @@ for i in range(ptsInWorld.shape[0]):
     alpha = math.atan(x/z)
     beta = math.atan(y/z)
     observation = [z, alpha, beta]
+
+    all_z.append(z)
+    all_alpha.append(alpha)
+    all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 0.03
-
-    # ?状态量里的速度怎么计算
+    deltaTime = 0.05
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -61,6 +66,14 @@ for i in range(ptsInWorld.shape[0]):
 data = ptsInWorld
 data1 = ptsEKF
 
+print('世界坐标系x、y、z的方差：')
+print(np.var(ptsInWorld[:,0]))
+print(np.var(ptsInWorld[:,1]))
+print(np.var(ptsInWorld[:,2]))
+print('z、alpha、beta的方差：')
+print(np.var(all_z))
+print(np.var(all_alpha))
+print(np.var(all_beta))
 
 length = data.shape[0]
 
@@ -69,7 +82,7 @@ x = np.linspace(0, length-1, length)
 plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
 plt.legend(['x','y','z','x1','y1','z1'])
 plt.savefig('./assets/ptsInWorld.jpg')
-#plt.show()
+plt.show()
 
 
  
