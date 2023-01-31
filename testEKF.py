@@ -82,7 +82,6 @@ x = np.linspace(0, length-1, length)
 plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
 plt.legend(['x','y','z','x1','y1','z1'])
 plt.savefig('./assets/ptsInWorld.jpg')
-plt.show()
 
 
  
@@ -94,10 +93,14 @@ x=data[:,0]
 y=data[:,2]
 z=data[:,1]*(-1)
 
-ax.plot(x[:100], y[:100], z[:100], label='parametric curve')
+x1=data1[:,0]
+y1=data1[:,2]
+z1=data1[:,1]*(-1)
+
+ax.plot(x,y,z, x1,y1,z1, label='parametric curve')
 ax.legend()
  
 plt.savefig('./assets/test.jpg')
-#plt.show()
+plt.show()
 
 
