@@ -1,11 +1,29 @@
 import cv2
 import time
 import numpy as np
+import os
+import sys
+import toml
 
 from modules.mindvision import Camera
 from modules.detection import Detector
 from modules.communication import Communicator
 from modules.utilities import drawContour, drawPoint, drawAxis, putText
+
+def readConfig():
+    '''读取配置文件'''    
+    cfgFile = 'assets/camConfig.toml'
+
+    if not os.path.exists(cfgFile):
+        print(cfgFile + ' not found')
+        sys.exit(-1)
+    
+    content = toml.load(cfgFile) 
+
+    cameraMatrix = np.float32(content['cameraMatrix'])  
+    distCoeffs = np.float32(content['distCoeffs']) 
+
+    return [cameraMatrix, distCoeffs]
 
 # TODO config.toml
 debug = True
@@ -13,10 +31,8 @@ useCamera = False
 exposureMs = 0.5
 useSerial = False
 port = '/dev/tty.usbserial-A50285BI'  # for ubuntu: '/dev/ttyUSB0'
-cameraMatrix = np.float32([[1.30161072e+03, 0, 6.65920641e+02],
-                           [0, 1.30289452e+03, 5.09983987e+02],
-                           [0, 0, 1]])
-distCoeffs = np.float32([-4.98089049e-01, 4.27962976e-01, -3.56114307e-03, -3.35744316e-04, -5.79237391e-01])
+
+[cameraMatrix,distCoeffs] = readConfig()
 
 # TODO 大装甲板
 lightBarLength, armorWidth = 56, 135
@@ -77,3 +93,4 @@ while True:
 cap.release()
 if debug:
     output.release()
+
