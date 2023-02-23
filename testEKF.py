@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import math
 from modules.ExtendKF import EKF
 
-filePath = './assets/ptsInCam2.txt'
+filePath = './assets/ptsInCam.txt'
 
 yaw = 12.0/180*math.pi
 pitch = 2.0/180*math.pi
@@ -46,7 +46,7 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 0.05
+    deltaTime = 0.033
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -97,7 +97,8 @@ x1=data1[:,0]
 y1=data1[:,2]
 z1=data1[:,1]*(-1)
 
-ax.plot(x,y,z, x1,y1,z1, label='parametric curve')
+ax.plot(x,y,z, label='ori')
+ax.plot(x1,y1,z1, label='ekf')
 ax.legend()
  
 plt.savefig('./assets/test.jpg')

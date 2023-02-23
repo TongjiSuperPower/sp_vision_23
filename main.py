@@ -27,9 +27,11 @@ def readConfig():
 
 # TODO config.toml
 debug = True
-useCamera = False
+useCamera = True
 exposureMs = 0.5
 useSerial = False
+enablePredict = False # 开启KF滤波与预测
+savePts = True # 是否把相机坐标系下的坐标保存txt文件
 port = '/dev/tty.usbserial-A50285BI'  # for ubuntu: '/dev/ttyUSB0'
 
 [cameraMatrix,distCoeffs] = readConfig()
@@ -43,11 +45,14 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
 
 cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
 detector = Detector()
+
 if useSerial:
     communicator = Communicator(port)
 if debug:
     output = cv2.VideoWriter('assets/output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (1280, 1024))
-
+if savePts:
+    txtFile = open('assets/ptsInCam.txt', mode='w')
+    
 while True:
     success, frame = cap.read()
     if not success:
@@ -61,6 +66,10 @@ while True:
         a = armors[0]  # TODO a = classifior.classify(armors)
 
         a.targeted(objPoints, cameraMatrix, distCoeffs)
+
+        if savePts:
+            x,y,z = a.aimPoint            
+            txtFile.write(str(x) +" "+ str(y) +" "+ str(z) +" \n")
 
         # TODO yaw, pitch = predictor.predict(a)
 
@@ -91,6 +100,9 @@ while True:
             break
 
 cap.release()
+
 if debug:
     output.release()
+if savePts:
+    txtFile.close()
 
