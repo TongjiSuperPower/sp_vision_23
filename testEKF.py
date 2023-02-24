@@ -46,7 +46,7 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 0.033
+    deltaTime = 15*1e-3
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -78,7 +78,7 @@ print(np.var(all_beta))
 length = data.shape[0]
 
 x = np.linspace(0, length-1, length)
-
+#print("x:" + str(x))
 plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
 plt.legend(['x','y','z','x1','y1','z1'])
 plt.savefig('./assets/ptsInWorld.jpg')
@@ -89,6 +89,7 @@ mpl.rcParams['legend.fontsize'] = 10
  
 fig = plt.figure()
 ax = fig.add_subplot(projection = '3d')
+#ax = Axes3D(fig)
 x=data[:,0]
 y=data[:,2]
 z=data[:,1]*(-1)
@@ -97,9 +98,12 @@ x1=data1[:,0]
 y1=data1[:,2]
 z1=data1[:,1]*(-1)
 
+ax.set_box_aspect((1,1,1))
 ax.plot(x,y,z, label='ori')
 ax.plot(x1,y1,z1, label='ekf')
 ax.legend()
+
+print(ax.get_xticks())
  
 plt.savefig('./assets/test.jpg')
 plt.show()

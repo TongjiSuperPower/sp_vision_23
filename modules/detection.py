@@ -75,7 +75,7 @@ class Detector:
 
         lightBars = []
         for contour in contours:
-            if cv2.contourArea(contour) > 50:
+            if cv2.contourArea(contour) > 20:
                 rect = cv2.minAreaRect(contour)
                 center = rect[0]
                 h, w = rect[1]
@@ -86,7 +86,7 @@ class Detector:
                     angle += 90
                 ratio = h / w
 
-                if h > 50 and ratio > 3.5 and 45 < angle < 135:
+                if h > 20 and ratio > 3.5 and 45 < angle < 135:
                     lightBars.append(LightBar(h, angle, center))
 
         lightBars.sort(key=lambda x: x.center[0])

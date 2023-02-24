@@ -26,6 +26,7 @@ class EKF():
             self.hMatrix[i, 2*i] = 1
 
         self.first = True
+        self.stepNumber = 0
 
     def readEKFConfig(self):
         '''读取配置文件'''    
@@ -42,8 +43,14 @@ class EKF():
 
         return Q, Rr
 
+    def check_symmetric(self, a, rtol=1e-05, atol=1e-08):
+        return np.allclose(a, a.T, rtol=rtol, atol=atol)
+
     def step(self, deltaT, gesture, _state, observation, ptsInCam):
         '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''          
+        self.stepNumber += 1
+        if self.first:
+            self.first = False
         # 创建状态转移方程中的系数矩阵
         fMatrix = np.eye(self.stateDimension) # 状态转移矩阵
   
@@ -56,19 +63,20 @@ class EKF():
         k = _state
         # pridict:
         # 更新x_k
-        if self.first:
+        if self.stepNumber <= 2:
             self.state = _state.copy()
         else:
             self.state = fMatrix @ self.state.copy() 
         
         # correct:
         # 更新P_k
-        if self.first:
+        if self.stepNumber <= 2:
             self.pMatrix = gammaMatrix @ self.qMatrix @ gammaMatrix.T
-            self.first = False
+            return self.hMatrix @ self.state
+            
         else:
             self.pMatrix = fMatrix @ self.pMatrix @ fMatrix.T + gammaMatrix @ self.qMatrix @ gammaMatrix.T
-            
+               
         # 计算R_k矩阵   
         [yaw,pitch] = gesture     
         yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
@@ -87,15 +95,20 @@ class EKF():
 
         # 更新卡尔曼增益K_k
         kGain = (self.pMatrix @ self.hMatrix.T) @ np.linalg.inv(self.hMatrix @ self.pMatrix @ self.hMatrix.T + self.rMatrix)
-        print(self.pMatrix.max())
+        
         # 更新状态量
         self.state = self.state.copy() + kGain @ (self.hMatrix @ _state - self.hMatrix @ self.state.copy())
 
         # 更新p矩阵
         self.pMatrix = (np.eye(self.stateDimension) - kGain @ self.hMatrix) @ self.pMatrix
         res = self.hMatrix @ self.state
+        
+        if(self.check_symmetric(self.pMatrix) == False):
+            print(np.matrix(self.pMatrix))
         return res
+
     
+
     def predictInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值

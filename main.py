@@ -52,7 +52,8 @@ if debug:
     output = cv2.VideoWriter('assets/output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (1280, 1024))
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
-    
+
+processTimeMsArray = []
 while True:
     success, frame = cap.read()
     if not success:
@@ -86,6 +87,7 @@ while True:
 
     processTimeMs = (time.time() - start) * 1000
     print(f'{processTimeMs=}')
+    processTimeMsArray.append(processTimeMs)
 
     if debug:
         for l in lightBars:
@@ -105,4 +107,7 @@ if debug:
     output.release()
 if savePts:
     txtFile.close()
+
+print("meanTime:")
+print(np.mean(processTimeMsArray))
 
