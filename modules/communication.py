@@ -58,4 +58,28 @@ class Communicator:
         frame = getFrame(timeStamp, yaw, pitch, speed, state, time, extra1, extra2)
 
         self.ser.write(frame)
-        print(f'sent {frame.hex()}')
+        # print(f'sent {frame.hex()}')
+
+    def received(self) -> bool:
+        if self.ser.read() == bytes([head]):
+            frame_rx = bytes([head]) + self.ser.read(21)
+
+            _, _, yaw, pitch, _, _, _, _, _, crc, end_rx = struct.unpack('=BHfffBHBBBB', frame_rx)
+
+            if crc != calculateCrc8(frame_rx[:20]) or end_rx != end:
+                print('receive error!')
+                return False
+
+            print(f'{yaw=:.2f} {pitch=:.2f} {frame_rx.hex()}')
+
+            self.yaw = yaw
+            self.pitch = pitch
+
+            return True
+
+        else:
+            return False
+        
+    def reset_input_buffer(self):
+        #清空缓冲区
+        self.ser.reset_input_buffer()

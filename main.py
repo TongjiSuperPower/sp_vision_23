@@ -25,14 +25,13 @@ def readConfig():
 
     return [cameraMatrix, distCoeffs]
 
-# TODO config.toml
 debug = True
 useCamera = True
 exposureMs = 0.5
-useSerial = False
+useSerial = True
 enablePredict = False # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
-port = '/dev/tty.usbserial-A50285BI'  # for ubuntu: '/dev/ttyUSB0'
+port = '/dev/tty.usbmodemATK_201905281'  # for ubuntu: '/dev/ttyUSB0'
 
 [cameraMatrix,distCoeffs] = readConfig()
 
@@ -45,7 +44,6 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
 
 cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
 detector = Detector()
-
 if useSerial:
     communicator = Communicator(port)
 if debug:
@@ -53,61 +51,63 @@ if debug:
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
 
-processTimeMsArray = []
 while True:
-    success, frame = cap.read()
-    if not success:
-        break
+    if communicator.received():
 
-    start = time.time()
-
-    lightBars, armors = detector.detect(frame)
-
-    if len(armors) > 0:
-        a = armors[0]  # TODO a = classifior.classify(armors)
-
-        a.targeted(objPoints, cameraMatrix, distCoeffs)
-
-        if savePts:
-            x,y,z = a.aimPoint            
-            txtFile.write(str(x) +" "+ str(y) +" "+ str(z) +" \n")
-
-        # TODO yaw, pitch = predictor.predict(a)
-
-        if debug:
-            drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
-            putText(frame, f'{a.yaw:.2f} {a.pitch:.2f}', a.center)
-            drawPoint(frame, a.center, (255, 255, 255))
-
-        if useSerial:
-            communicator.send(a.yaw, -a.pitch * 0.5)
-    else:
-        if useSerial:
-            communicator.send(0, 0)
-
-    processTimeMs = (time.time() - start) * 1000
-    print(f'{processTimeMs=}')
-    processTimeMsArray.append(processTimeMs)
-
-    if debug:
-        for l in lightBars:
-            drawContour(frame, l.points, (0, 255, 255), 10)
-        for a in armors:
-            drawContour(frame, a.points)
-        cv2.convertScaleAbs(frame, frame, alpha=5)
-        cv2.imshow('result', frame)
-        output.write(frame)
-
-        if (cv2.waitKey(30) & 0xFF) == ord('q'):
+        success, frame = cap.read()
+        if not success:
             break
 
-cap.release()
+        start = time.time()
 
+        lightBars, armors = detector.detect(frame)
+
+        if len(armors) > 0:
+            a = armors[0]  # TODO a = classifior.classify(armors)
+
+            a.targeted(objPoints, cameraMatrix, distCoeffs)
+            
+            if savePts:
+                x,y,z = a.aimPoint            
+                txtFile.write(str(x) +" "+ str(y) +" "+ str(z) +" \n")
+
+            # TODO yaw, pitch = predictor.predict(a)
+
+            if debug:
+                drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+                putText(frame, f'{a.yaw:.2f} {a.pitch:.2f}', a.center)
+                drawPoint(frame, a.center, (255, 255, 255))
+
+            if useSerial:
+                # communicator.send(a.yaw, -a.pitch * 0.5)
+                pass
+        else:
+            if useSerial:
+                # communicator.send(0, 0)
+                pass
+
+        processTimeMs = (time.time() - start) * 1000
+        # print(f'{processTimeMs=}')
+
+        if debug:
+            for l in lightBars:
+                drawContour(frame, l.points, (0, 255, 255), 10)
+            for a in armors:
+                drawContour(frame, a.points)
+            cv2.convertScaleAbs(frame, frame, alpha=5)
+            cv2.imshow('result', frame)
+            output.write(frame)
+
+            if (cv2.waitKey(30) & 0xFF) == ord('q'):
+                break
+
+        communicator.reset_input_buffer()
+    else:
+        continue
+
+cap.release()
 if debug:
     output.release()
 if savePts:
     txtFile.close()
-
-print("meanTime:")
-print(np.mean(processTimeMsArray))
 

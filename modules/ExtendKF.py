@@ -139,25 +139,3 @@ class EKF():
 
         return yaw, pitch
 
-
-
-
-
-
-
-        
-
-
-
-
-        
-
-
-
-
-
-
-     
-
-
-      
