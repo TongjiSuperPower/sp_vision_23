@@ -144,12 +144,13 @@ while True:
             if useSerial:
                 communicator.send(communicator.yaw, communicator.pitch)
             
-            # TODO 通过数字识别判断装甲板ID号，从而制定filter重置逻辑
-            lostFrame += 1
-            if lostFrame > maxLostFrame:
-                # after losing armor for a while
-                lostFrame = 0
-                ekfilter = EKF(6,3) # create a new filter
+            if enablePredict:
+                # TODO 通过数字识别判断装甲板ID号，从而制定filter重置逻辑
+                lostFrame += 1
+                if lostFrame > maxLostFrame:
+                    # after losing armor for a while
+                    lostFrame = 0
+                    ekfilter = EKF(6,3) # create a new filter
 
 
         processTimeMs = (time.time() - start) * 1000
