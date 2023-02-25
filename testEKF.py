@@ -12,9 +12,9 @@ yaw = 12.0/180*math.pi
 pitch = 2.0/180*math.pi
 gesture = [yaw,pitch] # 弧度制
 
-ptsInCam = np.loadtxt(filePath)
+ptsInCam = np.loadtxt(filePath) # mm
 
-ptsInTripod = ptsInCam + np.array([0, 20, 10])
+ptsInTripod = ptsInCam + np.array([0, 60, 50])
 
 yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
 xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])

@@ -113,7 +113,7 @@ class EKF():
         '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         predictedPosInWorld = []
-        for i in range(self.stateDimension):
+        for i in range(self.measurementDimension):
             predictedPosInWorld[i] = self.state[i] + time * self.state[i + 1] 
         
         return predictedPosInWorld    
