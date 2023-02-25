@@ -6,15 +6,15 @@ import matplotlib.pyplot as plt
 import math
 from modules.ExtendKF import EKF
 
-filePath = './assets/ptsInCam2.txt'
+filePath = './assets/ptsInCam.txt'
 
 yaw = 12.0/180*math.pi
 pitch = 2.0/180*math.pi
 gesture = [yaw,pitch] # 弧度制
 
-ptsInCam = np.loadtxt(filePath)
+ptsInCam = np.loadtxt(filePath) # mm
 
-ptsInTripod = ptsInCam + np.array([0, 20, 10])
+ptsInTripod = ptsInCam + np.array([0, 60, 50])
 
 yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
 xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
@@ -46,7 +46,7 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 0.05
+    deltaTime = 15*1e-3
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -78,7 +78,7 @@ print(np.var(all_beta))
 length = data.shape[0]
 
 x = np.linspace(0, length-1, length)
-
+#print("x:" + str(x))
 plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
 plt.legend(['x','y','z','x1','y1','z1'])
 plt.savefig('./assets/ptsInWorld.jpg')
@@ -89,6 +89,7 @@ mpl.rcParams['legend.fontsize'] = 10
  
 fig = plt.figure()
 ax = fig.add_subplot(projection = '3d')
+#ax = Axes3D(fig)
 x=data[:,0]
 y=data[:,2]
 z=data[:,1]*(-1)
@@ -97,8 +98,12 @@ x1=data1[:,0]
 y1=data1[:,2]
 z1=data1[:,1]*(-1)
 
-ax.plot(x,y,z, x1,y1,z1, label='parametric curve')
+ax.set_box_aspect((1,1,1))
+ax.plot(x,y,z, label='ori')
+ax.plot(x1,y1,z1, label='ekf')
 ax.legend()
+
+print(ax.get_xticks())
  
 plt.savefig('./assets/test.jpg')
 plt.show()
