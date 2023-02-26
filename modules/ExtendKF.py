@@ -12,7 +12,7 @@ class EKF():
         self.stateDimension = _stateDimension
         self.measurementDimension = _measurementDimension
 
-        self.state = np.zeros((self.stateDimension,1)) # 状态量，目标在世界坐标系下的位置和速度
+        self.state = np.zeros((self.stateDimension,1)) # 状态量，目标在世界坐标系下的位置(mm)和速度(mm/ms)
         self.measurement = np.zeros((self.measurementDimension,1))
 
         self.rotationMatrix = None # 云台坐标系旋转矩阵C_b^n

@@ -78,9 +78,10 @@ if enablePredict:
     maxLostFrame = 4 # 最大丢失帧数
     lostFrame = 0 # 丢失帧数
     state = np.zeros((6,1))
-    twoPtsInCam = deque(maxlen=2)
+    twoPtsInCam = deque(maxlen=2) # a queue with max 2 capaticity
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
+    twoTimeStampUs = deque(maxlen=2)
 
 while True:
     if communicator.received():
@@ -112,7 +113,10 @@ while True:
                 twoPtsInTripod.append(ptsInTripod)
                 twoPtsInWorld.append(ptsInWorld)
 
-                deltaTime = 10*1e-3 # TODO 用接收到的时间戳计算deltaTime
+                timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() *1e6)
+                twoTimeStampUs.append(timeStampUs)
+
+                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if twoTimeStampUs.count()==2 else 10*1e-3 # ms
 
                 if ekfilter.first==False:
                     state[1,0] = (twoPtsInWorld[1,0] - twoPtsInWorld[0,0])/deltaTime
