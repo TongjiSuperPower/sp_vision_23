@@ -54,7 +54,10 @@ exposureMs = 0.5
 useSerial = True
 enablePredict = False # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
-port = '/dev/tty.usbmodemATK_201905281'  # for ubuntu: '/dev/ttyUSB0'
+drawPredict = False # 开启卡尔曼可视化
+port = '/dev/tty.usbmodemATK_201905281'  
+# for ubuntu: 
+#port = '/dev/ttyUSB0'
 
 [cameraMatrix,distCoeffs] = readConfig()
 
@@ -82,6 +85,12 @@ if enablePredict:
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
     twoTimeStampUs = deque(maxlen=2)
+if drawPredict:
+    drawXAxis = []
+    drawYaw = []
+    drawPredictedYaw = []
+    drawPitch = []
+    drawPredictPitch = []
 
 while True:
     if communicator.received():
@@ -116,7 +125,7 @@ while True:
                 timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() *1e6)
                 twoTimeStampUs.append(timeStampUs)
 
-                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if twoTimeStampUs.count()==2 else 10*1e-3 # ms
+                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if twoTimeStampUs.count()==2 else 10 # ms
 
                 if ekfilter.first==False:
                     state[1,0] = (twoPtsInWorld[1,0] - twoPtsInWorld[0,0])/deltaTime
@@ -130,7 +139,7 @@ while True:
                 predictedPtsInWorld = ekfilter.step(deltaTime, [communicator.yaw,communicator.pitch], state, observation, np.reshape(ptsInCam, (3,1)))
                 ptsEKF = predictedPtsInWorld.T
 
-                predictTime = 0.5
+                predictTime = 20 # ms
                 bulletSpeed = 5 # TODO 测延迟和子弹速度
                 predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)              
 
