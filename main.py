@@ -1,3 +1,7 @@
+import matplotlib as mpl
+mpl.use('TkAgg')
+from matplotlib import pyplot as plt
+
 import cv2
 import time
 import numpy as np
@@ -6,7 +10,6 @@ import sys
 import toml
 import math
 from collections import deque
-from matplotlib import pyplot as plt
 
 from modules.mindvision import Camera
 from modules.detection import Detector
