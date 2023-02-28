@@ -98,8 +98,8 @@ if enableDrawKF:
     drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [],[],[],[],[]
     drawX, drawPredictedX, drawY, drawPredictedY, drawZ, drawPredictedZ= [],[],[],[],[],[]
     plt.ion()
-    # aFig = plt.subplot(2,1,1)
-    # bFig = plt.subplot(2,1,2)
+    aFig = plt.subplot(2,1,1)
+    bFig = plt.subplot(2,1,2)
 
 while True:
     if communicator.received():
@@ -155,55 +155,46 @@ while True:
                 predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)     
 
                 if enableDrawKF:
-                    # drawXAxis.append(drawCount)
-                    # drawCount += 1
-                    # drawYaw.append(a.yaw)
-                    # drawPredictedYaw.append(predictedYaw)
-                    # drawPitch.append(a.pitch)
-                    # drawPredictedPitch.append(predictedPitch)
+                    drawXAxis.append(drawCount)
+                    drawCount += 1
+                    drawYaw.append(a.yaw)
+                    drawPredictedYaw.append(predictedYaw)
+                    drawPitch.append(a.pitch)
+                    drawPredictedPitch.append(predictedPitch)
 
                     plt.clf()
                     
-                    # plt.plot(drawXAxis,drawYaw,label='yaw')
-                    # plt.plot(drawXAxis, drawPredictedYaw,label='Pyaw')
-                    # plt.plot(drawXAxis,drawPitch,label='pitch')
-                    # plt.plot(drawXAxis, drawPredictedPitch,label='Ppitch')
-                    # plt.legend()
+                    plt.plot(drawXAxis,drawYaw,label='yaw')
+                    plt.plot(drawXAxis, drawPredictedYaw,label='Pyaw')
+                    plt.plot(drawXAxis,drawPitch,label='pitch')
+                    plt.plot(drawXAxis, drawPredictedPitch,label='Ppitch')
+                    plt.legend()
 
-                    # print('1\n')
+                    print('1\n')
 
-                    # aPtsInWorld = ptsInCam2World(a.aimPoint,a.yaw,a.pitch)
+                    aPtsInWorld = ptsInCam2World(a.aimPoint,a.yaw,a.pitch)
 
-                    # drawX.append(aPtsInWorld[0])
-                    # drawY.append(aPtsInWorld[1])
-                    # drawZ.append(aPtsInWorld[2])
+                    drawX.append(aPtsInWorld[0])
+                    drawY.append(aPtsInWorld[1])
+                    drawZ.append(aPtsInWorld[2])
 
-                    # print('2\n')
+                    print('2\n')
 
-                    # drawPredictedX.append(ptsEKF[0][0])
-                    # drawPredictedY.append(ptsEKF[0][1])
-                    # drawPredictedZ.append(ptsEKF[0][2])
+                    drawPredictedX.append(ptsEKF[0][0])
+                    drawPredictedY.append(ptsEKF[0][1])
+                    drawPredictedZ.append(ptsEKF[0][2])
 
-                    # print('3\n')
+                    print('3\n')
 
-                    # # bFig.plot(drawXAxis, drawX, label='x')
-                    # # bFig.plot(drawXAxis, drawY, label='y')
-                    # # bFig.plot(drawXAxis, drawZ, label='z')
-                    # # bFig.plot(drawXAxis, drawPredictedX, label='Px')
-                    # # bFig.plot(drawXAxis, drawPredictedY, label='Py')
-                    # # bFig.plot(drawXAxis, drawPredictedZ, label='Pz')
-                    # # bFig.legend()
-
-
-
-                    plt.plot([1,2,3])
-                    # # plt.plot(drawXAxis, drawY, label='y')
-                    # # plt.plot(drawXAxis, drawZ, label='z')
-                    # # plt.plot(drawXAxis, drawPredictedX, label='Px')
-                    # # plt.plot(drawXAxis, drawPredictedY, label='Py')
-                    # # plt.plot(drawXAxis, drawPredictedZ, label='Pz')
+                    bFig.plot(drawXAxis, drawX, label='x')
+                    bFig.plot(drawXAxis, drawY, label='y')
+                    bFig.plot(drawXAxis, drawZ, label='z')
+                    bFig.plot(drawXAxis, drawPredictedX, label='Px')
+                    bFig.plot(drawXAxis, drawPredictedY, label='Py')
+                    bFig.plot(drawXAxis, drawPredictedZ, label='Pz')
+                    bFig.legend()
                    
-                    # print('4\n')
+                    print('4\n')
 
                     plt.pause(0.001)
 
