@@ -6,6 +6,7 @@ import sys
 import toml
 import math
 from collections import deque
+from matplotlib import pyplot as plt
 
 from modules.mindvision import Camera
 from modules.detection import Detector
@@ -15,7 +16,7 @@ from modules.ExtendKF import EKF
 
 def readConfig():
     '''读取配置文件'''    
-    cfgFile = 'assets/camConfig.toml'
+    cfgFile = 'assets/camConfig2.toml'
 
     if not os.path.exists(cfgFile):
         print(cfgFile + ' not found')
@@ -39,6 +40,12 @@ def ptsInTripod2World(ptsInTripod, yaw, pitch):
     ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix,ptsInTripod)).T
     return ptsInWorld
 
+def ptsInCam2World(ptsInCam, yaw, pitch):
+    ptsInTripod = ptsInCam2Tripod(ptsInCam)
+    ptsInWorld = ptsInTripod2World(ptsInTripod, yaw, pitch)
+    return ptsInWorld
+
+
 def getObservation(ptsInCam):
     x = ptsInCam[0]
     y = ptsInCam[1]
@@ -52,12 +59,10 @@ debug = True
 useCamera = True
 exposureMs = 0.5
 useSerial = True
-enablePredict = False # 开启KF滤波与预测
+enablePredict = True # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
-drawPredict = False # 开启卡尔曼可视化
-port = '/dev/tty.usbmodemATK_201905281'  
-# for ubuntu: 
-#port = '/dev/ttyUSB0'
+enableDrawKF = True
+port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
 
 [cameraMatrix,distCoeffs] = readConfig()
 
@@ -85,12 +90,13 @@ if enablePredict:
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
     twoTimeStampUs = deque(maxlen=2)
-if drawPredict:
-    drawXAxis = []
-    drawYaw = []
-    drawPredictedYaw = []
-    drawPitch = []
-    drawPredictPitch = []
+if enableDrawKF:
+    drawCount = 0
+    drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [],[],[],[],[]
+    drawX, drawPredictedX, drawY, drawPredictedY, drawZ, drawPredictedZ= [],[],[],[],[],[]
+    plt.ion()
+    # aFig = plt.subplot(2,1,1)
+    # bFig = plt.subplot(2,1,2)
 
 while True:
     if communicator.received():
@@ -115,7 +121,7 @@ while True:
             if enablePredict:
                 ptsInCam = [x,y,z]
                 ptsInTripod = ptsInCam2Tripod(ptsInCam)
-                ptsInWorld = ptsInTripod2World(ptsInTripod)
+                ptsInWorld = ptsInTripod2World(ptsInTripod, communicator.yaw, communicator.pitch)
                 observation = getObservation(ptsInCam)
 
                 twoPtsInCam.append(ptsInCam)
@@ -125,23 +131,80 @@ while True:
                 timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() *1e6)
                 twoTimeStampUs.append(timeStampUs)
 
-                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if twoTimeStampUs.count()==2 else 10 # ms
+                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if len(twoTimeStampUs)==2 else 10 # ms
 
                 if ekfilter.first==False:
-                    state[1,0] = (twoPtsInWorld[1,0] - twoPtsInWorld[0,0])/deltaTime
-                    state[3,0] = (twoPtsInWorld[1,1] - twoPtsInWorld[0,1])/deltaTime
-                    state[5,0] = (twoPtsInWorld[1,2] - twoPtsInWorld[0,2])/deltaTime
+                    state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime
+                    state[3] = (twoPtsInWorld[1][1] - twoPtsInWorld[0][1])/deltaTime
+                    state[5] = (twoPtsInWorld[1][2] - twoPtsInWorld[0][2])/deltaTime
                 
-                state[0,0] = ptsInWorld[0]
-                state[2,0] = ptsInWorld[1]
-                state[4,0] = ptsInWorld[2]
+                state[0] = ptsInWorld[0]
+                state[2] = ptsInWorld[1]
+                state[4] = ptsInWorld[2]
 
                 predictedPtsInWorld = ekfilter.step(deltaTime, [communicator.yaw,communicator.pitch], state, observation, np.reshape(ptsInCam, (3,1)))
                 ptsEKF = predictedPtsInWorld.T
+                print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111')
+                print(ptsEKF)
 
-                predictTime = 20 # ms
+                predictTime = 2000*1e-3 #ms
                 bulletSpeed = 5 # TODO 测延迟和子弹速度
-                predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)              
+                predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)     
+
+                if enableDrawKF:
+                    # drawXAxis.append(drawCount)
+                    # drawCount += 1
+                    # drawYaw.append(a.yaw)
+                    # drawPredictedYaw.append(predictedYaw)
+                    # drawPitch.append(a.pitch)
+                    # drawPredictedPitch.append(predictedPitch)
+
+                    plt.clf()
+                    
+                    # plt.plot(drawXAxis,drawYaw,label='yaw')
+                    # plt.plot(drawXAxis, drawPredictedYaw,label='Pyaw')
+                    # plt.plot(drawXAxis,drawPitch,label='pitch')
+                    # plt.plot(drawXAxis, drawPredictedPitch,label='Ppitch')
+                    # plt.legend()
+
+                    # print('1\n')
+
+                    # aPtsInWorld = ptsInCam2World(a.aimPoint,a.yaw,a.pitch)
+
+                    # drawX.append(aPtsInWorld[0])
+                    # drawY.append(aPtsInWorld[1])
+                    # drawZ.append(aPtsInWorld[2])
+
+                    # print('2\n')
+
+                    # drawPredictedX.append(ptsEKF[0][0])
+                    # drawPredictedY.append(ptsEKF[0][1])
+                    # drawPredictedZ.append(ptsEKF[0][2])
+
+                    # print('3\n')
+
+                    # # bFig.plot(drawXAxis, drawX, label='x')
+                    # # bFig.plot(drawXAxis, drawY, label='y')
+                    # # bFig.plot(drawXAxis, drawZ, label='z')
+                    # # bFig.plot(drawXAxis, drawPredictedX, label='Px')
+                    # # bFig.plot(drawXAxis, drawPredictedY, label='Py')
+                    # # bFig.plot(drawXAxis, drawPredictedZ, label='Pz')
+                    # # bFig.legend()
+
+
+
+                    plt.plot([1,2,3])
+                    # # plt.plot(drawXAxis, drawY, label='y')
+                    # # plt.plot(drawXAxis, drawZ, label='z')
+                    # # plt.plot(drawXAxis, drawPredictedX, label='Px')
+                    # # plt.plot(drawXAxis, drawPredictedY, label='Py')
+                    # # plt.plot(drawXAxis, drawPredictedZ, label='Pz')
+                   
+                    # print('4\n')
+
+                    plt.pause(0.001)
+
+                         
 
             if debug:
                 drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
@@ -190,4 +253,6 @@ if debug:
     output.release()
 if savePts:
     txtFile.close()
+if enableDrawKF():
+    plt.ioff()
 

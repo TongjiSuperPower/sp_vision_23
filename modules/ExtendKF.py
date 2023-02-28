@@ -47,7 +47,8 @@ class EKF():
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
     def step(self, deltaT, gesture, _state, observation, ptsInCam):
-        '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''          
+        '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''   
+        print('step\n')       
         self.stepNumber += 1
         if self.first:
             self.first = False
@@ -61,6 +62,25 @@ class EKF():
             gammaMatrix[2*i, i] = deltaT*deltaT/2
             gammaMatrix[2*i+1, i] = deltaT       
         k = _state
+
+        # 计算R_k矩阵   
+        [yaw,pitch] = gesture     
+        yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
+        xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
+        self.rotationMatrix = yRotationMatrix @ xRotationMatrix
+        print('step update\n')
+        print(self.rotationMatrix)
+
+        [z, alpha, beta] = observation
+
+        gMatrix = np.array([
+            [math.tan(alpha), z/(math.cos(alpha)**2), 0], 
+            [math.tan(beta), 0, z/(math.cos(beta)**2)], 
+            [1, 0, 0]
+            ])
+
+        self.rMatrix = self.rotationMatrix @ gMatrix @ self.rrMatrix @ gMatrix.T @ self.rotationMatrix.T
+
         # pridict:
         # 更新x_k
         if self.stepNumber <= 2:
@@ -76,22 +96,6 @@ class EKF():
             
         else:
             self.pMatrix = fMatrix @ self.pMatrix @ fMatrix.T + gammaMatrix @ self.qMatrix @ gammaMatrix.T
-               
-        # 计算R_k矩阵   
-        [yaw,pitch] = gesture     
-        yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
-        xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
-        self.rotationMatrix = yRotationMatrix @ xRotationMatrix
-
-        [z, alpha, beta] = observation
-
-        gMatrix = np.array([
-            [math.tan(alpha), z/(math.cos(alpha)**2), 0], 
-            [math.tan(beta), 0, z/(math.cos(beta)**2)], 
-            [1, 0, 0]
-            ])
-
-        self.rMatrix = self.rotationMatrix @ gMatrix @ self.rrMatrix @ gMatrix.T @ self.rotationMatrix.T
 
         # 更新卡尔曼增益K_k
         kGain = (self.pMatrix @ self.hMatrix.T) @ np.linalg.inv(self.hMatrix @ self.pMatrix @ self.hMatrix.T + self.rMatrix)
@@ -114,7 +118,7 @@ class EKF():
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         predictedPosInWorld = []
         for i in range(self.measurementDimension):
-            predictedPosInWorld[i] = self.state[i] + time * self.state[i + 1] 
+            predictedPosInWorld.append(self.state[i*2] + time * self.state[i*2 + 1])
         
         return predictedPosInWorld    
     
@@ -122,6 +126,8 @@ class EKF():
         '''返回时间time后云台应该旋转的yaw和pitch值'''
         # 世界坐标系->云台坐标系
         predictedPosInWorld = self.predictInWorld(time)
+        print(self.rotationMatrix)
+        print(predictedPosInWorld)
         predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
 
         # 弹道下坠补偿
@@ -132,6 +138,9 @@ class EKF():
 
         # 坐标值->yaw、pitch
         [x,y,z] = predictedPosInTripod
+        x = float(x)
+        y = float(y)
+        z = float(z) 
         yaw = cv2.fastAtan2(x, z)
         yaw = yaw if yaw<180 else yaw-360
         pitch = cv2.fastAtan2(-y, math.sqrt(x**2 + z**2))
