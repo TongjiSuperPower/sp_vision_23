@@ -3,7 +3,7 @@
 
 import numpy as np
 import collections
-from Nahsor.NahsorConfig import *
+from modules.Nahsor.NahsorConfig import *
 import pywt
 from scipy import optimize
 import matplotlib.pyplot as plt

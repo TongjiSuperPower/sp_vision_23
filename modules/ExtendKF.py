@@ -48,7 +48,7 @@ class EKF():
 
     def step(self, deltaT, gesture, _state, observation, ptsInCam):
         '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''   
-        print('step\n')       
+        #print('step\n')       
         self.stepNumber += 1
         if self.first:
             self.first = False
@@ -68,8 +68,8 @@ class EKF():
         yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
         xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
         self.rotationMatrix = yRotationMatrix @ xRotationMatrix
-        print('step update\n')
-        print(self.rotationMatrix)
+        #print('step update\n')
+        #print(self.rotationMatrix)
 
         [z, alpha, beta] = observation
 
@@ -113,7 +113,7 @@ class EKF():
 
     
 
-    def predictInWorld(self, time):
+    def getPredictedPtsInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         predictedPosInWorld = []
@@ -125,9 +125,7 @@ class EKF():
     def predict(self, time, bulletSpeed):
         '''返回时间time后云台应该旋转的yaw和pitch值'''
         # 世界坐标系->云台坐标系
-        predictedPosInWorld = self.predictInWorld(time)
-        print(self.rotationMatrix)
-        print(predictedPosInWorld)
+        predictedPosInWorld = self.getPredictedPtsInWorld(time)
         predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
 
         # 弹道下坠补偿
@@ -137,7 +135,7 @@ class EKF():
         predictedPosInTripod[1] += dropDistance 
 
         # 坐标值->yaw、pitch
-        [x,y,z] = predictedPosInTripod
+        [x,y,z] = np.reshape(predictedPosInTripod,[3,])
         x = float(x)
         y = float(y)
         z = float(z) 

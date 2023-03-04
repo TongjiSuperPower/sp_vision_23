@@ -33,6 +33,9 @@ state = np.zeros((6,1))
 all_z = []
 all_alpha = []
 all_beta = []
+pdx=[]
+pdy=[]
+pdz=[]
 for i in range(ptsInWorld.shape[0]):
     x = ptsInCam[i,0]
     y = ptsInCam[i,1]
@@ -52,6 +55,7 @@ for i in range(ptsInWorld.shape[0]):
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
         state[3,0] = (ptsInWorld[i,1] - ptsInWorld[i-1,1])/deltaTime
         state[5,0] = (ptsInWorld[i,2] - ptsInWorld[i-1,2])/deltaTime
+        
     
     state[0,0] = ptsInWorld[i,0]
     state[2,0] = ptsInWorld[i,1]
@@ -62,25 +66,57 @@ for i in range(ptsInWorld.shape[0]):
     predictedPtsInWorld = ekf.step(deltaTime, [yaw,pitch], state, observation, np.reshape(ptsInCam[i], (3,1)))
     ptsEKF[i] = predictedPtsInWorld.T
 
+    pdx.append(ekf.state[1][0])
+    pdy.append(ekf.state[3][0])
+    pdz.append(ekf.state[5][0])
+
 
 data = ptsInWorld
 data1 = ptsEKF
 
-print('世界坐标系x、y、z的方差：')
-print(np.var(ptsInWorld[:,0]))
-print(np.var(ptsInWorld[:,1]))
-print(np.var(ptsInWorld[:,2]))
-print('z、alpha、beta的方差：')
-print(np.var(all_z))
-print(np.var(all_alpha))
-print(np.var(all_beta))
+# print('世界坐标系x、y、z的方差：')
+# print(np.var(ptsInWorld[:,0]))
+# print(np.var(ptsInWorld[:,1]))
+# print(np.var(ptsInWorld[:,2]))
+# print('z、alpha、beta的方差：')
+# print(np.var(all_z))
+# print(np.var(all_alpha))
+# print(np.var(all_beta))
 
 length = data.shape[0]
 
 x = np.linspace(0, length-1, length)
-#print("x:" + str(x))
-plt.plot(x, data[:,0], x, data[:,1], x, data[:,2], x, data1[:,0], x, data1[:,1], x, data1[:,2])
-plt.legend(['x','y','z','x1','y1','z1'])
+fig = plt.figure()
+ax1 = fig.add_subplot(2,3,1)
+ax1.plot(x, data[:,0], x, data1[:,0])
+ax1.legend(['x','x1'])
+ax4 = fig.add_subplot(2,3,2)
+ax4.plot(x, data[:,1], x, data1[:,1])
+ax4.legend(['y','y1'])
+ax5 = fig.add_subplot(2,3,3)
+ax5.plot(x, data[:,2], x, data1[:,2])
+ax5.legend(['z','z1'])
+
+
+# 速度绘图：
+length = data.shape[0]-1
+x = np.linspace(0, length-1, length)
+print(x)
+dx = np.diff(data[:,0]).T
+dy = np.diff(data[:,1]).T
+dz = np.diff(data[:,2]).T
+
+ax2 = fig.add_subplot(2,3,4)
+ax2.plot(x,dx,x,pdx[1:])
+ax2.legend(['x','p'])
+ax3 = fig.add_subplot(2,3,5)
+ax3.plot(x,dy)
+ax3.legend('y')
+ax4 = fig.add_subplot(2,3,6)
+ax4.plot(x,dz)
+ax4.legend('z')
+
+
 plt.savefig('./assets/ptsInWorld.jpg')
 
 

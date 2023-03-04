@@ -1,3 +1,5 @@
+import matplotlib as mpl
+mpl.use('TkAgg')
 from modules.ExtendKF import EKF
 from modules.utilities import drawContour, drawPoint, drawAxis, putText
 from modules.communication import Communicator
@@ -13,8 +15,6 @@ import numpy as np
 import time
 import cv2
 from matplotlib import pyplot as plt
-import matplotlib as mpl
-mpl.use('TkAgg')
 import enum
 
 class FunctionType(enum.Enum):
@@ -45,7 +45,10 @@ def ptsInCam2Tripod(ptsInCam):
     return ptsInTripod
 
 
-def ptsInTripod2World(ptsInTripod, yaw, pitch):
+def ptsInTripod2World(ptsInTripod:np.ndarray, yaw:float, pitch:float):
+    '''云台坐标系->世界坐标系。yaw、pitch为角度'''
+    yaw = yaw/180.0*math.pi
+    pitch = pitch/180.0*math.pi
     yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)], [0, 1, 0], [-math.sin(yaw), 0, math.cos(yaw)]])
     xRotationMatrix = np.array([[1, 0, 0], [0, math.cos(pitch), -math.sin(pitch)], [0, math.sin(pitch), math.cos(pitch)]])
     ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix, ptsInTripod)).T
@@ -53,6 +56,7 @@ def ptsInTripod2World(ptsInTripod, yaw, pitch):
 
 
 def ptsInCam2World(ptsInCam, yaw, pitch):
+    '''相机坐标系->世界坐标系。yaw、pitch为角度'''
     ptsInTripod = ptsInCam2Tripod(ptsInCam)
     ptsInWorld = ptsInTripod2World(ptsInTripod, yaw, pitch)
     return ptsInWorld
@@ -68,14 +72,14 @@ def getObservation(ptsInCam):
     return observation
 
 #################################################
-debug = True
+debug = False
 useCamera = True
 exposureMs = 1 # 相机曝光时间
 useSerial = False
-enablePredict = False  # 开启KF滤波与预测
-savePts = False  # 是否把相机坐标系下的坐标保存txt文件
+enablePredict = True  # 开启KF滤波与预测
+savePts = True # 是否把相机坐标系下的坐标保存txt文件
 enableDrawKF = False
-functionType = FunctionType.smallEnergy
+functionType = FunctionType.autoaim
 port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
 #################################################
 
@@ -89,9 +93,16 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
                         [-armorWidth / 2, lightBarLength / 2, 0]])
 
 cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
+class VisualComu():
+    yaw=0
+    pitch=0
+    def __init__(self) -> None:
+        pass
 detector = Detector()
 if useSerial:
     communicator = Communicator(port)
+else:
+    communicator = VisualComu()
 if debug:
     output = cv2.VideoWriter('assets/output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (1280, 1024))
 if savePts:
@@ -109,9 +120,10 @@ if enableDrawKF:
     drawCount = 0
     drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [], [], [], [], []
     drawX, drawPredictedX, drawY, drawPredictedY, drawZ, drawPredictedZ = [], [], [], [], [], []
+    drawDx,drawDy,drawDz=[],[],[]
     plt.ion()
-    aFig = plt.subplot(2, 1, 1)
-    bFig = plt.subplot(2, 1, 2)
+    # aFig = plt.subplot(2, 1, 1)
+    # bFig = plt.subplot(2, 1, 2)
 
 while True:
     if not useSerial or communicator.received():
@@ -132,7 +144,12 @@ while True:
                     x, y, z = a.aimPoint
                     txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
 
+                if not useSerial:
+                    communicator.yaw = 0
+                    communicator.pitch = 0
+
                 if enablePredict:
+                    x, y, z = a.aimPoint
                     ptsInCam = [x, y, z]
                     ptsInTripod = ptsInCam2Tripod(ptsInCam)
                     ptsInWorld = ptsInTripod2World(ptsInTripod, communicator.yaw, communicator.pitch)
@@ -140,15 +157,18 @@ while True:
 
                     twoPtsInCam.append(ptsInCam)
                     twoPtsInTripod.append(ptsInTripod)
-                    twoPtsInWorld.append(ptsInWorld)
+                    twoPtsInWorld.append(ptsInWorld) # mm
 
                     timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
                     twoTimeStampUs.append(timeStampUs)
 
-                    deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if len(twoTimeStampUs) == 2 else 10  # ms
+                    deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
+                    print("time:")
+                    print(deltaTime)
+                    print("\n")
 
                     if ekfilter.first == False:
-                        state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime
+                        state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime # m/s
                         state[3] = (twoPtsInWorld[1][1] - twoPtsInWorld[0][1])/deltaTime
                         state[5] = (twoPtsInWorld[1][2] - twoPtsInWorld[0][2])/deltaTime
 
@@ -156,14 +176,21 @@ while True:
                     state[2] = ptsInWorld[1]
                     state[4] = ptsInWorld[2]
 
-                    predictedPtsInWorld = ekfilter.step(deltaTime, [communicator.yaw, communicator.pitch], state, observation, np.reshape(ptsInCam, (3, 1)))
-                    ptsEKF = predictedPtsInWorld.T
-                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111')
-                    print(ptsEKF)
+                    ptsEKF = ekfilter.step(deltaTime, [communicator.yaw, communicator.pitch], state, observation, np.reshape(ptsInCam, (3, 1)))
+                    ptsEKF = ptsEKF.T
+                    
 
-                    predictTime = 2000*1e-3  # ms
+                    predictTime = 2  # ms
                     bulletSpeed = 5  # TODO 测延迟和子弹速度
-                    predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)
+                    predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)                    
+                    
+                    predictedPtsInWorld = ekfilter.getPredictedPtsInWorld(predictTime) # predictTime后目标在世界坐标系下的坐标(mm)
+                    dx = ekfilter.state[1]
+                    dy = ekfilter.state[3]
+                    dz = ekfilter.state[5]
+                    print("dx:" + str(dx)+"\n")
+                    print("dy:" + str(dy)+"\n")
+                    print("dz" + str(dz)+"\n")
 
                     if enableDrawKF:
                         drawXAxis.append(drawCount)
@@ -175,37 +202,44 @@ while True:
 
                         plt.clf()
 
-                        plt.plot(drawXAxis, drawYaw, label='yaw')
-                        plt.plot(drawXAxis, drawPredictedYaw, label='Pyaw')
-                        plt.plot(drawXAxis, drawPitch, label='pitch')
-                        plt.plot(drawXAxis, drawPredictedPitch, label='Ppitch')
-                        plt.legend()
+                        # plt.plot(drawXAxis, drawYaw, label='yaw')
+                        # plt.plot(drawXAxis, drawPredictedYaw, label='Pyaw')
+                        # plt.plot(drawXAxis, drawPitch, label='pitch')
+                        # plt.plot(drawXAxis, drawPredictedPitch, label='Ppitch')
+                        # plt.legend()
 
-                        print('1\n')
+                  
 
-                        aPtsInWorld = ptsInCam2World(a.aimPoint, a.yaw, a.pitch)
+                        aPtsInWorld = ptsInCam2World(a.aimPoint, communicator.yaw, communicator.pitch)
 
                         drawX.append(aPtsInWorld[0])
                         drawY.append(aPtsInWorld[1])
                         drawZ.append(aPtsInWorld[2])
 
-                        print('2\n')
+                    
+                        drawPredictedX.append(predictedPtsInWorld[0])
+                        drawPredictedY.append(predictedPtsInWorld[1])
+                        drawPredictedZ.append(predictedPtsInWorld[2])
+                     
 
-                        drawPredictedX.append(ptsEKF[0][0])
-                        drawPredictedY.append(ptsEKF[0][1])
-                        drawPredictedZ.append(ptsEKF[0][2])
+                        # plt.plot(drawXAxis, drawX, label='x')
+                        # plt.plot(drawXAxis, drawY, label='y')
+                        # plt.plot(drawXAxis, drawZ, label='z')
+                        # plt.plot(drawXAxis, drawPredictedX, label='Px')
+                        # plt.plot(drawXAxis, drawPredictedY, label='Py')
+                        # plt.plot(drawXAxis, drawPredictedZ, label='Pz')
+                        # plt.legend()
 
-                        print('3\n')
+                        drawDx.append(dx)
+                        drawDy.append(dy)
+                        drawDz.append(dz)
 
-                        bFig.plot(drawXAxis, drawX, label='x')
-                        bFig.plot(drawXAxis, drawY, label='y')
-                        bFig.plot(drawXAxis, drawZ, label='z')
-                        bFig.plot(drawXAxis, drawPredictedX, label='Px')
-                        bFig.plot(drawXAxis, drawPredictedY, label='Py')
-                        bFig.plot(drawXAxis, drawPredictedZ, label='Pz')
-                        bFig.legend()
+                        plt.plot(drawXAxis, drawDx, label='dx')
+                        plt.plot(drawXAxis, drawDy, label='dy')
+                        plt.plot(drawXAxis, drawDz, label='dz')
+                        plt.legend()
 
-                        print('4\n')
+                      
 
                         plt.pause(0.001)
 

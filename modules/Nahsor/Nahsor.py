@@ -1,7 +1,7 @@
 import cv2
 import time
-from NahsorConfig import *
-from Utils import *
+from modules.Nahsor.NahsorConfig import *
+from modules.Nahsor.Utils import *
 
 
 # 每局比赛旋转方向固定
