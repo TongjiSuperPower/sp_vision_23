@@ -72,11 +72,11 @@ def getObservation(ptsInCam):
     return observation
 
 #################################################
-debug = False
+debug = True
 useCamera = True
 exposureMs = 1 # 相机曝光时间
 useSerial = False
-enablePredict = True  # 开启KF滤波与预测
+enablePredict = False  # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
 enableDrawKF = False
 functionType = FunctionType.autoaim

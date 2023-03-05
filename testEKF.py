@@ -40,8 +40,8 @@ for i in range(ptsInWorld.shape[0]):
     x = ptsInCam[i,0]
     y = ptsInCam[i,1]
     z = ptsInCam[i,2]
-    alpha = math.atan(x/z)
-    beta = math.atan(y/z)
+    alpha = math.atan(-x/z)
+    beta = math.atan(-y/z)
     observation = [z, alpha, beta]
 
     all_z.append(z)
@@ -49,7 +49,7 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 15*1e-3
+    deltaTime = 5
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -102,19 +102,19 @@ ax5.legend(['z','z1'])
 length = data.shape[0]-1
 x = np.linspace(0, length-1, length)
 print(x)
-dx = np.diff(data[:,0]).T
-dy = np.diff(data[:,1]).T
-dz = np.diff(data[:,2]).T
+dx = np.diff(data[:,0]).T / deltaTime
+dy = np.diff(data[:,1]).T / deltaTime
+dz = np.diff(data[:,2]).T / deltaTime
 
 ax2 = fig.add_subplot(2,3,4)
 ax2.plot(x,dx,x,pdx[1:])
 ax2.legend(['x','p'])
 ax3 = fig.add_subplot(2,3,5)
-ax3.plot(x,dy)
-ax3.legend('y')
+ax3.plot(x,dy,x,pdy[1:])
+ax3.legend('y','p')
 ax4 = fig.add_subplot(2,3,6)
-ax4.plot(x,dz)
-ax4.legend('z')
+ax4.plot(x,dz,x,pdz[1:])
+ax4.legend('z','p')
 
 
 plt.savefig('./assets/ptsInWorld.jpg')
