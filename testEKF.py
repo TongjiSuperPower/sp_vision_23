@@ -8,8 +8,8 @@ from modules.ExtendKF import EKF
 
 filePath = './assets/ptsInCam.txt'
 
-yaw = 12.0/180*math.pi
-pitch = 2.0/180*math.pi
+yaw = 0/180*math.pi
+pitch = 0/180*math.pi
 gesture = [yaw,pitch] # 弧度制
 
 ptsInCam = np.loadtxt(filePath) # mm
@@ -55,6 +55,10 @@ for i in range(ptsInWorld.shape[0]):
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
         state[3,0] = (ptsInWorld[i,1] - ptsInWorld[i-1,1])/deltaTime
         state[5,0] = (ptsInWorld[i,2] - ptsInWorld[i-1,2])/deltaTime
+
+        # state[1,0] = 0
+        # state[3,0] = 0
+        # state[5,0] = 0
         
     
     state[0,0] = ptsInWorld[i,0]
