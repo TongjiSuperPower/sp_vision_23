@@ -9,7 +9,7 @@ def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
 
 def drawPoint(img: cv2.Mat, point, color=(0, 0, 255)) -> None:
     center = np.int32(point)
-    cv2.circle(img, center, 3, color, cv2.FILLED)
+    cv2.circle(img, center, 6, color, 2)
 
 
 def drawAxis(img, origin, rvec, tvec, cameraMatrix, distCoeffs, scale=30, thickness=3) -> None:

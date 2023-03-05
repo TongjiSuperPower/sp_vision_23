@@ -17,6 +17,8 @@ import cv2
 from matplotlib import pyplot as plt
 import enum
 
+tVecFromCam2Tri = np.array([0, 60, 50])
+
 class FunctionType(enum.Enum):
     '''系统工作模式'''
     autoaim = 1
@@ -41,7 +43,7 @@ def readConfig():
 
 def ptsInCam2Tripod(ptsInCam):
     '''相机坐标系->云台坐标系'''
-    ptsInTripod = ptsInCam + np.array([0, 60, 50])
+    ptsInTripod = ptsInCam + tVecFromCam2Tri
     return ptsInTripod
 
 
@@ -51,8 +53,8 @@ def ptsInTripod2World(ptsInTripod:np.ndarray, yaw:float, pitch:float):
     pitch = pitch/180.0*math.pi
     yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)], [0, 1, 0], [-math.sin(yaw), 0, math.cos(yaw)]])
     xRotationMatrix = np.array([[1, 0, 0], [0, math.cos(pitch), -math.sin(pitch)], [0, math.sin(pitch), math.cos(pitch)]])
-    ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix, ptsInTripod)).T
-    return ptsInWorld
+    ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix, np.reshape(ptsInTripod,(3,1)))).T
+    return np.reshape(ptsInWorld,(3,))
 
 
 def ptsInCam2World(ptsInCam, yaw, pitch):
@@ -71,10 +73,31 @@ def getObservation(ptsInCam):
     observation = [z, alpha, beta]
     return observation
 
+def getInvMatrix(matrix: np.ndarray)->np.ndarray:   
+    u, s, v = np.linalg.svd(matrix, full_matrices=False)
+    inv = np.matmul(v.T * 1 / s, u.T)
+    return inv
+
+def ptsInWorld2Img(ptsInWorld:np.ndarray, yaw:float, pitch:float, rvec, cameraMatrix, distCoeffs)->np.ndarray:
+    '''世界坐标系->图像坐标系。yaw、pitch为角度'''
+    # 世界坐标系->云台坐标系：
+    yaw = yaw/180.0*math.pi
+    pitch = pitch/180.0*math.pi
+    yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)], [0, 1, 0], [-math.sin(yaw), 0, math.cos(yaw)]])
+    xRotationMatrix = np.array([[1, 0, 0], [0, math.cos(pitch), -math.sin(pitch)], [0, math.sin(pitch), math.cos(pitch)]])
+    ptsInTripod = np.dot(getInvMatrix(xRotationMatrix), np.dot(getInvMatrix(yRotationMatrix),np.reshape(ptsInWorld,(3,1)))).T
+    # 云台坐标系->相机坐标系：
+    ptsInCam = np.reshape(ptsInTripod,(3,)) - tVecFromCam2Tri 
+    # 相机坐标系->图像坐标系：
+    tvec = ptsInCam
+    ptsInImg,_ = cv2.projectPoints(ptsInCam, rvec, tvec, cameraMatrix, distCoeffs)
+    return np.reshape(ptsInImg,(2,))
+
+
 #################################################
 debug = True
 useCamera = True
-exposureMs = 1 # 相机曝光时间
+exposureMs = 1 # 相机曝光时间(ms)
 useSerial = False
 enablePredict = False  # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
@@ -94,8 +117,8 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
 
 cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
 class VisualComu():
-    yaw=0
-    pitch=0
+    yaw=10.
+    pitch=2.
     def __init__(self) -> None:
         pass
 detector = Detector()
@@ -109,7 +132,7 @@ if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
 if enablePredict:
     ekfilter = EKF(6, 3)
-    maxLostFrame = 4  # 最大丢失帧数
+    maxLostFrame = 3  # 最大丢失帧数
     lostFrame = 0  # 丢失帧数
     state = np.zeros((6, 1))
     twoPtsInCam = deque(maxlen=2)  # a queue with max 2 capaticity
@@ -121,6 +144,7 @@ if enableDrawKF:
     drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [], [], [], [], []
     drawX, drawPredictedX, drawY, drawPredictedY, drawZ, drawPredictedZ = [], [], [], [], [], []
     drawDx,drawDy,drawDz=[],[],[]
+    drawEKFx, drawEKFy, drawEKFz = [],[],[]
     plt.ion()
     # aFig = plt.subplot(2, 1, 1)
     # bFig = plt.subplot(2, 1, 2)
@@ -139,6 +163,7 @@ while True:
                 a = armors[0]  # TODO a = classifior.classify(armors)
 
                 a.targeted(objPoints, cameraMatrix, distCoeffs)
+                predictedPtsInWorld = a.aimPoint
 
                 if savePts:
                     x, y, z = a.aimPoint
@@ -180,17 +205,15 @@ while True:
                     ptsEKF = ptsEKF.T
                     
 
-                    predictTime = 2  # ms
-                    bulletSpeed = 5  # TODO 测延迟和子弹速度
+                    predictTime = 10  # ms
+                    bulletSpeed = 10  # TODO 测延迟和子弹速度
                     predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)                    
                     
                     predictedPtsInWorld = ekfilter.getPredictedPtsInWorld(predictTime) # predictTime后目标在世界坐标系下的坐标(mm)
                     dx = ekfilter.state[1]
                     dy = ekfilter.state[3]
                     dz = ekfilter.state[5]
-                    print("dx:" + str(dx)+"\n")
-                    print("dy:" + str(dy)+"\n")
-                    print("dz" + str(dz)+"\n")
+
 
                     if enableDrawKF:
                         drawXAxis.append(drawCount)
@@ -228,7 +251,15 @@ while True:
                         # plt.plot(drawXAxis, drawPredictedX, label='Px')
                         # plt.plot(drawXAxis, drawPredictedY, label='Py')
                         # plt.plot(drawXAxis, drawPredictedZ, label='Pz')
-                        # plt.legend()
+
+                        drawEKF = np.reshape(ptsEKF, (3,))
+                        drawEKFx.append(drawEKF[0])
+                        drawEKFy.append(drawEKF[1])
+                        drawEKFz.append(drawEKF[2])
+                        # plt.plot(drawXAxis, drawEKFx, label='Ex')
+                        # plt.plot(drawXAxis, drawEKFy, label='Ey')
+                        # plt.plot(drawXAxis, drawEKFz, label='Ez')
+                      
 
                         drawDx.append(dx)
                         drawDy.append(dy)
@@ -237,16 +268,20 @@ while True:
                         plt.plot(drawXAxis, drawDx, label='dx')
                         plt.plot(drawXAxis, drawDy, label='dy')
                         plt.plot(drawXAxis, drawDz, label='dz')
-                        plt.legend()
 
-                      
+                        plt.legend()                      
 
                         plt.pause(0.001)
 
                 if debug:
                     drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
                     putText(frame, f'{a.yaw:.2f} {a.pitch:.2f}', a.center)
-                    drawPoint(frame, a.center, (255, 255, 255))
+                    drawPoint(frame, a.center, (0, 255, 0))                    
+                    prePtsInImg = ptsInWorld2Img(predictedPtsInWorld, communicator.yaw, communicator.pitch, a.rvec, cameraMatrix, distCoeffs)                    
+                           
+                    ptsInImg,_ = cv2.projectPoints(a.aimPoint, a.rvec, ptsInCam2World(a.aimPoint,communicator.yaw,communicator.pitch), cameraMatrix, distCoeffs)
+                    drawPoint(frame,np.reshape(ptsInImg,(2,)), (0,0,255))
+                    drawPoint(frame,np.reshape(prePtsInImg,(2,)), (255,0,0))
 
                 if useSerial:
                     if enablePredict:
