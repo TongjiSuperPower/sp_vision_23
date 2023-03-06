@@ -36,6 +36,8 @@ all_beta = []
 pdx=[]
 pdy=[]
 pdz=[]
+prePts = []
+
 for i in range(ptsInWorld.shape[0]):
     x = ptsInCam[i,0]
     y = ptsInCam[i,1]
@@ -49,7 +51,7 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 5
+    deltaTime = 5 # ms
 
     if ekf.first==False:
         state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
@@ -70,11 +72,15 @@ for i in range(ptsInWorld.shape[0]):
     predictedPtsInWorld = ekf.step(deltaTime, [yaw,pitch], state, observation, np.reshape(ptsInCam[i], (3,1)))
     ptsEKF[i] = predictedPtsInWorld.T
 
+    distance = np.linalg.norm(ekf.hMatrix @ ekf.state) # 世界坐标系下的距离(mm)
+    flyTime = distance/10 # 子弹飞行时间(ms)
+    prePts.append(ekf.getPredictedPtsInWorld(20))
+
     pdx.append(ekf.state[1][0])
     pdy.append(ekf.state[3][0])
     pdz.append(ekf.state[5][0])
 
-
+prePts = np.array(prePts)
 data = ptsInWorld
 data1 = ptsEKF
 
@@ -92,13 +98,15 @@ length = data.shape[0]
 x = np.linspace(0, length-1, length)
 fig = plt.figure()
 ax1 = fig.add_subplot(2,3,1)
-ax1.plot(x, data[:,0], x, data1[:,0])
+ax1.plot(x, data[:,0])
+ax1.plot(x, data1[:,0])
+ax1.plot(x, prePts[:,0])
 ax1.legend(['x','x1'])
 ax4 = fig.add_subplot(2,3,2)
-ax4.plot(x, data[:,1], x, data1[:,1])
+ax4.plot(x, data[:,1], x, data1[:,1], x, prePts[:,1])
 ax4.legend(['y','y1'])
 ax5 = fig.add_subplot(2,3,3)
-ax5.plot(x, data[:,2], x, data1[:,2])
+ax5.plot(x, data[:,2], x, data1[:,2], x, prePts[:,2])
 ax5.legend(['z','z1'])
 
 
@@ -122,7 +130,6 @@ ax4.legend('z','p')
 
 
 plt.savefig('./assets/ptsInWorld.jpg')
-
 
  
 mpl.rcParams['legend.fontsize'] = 10

@@ -120,18 +120,19 @@ class EKF():
         for i in range(self.measurementDimension):
             predictedPosInWorld.append(self.state[i*2] + time * self.state[i*2 + 1])
         
-        return predictedPosInWorld    
+        return np.reshape(predictedPosInWorld,(3,))  
     
     def predict(self, time, bulletSpeed):
-        '''返回时间time后云台应该旋转的yaw和pitch值'''
-        # 世界坐标系->云台坐标系
-        predictedPosInWorld = self.getPredictedPtsInWorld(time)
+        '''返回时间time后云台应该旋转的相对yaw和pitch值'''        
+        distance = np.linalg.norm(self.hMatrix @ self.state) # 世界坐标系下的距离(mm)
+        flyTime = distance/bulletSpeed # 子弹飞行时间(ms)
+        dropDistance = 0.5 * 9.7940 * (flyTime/1000)**2 * 1000 # 下坠距离(mm)
+
+        # 世界坐标系->云台坐标系       
+        predictedPosInWorld = self.getPredictedPtsInWorld(time+flyTime) 
         predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
 
-        # 弹道下坠补偿
-        distance = np.linalg.norm(predictedPosInTripod) # 云台坐标系下的距离
-        flyTime = distance/bulletSpeed # 子弹飞行时间
-        dropDistance = 0.5 * 9.7940 * flyTime**2 # 下坠距离
+        # 弹道下坠补偿        
         predictedPosInTripod[1] += dropDistance 
 
         # 坐标值->yaw、pitch
