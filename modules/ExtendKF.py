@@ -122,6 +122,49 @@ class EKF():
         
         return np.reshape(predictedPosInWorld,(3,))  
     
+    def getFlyTime(self, bulletSpeed):
+        '''迭代法求出子弹飞行时间(ms)'''
+        posO = np.reshape(self.hMatrix @ self.state, (3,))
+        pos = np.reshape(self.hMatrix @ self.state, (3,))
+        cnt = 0
+        maxCnt = 15
+        tol = 1e-2
+        t=0
+
+        vMatrix = np.zeros((self.measurementDimension, self.stateDimension))
+        for i in range(self.measurementDimension):
+            vMatrix[i, 2*i+1] = 1
+
+        while True:
+            tn = self.getParaTime(pos, bulletSpeed)
+            deltaPos = np.reshape(vMatrix @ self.state, (3,)) * tn
+            pos = posO + deltaPos
+            deltaTime = tn-t
+            if deltaTime<tol or cnt > maxCnt:
+                break
+            t = tn
+            cnt += 1
+        
+        return tn
+            
+
+    def getParaTime(self, pos, bulletSpeed):
+        '''用抛物线求子弹到目标位置的时间'''
+        x = pos[0]
+        y = pos[1]
+        z = pos[2]        
+        
+        dxz = math.sqrt(x*x+z*z)
+        
+        t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
+
+        return t
+        
+
+
+
+
+    
     def predict(self, time, bulletSpeed):
         '''返回时间time后云台应该旋转的相对yaw和pitch值'''        
         distance = np.linalg.norm(self.hMatrix @ self.state) # 世界坐标系下的距离(mm)
@@ -133,7 +176,7 @@ class EKF():
         predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
 
         # 弹道下坠补偿        
-        predictedPosInTripod[1] += dropDistance 
+        predictedPosInTripod[1] -= dropDistance 
 
         # 坐标值->yaw、pitch
         [x,y,z] = np.reshape(predictedPosInTripod,[3,])
