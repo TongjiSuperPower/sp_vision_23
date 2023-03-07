@@ -56,7 +56,7 @@ class Communicator:
     def send(self, x_in_world: float, y_in_world: float, z_in_world: float, vx_in_world: float = 0, vy_in_world: float = 0, vz_in_world: float = 0, flag: int = 0) -> None:
         frame = getFrame(x_in_world, y_in_world, z_in_world, vx_in_world, vy_in_world, vz_in_world, flag)
         self.ser.write(frame)
-        # print(f'sent x={x_in_world:.2f} y={y_in_world:.2f} z={z_in_world:.2f} vx={vx_in_world:.2f} vy={vy_in_world:.2f} vz={vz_in_world:.2f} {flag=} {frame.hex()}')
+        print(f'sent x={x_in_world:.2f} y={y_in_world:.2f} z={z_in_world:.2f} vx={vx_in_world:.2f} vy={vy_in_world:.2f} vz={vz_in_world:.2f} {flag=} {frame.hex()}')
 
     def send_yaw_pitch(self, yaw: float, pitch: float) -> None:
         '''旋转正方向符合对应坐标轴右手螺旋'''

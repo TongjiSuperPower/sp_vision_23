@@ -72,9 +72,8 @@ for i in range(ptsInWorld.shape[0]):
     predictedPtsInWorld = ekf.step(deltaTime, [yaw,pitch], state, observation, np.reshape(ptsInCam[i], (3,1)))
     ptsEKF[i] = predictedPtsInWorld.T
 
-    distance = np.linalg.norm(ekf.hMatrix @ ekf.state) # 世界坐标系下的距离(mm)
-    flyTime = distance/15.0
-    prePts.append(ekf.getPredictedPtsInWorld(5+flyTime))
+    ptsNow = np.reshape(ekf.hMatrix @ ekf.state,(3,))
+    prePts.append(ekf.getCompensatedPtsInWorld(ptsNow, 10, 15))
 
     pdx.append(ekf.state[1][0])
     pdy.append(ekf.state[3][0])

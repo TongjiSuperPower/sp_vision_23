@@ -117,9 +117,9 @@ class EKF():
         '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         predictedPosInWorld = []
-        for i in range(self.measurementDimension):
+        for i in range(self.measurementDimension-1):
             predictedPosInWorld.append(self.state[i*2] + time * self.state[i*2 + 1])
-        
+        predictedPosInWorld.append(self.state[4])
         return np.reshape(predictedPosInWorld,(3,))  
     
     def getFlyTime(self, bulletSpeed):
@@ -150,18 +150,41 @@ class EKF():
 
     def getParaTime(self, pos, bulletSpeed):
         '''用抛物线求子弹到目标位置的时间'''
+        pos = np.reshape(pos, (3,))
         x = pos[0]
         y = pos[1]
         z = pos[2]        
         
         dxz = math.sqrt(x*x+z*z)
+        a = 0.5*9.7940/1000*dxz*dxz/(bulletSpeed*bulletSpeed)
+        b = dxz
+        c = a - y
+
+        res1 = (-b + math.sqrt(b**2-4*a*c))/(2*a)
+        res2 = (-b - math.sqrt(b**2-4*a*c))/(2*a)
+
+        beta1 = math.atan(res1)
+        beta2 = math.atan(res2)
+
+        t1 = dxz/(bulletSpeed*math.cos(beta1))
+        t2 = dxz/(bulletSpeed*math.cos(beta2))
         
-        t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
+        #t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
+
+        t = t1 if t1<t2 else t2
 
         return t
-        
-
-
+    
+    def getCompensatedPtsInWorld(self, pts, deltaTime, bulletSpeed):
+        '''输入当前世界坐标(mm)，输出一段时间后目标的世界坐标(即枪管应该指向的世界坐标)(包括弹道下坠补偿);
+        deltaTime:系统延迟时间(ms)
+        bulletSpeed:弹速(m/s)'''
+        flyTime = self.getParaTime(pts, bulletSpeed)
+        # flyTime = 40
+        prePts = self.getPredictedPtsInWorld(flyTime+deltaTime) # 匀速直线模型计算的坐标
+        dropDistance = 0.5 * 9.7940/1000 * flyTime**2
+        prePts[1] -= dropDistance # 因为y轴方向向下，所以是减法
+        return prePts
 
 
     
@@ -169,7 +192,7 @@ class EKF():
         '''返回时间time后云台应该旋转的相对yaw和pitch值'''        
         distance = np.linalg.norm(self.hMatrix @ self.state) # 世界坐标系下的距离(mm)
         flyTime = distance/bulletSpeed # 子弹飞行时间(ms)
-        dropDistance = 0.5 * 9.7940 * (flyTime/1000)**2 * 1000 # 下坠距离(mm)
+        dropDistance = 0.5 * 9.7940/1000 * flyTime**2 # 下坠距离(mm)
 
         # 世界坐标系->云台坐标系       
         predictedPosInWorld = self.getPredictedPtsInWorld(time+flyTime) 

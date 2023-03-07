@@ -95,10 +95,10 @@ def ptsInWorld2Img(ptsInWorld:np.ndarray, yaw:float, pitch:float, rvec, cameraMa
 
 
 #################################################
-debug = True
+debug = False
 useCamera = True
 exposureMs = 1 # 相机曝光时间(ms)
-useSerial = False
+useSerial = True
 enablePredict = False  # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
 enableDrawKF = False
@@ -130,6 +130,8 @@ if debug:
     output = cv2.VideoWriter('assets/output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (1280, 1024))
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
+    timeFile = open('assets/time.txt', mode='w')
+    totalTime = []
 if enablePredict:
     ekfilter = EKF(6, 3)
     maxLostFrame = 3  # 最大丢失帧数
@@ -138,7 +140,7 @@ if enablePredict:
     twoPtsInCam = deque(maxlen=2)  # a queue with max 2 capaticity
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
-    twoTimeStampUs = deque(maxlen=2)
+twoTimeStampUs = deque(maxlen=2)
 if enableDrawKF:
     drawCount = 0
     drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [], [], [], [], []
@@ -155,6 +157,13 @@ while True:
         if not success:
             break
 
+        timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
+        twoTimeStampUs.append(timeStampUs)
+
+        deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
+
+        totalTime.append(deltaTime)
+
         if functionType == FunctionType.autoaim :
 
             lightBars, armors = detector.detect(frame)
@@ -163,11 +172,13 @@ while True:
                 a = armors[0]  # TODO a = classifior.classify(armors)
 
                 a.targeted(objPoints, cameraMatrix, distCoeffs)
-                predictedPtsInWorld = a.aimPoint
+                predictedPtsInWorld = ptsInCam2World(np.reshape(a.aimPoint,(3,)),communicator.yaw,communicator.pitch)
 
                 if savePts:
                     x, y, z = a.aimPoint
                     txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+                    timeFile.write(str(deltaTime)+"\n")
+
 
                 if not useSerial:
                     communicator.yaw = 0
@@ -184,10 +195,7 @@ while True:
                     twoPtsInTripod.append(ptsInTripod)
                     twoPtsInWorld.append(ptsInWorld) # mm
 
-                    timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
-                    twoTimeStampUs.append(timeStampUs)
-
-                    deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
+                    
                     print("time:")
                     print(deltaTime)
                     print("\n")
@@ -206,10 +214,10 @@ while True:
                     
 
                     predictTime = 10  # ms
-                    bulletSpeed = 10  # TODO 测延迟和子弹速度
+                    bulletSpeed = 15  # TODO 测延迟和子弹速度
                     predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)                    
                     
-                    predictedPtsInWorld = ekfilter.getPredictedPtsInWorld(predictTime) # predictTime后目标在世界坐标系下的坐标(mm)
+                    predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 10, 15) # predictTime后目标在世界坐标系下的坐标(mm)
                     dx = ekfilter.state[1]
                     dy = ekfilter.state[3]
                     dz = ekfilter.state[5]
@@ -285,7 +293,7 @@ while True:
 
                 if useSerial:
                     if enablePredict:
-                        communicator.send_yaw_pitch(communicator.yaw - predictedYaw, communicator.pitch - predictedPitch)  # 这里未验证方向是否正确
+                        communicator.send(*predictedPtsInWorld)
                     else:
                         target_in_gimabl = np.array([a.aimPoint]).T
                         yaw, pitch = communicator.yaw / 180 * math.pi, communicator.pitch / 180 * math.pi
@@ -361,5 +369,6 @@ if debug:
     output.release()
 if savePts:
     txtFile.close()
+    timeFile.close()
 if enableDrawKF:
     plt.ioff()
