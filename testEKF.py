@@ -13,6 +13,7 @@ pitch = 0/180*math.pi
 gesture = [yaw,pitch] # 弧度制
 
 ptsInCam = np.loadtxt(filePath) # mm
+totalTime = np.loadtxt("./assets/time.txt")
 
 ptsInTripod = ptsInCam + np.array([0, 60, 50])
 
@@ -51,12 +52,12 @@ for i in range(ptsInWorld.shape[0]):
     all_beta.append(beta)
     #print(observation)
 
-    deltaTime = 5 # ms
+    deltaTime = totalTime[i] # ms
 
     if ekf.first==False:
-        state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/deltaTime
-        state[3,0] = (ptsInWorld[i,1] - ptsInWorld[i-1,1])/deltaTime
-        state[5,0] = (ptsInWorld[i,2] - ptsInWorld[i-1,2])/deltaTime
+        state[1,0] = (ptsInWorld[i,0] - ptsInWorld[i-1,0])/totalTime[i]
+        state[3,0] = (ptsInWorld[i,1] - ptsInWorld[i-1,1])/totalTime[i]
+        state[5,0] = (ptsInWorld[i,2] - ptsInWorld[i-1,2])/totalTime[i]
 
         # state[1,0] = 0
         # state[3,0] = 0
@@ -100,22 +101,22 @@ ax1 = fig.add_subplot(2,3,1)
 ax1.plot(x, data[:,0])
 ax1.plot(x, data1[:,0])
 ax1.plot(x, prePts[:,0])
-ax1.legend(['x','x1'])
+ax1.legend(['x','x1','x2'])
 ax4 = fig.add_subplot(2,3,2)
 ax4.plot(x, data[:,1], x, data1[:,1], x, prePts[:,1])
-ax4.legend(['y','y1'])
+ax4.legend(['y','y1','y2'])
 ax5 = fig.add_subplot(2,3,3)
 ax5.plot(x, data[:,2], x, data1[:,2], x, prePts[:,2])
-ax5.legend(['z','z1'])
+ax5.legend(['z','z1','z2'])
 
 
 # 速度绘图：
 length = data.shape[0]-1
 x = np.linspace(0, length-1, length)
 print(x)
-dx = np.diff(data[:,0]).T / deltaTime
-dy = np.diff(data[:,1]).T / deltaTime
-dz = np.diff(data[:,2]).T / deltaTime
+dx = np.true_divide(np.diff(data[:,0]).T, totalTime[1:])
+dy = np.true_divide(np.diff(data[:,1]).T, totalTime[1:])
+dz = np.true_divide(np.diff(data[:,2]).T, totalTime[1:])
 
 ax2 = fig.add_subplot(2,3,4)
 ax2.plot(x,dx,x,pdx[1:])
@@ -131,26 +132,29 @@ ax4.legend('z','p')
 plt.savefig('./assets/ptsInWorld.jpg')
 
  
-mpl.rcParams['legend.fontsize'] = 10
+# mpl.rcParams['legend.fontsize'] = 10
  
-fig = plt.figure()
-ax = fig.add_subplot(projection = '3d')
-#ax = Axes3D(fig)
-x=data[:,0]
-y=data[:,2]
-z=data[:,1]*(-1)
+# fig = plt.figure()
+# ax = fig.add_subplot(projection = '3d')
+# #ax = Axes3D(fig)
+# x=data[:,0]
+# y=data[:,2]
+# z=data[:,1]*(-1)
 
-x1=data1[:,0]
-y1=data1[:,2]
-z1=data1[:,1]*(-1)
+# x1=data1[:,0]
+# y1=data1[:,2]
+# z1=data1[:,1]*(-1)
 
-ax.set_box_aspect((1,1,1))
-ax.plot(x,y,z, label='ori')
-ax.plot(x1,y1,z1, label='ekf')
-ax.legend()
+# ax.set_box_aspect((1,1,1))
+# ax.plot(x,y,z, label='ori')
+# ax.plot(x1,y1,z1, label='ekf')
+# ax.legend()
+# plt.savefig('./assets/test.jpg')
 
-print(ax.get_xticks())
  
+ 
+plt.savefig('./assets/test.jpg')
+
 plt.savefig('./assets/test.jpg')
 plt.show()
 

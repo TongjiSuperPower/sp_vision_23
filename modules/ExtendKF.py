@@ -116,9 +116,13 @@ class EKF():
     def getPredictedPtsInWorld(self, time):
         '''返回时间time后世界坐标系下目标位置坐标'''
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
+        k = 1
         predictedPosInWorld = []
         for i in range(self.measurementDimension-1):
-            predictedPosInWorld.append(self.state[i*2] + time * self.state[i*2 + 1])
+            speed = self.state[i*2 + 1]
+            # if abs(speed)<0.006:
+            #     speed = 0.0           
+            predictedPosInWorld.append(self.state[i*2] + k * time * speed)
         predictedPosInWorld.append(self.state[4])
         return np.reshape(predictedPosInWorld,(3,))  
     
