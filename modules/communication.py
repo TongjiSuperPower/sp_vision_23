@@ -1,10 +1,11 @@
+import math
 import serial
 import struct
 
 
 head = 0xf1
 end = 0xf2
-
+frame_len = 28
 crc8Table = [
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
     0x9d, 0xc3, 0x21, 0x7f, 0xfc, 0xa2, 0x40, 0x1e, 0x5f, 0x01, 0xe3, 0xbd, 0x3e, 0x60, 0x82, 0xdc,
@@ -34,28 +35,56 @@ def calculateCrc8(data: bytes) -> int:
     return crc
 
 
-def getFrame(timeStamp, yaw, pitch, speed, state, time, extra1, extra2) -> bytes:
-    frame = struct.pack('=BHfffBHBB', head, timeStamp, yaw, pitch, speed, state, time, extra1, extra2)
-
+def getFrame(x_in_world: float, y_in_world: float, z_in_world: float, vx_in_world: float, vy_in_world: float, vz_in_world: float, flag: int) -> bytes:
+    frame = struct.pack('=BffffffB', head, x_in_world, y_in_world, z_in_world, vx_in_world, vy_in_world, vz_in_world, flag)
     crc = calculateCrc8(frame)
-
-    frame = struct.pack('=BHfffBHBBBB', head, timeStamp, yaw, pitch, speed, state, time, extra1, extra2, crc, end)
-
+    frame = struct.pack('=BffffffBBB', head, x_in_world, y_in_world, z_in_world, vx_in_world, vy_in_world, vz_in_world, flag, crc, end)
     return frame
+
+
+def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
+    y = -math.sin(pitch / 180 * math.pi)
+    xz = math.cos(pitch / 180 * math.pi)
+    x = xz * math.sin(yaw / 180 * math.pi)
+    z = xz * math.cos(yaw / 180 * math.pi)
+    return x, y, z
 
 
 class Communicator:
     def __init__(self, port: str) -> None:
-        self.ser = serial.Serial(port, 115200)
+        self.ser = serial.Serial(port, 115200, timeout=0.01)
 
-    def send(self, yaw: float, pitch: float) -> None:
-        timeStamp = 0
-        speed = 0.0
-        state = 0
-        time = 0
-        extra1 = 0
-        extra2 = 0
-        frame = getFrame(timeStamp, yaw, pitch, speed, state, time, extra1, extra2)
-
+    def send(self, x_in_world: float, y_in_world: float, z_in_world: float, vx_in_world: float = 0, vy_in_world: float = 0, vz_in_world: float = 0, flag: int = 0) -> None:
+        frame = getFrame(x_in_world, y_in_world, z_in_world, vx_in_world, vy_in_world, vz_in_world, flag)
         self.ser.write(frame)
-        print(f'sent {frame.hex()}')
+        # print(f'sent x={x_in_world:.2f} y={y_in_world:.2f} z={z_in_world:.2f} vx={vx_in_world:.2f} vy={vy_in_world:.2f} vz={vz_in_world:.2f} {flag=} {frame.hex()}')
+
+    def send_yaw_pitch(self, yaw: float, pitch: float) -> None:
+        '''旋转正方向符合对应坐标轴右手螺旋'''
+        x, y, z = yaw_pitch_to_xyz(yaw, pitch)
+        self.send(x, y, z)
+
+    def received(self) -> bool:
+        if self.ser.read() == bytes([head]):
+            frame_rx = bytes([head]) + self.ser.read(frame_len-1)
+
+            _, yaw, pitch, _, _, _, _, flag, crc, _ = struct.unpack('=BffffffBBB', frame_rx)
+
+            if crc != calculateCrc8(frame_rx[:frame_len-2]):
+                print('receive error!')
+                return False
+
+            print(f'received {yaw=:.2f} {pitch=:.2f} {flag=} {frame_rx.hex()}')
+
+            self.yaw = yaw
+            self.pitch = pitch
+            self.flag = flag
+
+            return True
+
+        else:
+            return False
+
+    def reset_input_buffer(self):
+        # 清空缓冲区
+        self.ser.reset_input_buffer()

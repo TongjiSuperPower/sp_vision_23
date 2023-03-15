@@ -4,4 +4,5 @@ __pycache__
 old
 Camera
 
-output.avi
+assets/output.avi
+assets/armor_pattern_dataset/
