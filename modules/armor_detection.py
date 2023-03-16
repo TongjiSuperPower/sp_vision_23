@@ -3,7 +3,7 @@ import math
 import numpy as np
 from modules.classification import Classifier
 
-threshold_value = 150  # 二值化阈值
+threshold_value = 100  # 二值化阈值
 min_contour_area = 10  # 保证6m以内灯条面积大于该值
 max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
@@ -13,7 +13,7 @@ max_side_ratio = 2  # 装甲板左右灯条长度最大比值，max/min
 min_ratio = 1  # 最小装甲板长宽比
 max_ratio = 6  # 最大装甲板长宽比
 
-pattern_h_coefficient = 1.0  # 获得装甲板图案的上下边界的系数
+pattern_h_coefficient = 0.8  # 获得装甲板图案的上下边界的系数
 margin = 50  # 透视变换后获得的图像宽度为 pattern_w + 2*margin
 pattern_h, pattern_w = 100, 100  # 裁剪后所获得图案图片的大小
 min_confidence = 0.8  # 判断为装甲板的最低置信度
