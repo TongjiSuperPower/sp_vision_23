@@ -217,7 +217,7 @@ while True:
                     bulletSpeed = 15  # TODO 测延迟和子弹速度
                     predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)                    
                     
-                    predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 10, 15) # predictTime后目标在世界坐标系下的坐标(mm)
+                    predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 10, 15, 0) # predictTime后目标在世界坐标系下的坐标(mm)
                     dx = ekfilter.state[1]
                     dy = ekfilter.state[3]
                     dz = ekfilter.state[5]

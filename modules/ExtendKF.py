@@ -118,12 +118,11 @@ class EKF():
         # 根据匀速直线运动模型计算世界坐标系下预测坐标值
         k = 1
         predictedPosInWorld = []
-        for i in range(self.measurementDimension-1):
+        for i in range(self.measurementDimension):
             speed = self.state[i*2 + 1]
             # if abs(speed)<0.006:
             #     speed = 0.0           
-            predictedPosInWorld.append(self.state[i*2] + k * time * speed)
-        predictedPosInWorld.append(self.state[4])
+            predictedPosInWorld.append(self.state[i*2] + k * time * speed)        
         return np.reshape(predictedPosInWorld,(3,))  
     
     def getFlyTime(self, bulletSpeed):
@@ -179,13 +178,23 @@ class EKF():
 
         return t
     
-    def getCompensatedPtsInWorld(self, pts, deltaTime, bulletSpeed):
+    def getCompensatedPtsInWorld(self, pts, deltaTime, bulletSpeed, mode = 2):
         '''输入当前世界坐标(mm)，输出一段时间后目标的世界坐标(即枪管应该指向的世界坐标)(包括弹道下坠补偿);
         deltaTime:系统延迟时间(ms)
-        bulletSpeed:弹速(m/s)'''
+        bulletSpeed:弹速(m/s)
+        mode:进行匀速直线预测的维数(3:x,y,z; 2:x,y; 1:x; 0:不做匀速直线预测)'''
         flyTime = self.getParaTime(pts, bulletSpeed)
         # flyTime = 40
         prePts = self.getPredictedPtsInWorld(flyTime+deltaTime) # 匀速直线模型计算的坐标
+        if mode == 2:
+            prePts[2] = self.state[4]
+        elif mode == 1:
+            prePts[1] = self.state[2]
+            prePts[2] = self.state[4]
+        elif mode == 0:
+            prePts[0] = self.state[0]
+            prePts[1] = self.state[2]
+            prePts[2] = self.state[4]      
         dropDistance = 0.5 * 9.7940/1000 * flyTime**2
         prePts[1] -= dropDistance # 因为y轴方向向下，所以是减法
         return prePts
