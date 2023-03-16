@@ -16,19 +16,19 @@ class LeNet(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(1, 6, kernel_size=5),
             nn.BatchNorm2d(6),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
             nn.Conv2d(6, 16, kernel_size=5),
             nn.BatchNorm2d(16),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
         self.classifier = nn.Sequential(
             nn.Linear(16 * 9 * 9, 120),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(120, 84),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Linear(84, num_classes),
         )
 

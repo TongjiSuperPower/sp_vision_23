@@ -1,4 +1,5 @@
 import cv2
+import time
 import math
 import numpy as np
 from modules.classification import Classifier
@@ -143,8 +144,9 @@ class ArmorDetector:
                         _, pattern_img = cv2.threshold(pattern_img, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
 
                         # 分类器分类
+                        t1 = time.time()
                         confidence, class_name = self.classifier.classify(pattern_img)
-
+                        print(f'{(time.time() - t1)*1e3}')
                         # 调试用
                         patterns.append(Pattern(pattern_img, class_name, confidence))
 
@@ -163,6 +165,6 @@ class ArmorDetector:
 
                 if b.left in (a.left, a.right) or b.right in (a.left, a.right):
                     b.abandoned = True
-        armors = filter(lambda a: not a.abandoned, armors)
+        armors = list(filter(lambda a: not a.abandoned, armors))
 
         return lightbars, armors, patterns

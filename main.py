@@ -28,7 +28,7 @@ class FunctionType(enum.Enum):
 
 def readConfig():
     '''读取配置文件'''
-    cfgFile = 'assets/camConfig2.toml'
+    cfgFile = 'assets/cam3Config.toml'
 
     if not os.path.exists(cfgFile):
         print(cfgFile + ' not found')
@@ -101,7 +101,7 @@ useCamera = True
 exposureMs = 4 # 相机曝光时间(ms)
 useSerial = True
 enablePredict = False  # 开启KF滤波与预测
-savePts = True # 是否把相机坐标系下的坐标保存txt文件
+savePts = False # 是否把相机坐标系下的坐标保存txt文件
 enableDrawKF = False
 functionType = FunctionType.autoaim
 port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
@@ -133,7 +133,7 @@ if debug:
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
     timeFile = open('assets/time.txt', mode='w')
-    totalTime = []
+totalTime = []
 if enablePredict:
     ekfilter = EKF(6, 3)
     maxLostFrame = 3  # 最大丢失帧数
@@ -165,10 +165,17 @@ while True:
         deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
 
         totalTime.append(deltaTime)
+        # print("time:")
+        # print(deltaTime)
+        # print("\n")
 
         if functionType == FunctionType.autoaim :
-
-            lightBars, armors, _ = detector.detect(frame)
+            time1 = time.time()
+            lightBars, armors, patterns = detector.detect(frame)
+            time2 = time.time()
+            print("time:")
+            # print(f'{len(paterns)} {1000*(time2-time1)}')
+            print("\n")
 
             if len(armors) > 0:
                 a = armors[0]  # TODO a = classifior.classify(armors)
@@ -197,9 +204,7 @@ while True:
                     twoPtsInWorld.append(ptsInWorld) # mm
 
                     
-                    print("time:")
-                    print(deltaTime)
-                    print("\n")
+                    
 
                     if ekfilter.first == False:
                         state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime # m/s
