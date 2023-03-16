@@ -52,7 +52,7 @@ def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
 
 class Communicator:
     def __init__(self, port: str) -> None:
-        self.ser = serial.Serial(port, 115200, timeout=0.01)
+        self.ser = serial.Serial(port, 115200)
 
     def send(self, x_in_world: float, y_in_world: float, z_in_world: float, vx_in_world: float = 0, vy_in_world: float = 0, vz_in_world: float = 0, flag: int = 0) -> None:
         frame = getFrame(x_in_world, y_in_world, z_in_world, vx_in_world, vy_in_world, vz_in_world, flag)
