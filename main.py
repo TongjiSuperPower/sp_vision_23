@@ -3,9 +3,10 @@ mpl.use('TkAgg')
 from modules.ExtendKF import EKF
 from modules.utilities import drawContour, drawPoint, drawAxis, putText
 from modules.communication import Communicator
-from modules.detection import Detector
+from modules.armor_detection import ArmorDetector
 from modules.mindvision import Camera
 from modules.Nahsor.Nahsor import *
+from modules.classification import Classifier
 from collections import deque
 import math
 import toml
@@ -97,7 +98,7 @@ def ptsInWorld2Img(ptsInWorld:np.ndarray, yaw:float, pitch:float, rvec, cameraMa
 #################################################
 debug = False
 useCamera = True
-exposureMs = 1 # 相机曝光时间(ms)
+exposureMs = 4 # 相机曝光时间(ms)
 useSerial = True
 enablePredict = False  # 开启KF滤波与预测
 savePts = True # 是否把相机坐标系下的坐标保存txt文件
@@ -121,7 +122,8 @@ class VisualComu():
     pitch=2.
     def __init__(self) -> None:
         pass
-detector = Detector()
+classifier = Classifier()
+detector = ArmorDetector(classifier)
 if useSerial:
     communicator = Communicator(port)
 else:
@@ -166,16 +168,15 @@ while True:
 
         if functionType == FunctionType.autoaim :
 
-            lightBars, armors = detector.detect(frame)
+            lightBars, armors, _ = detector.detect(frame)
 
             if len(armors) > 0:
                 a = armors[0]  # TODO a = classifior.classify(armors)
-
-                a.targeted(objPoints, cameraMatrix, distCoeffs)
-                predictedPtsInWorld = ptsInCam2World(np.reshape(a.aimPoint,(3,)),communicator.yaw,communicator.pitch)
+                aimPoint = a.in_camera(cameraMatrix, distCoeffs)
+                predictedPtsInWorld = ptsInCam2World(np.reshape(aimPoint,(3,)),communicator.yaw,communicator.pitch)
 
                 if savePts:
-                    x, y, z = a.aimPoint
+                    x, y, z = aimPoint
                     txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
                     timeFile.write(str(deltaTime)+"\n")
 
@@ -185,7 +186,7 @@ while True:
                     communicator.pitch = 0
 
                 if enablePredict:
-                    x, y, z = a.aimPoint
+                    x, y, z = aimPoint
                     ptsInCam = [x, y, z]
                     ptsInTripod = ptsInCam2Tripod(ptsInCam)
                     ptsInWorld = ptsInTripod2World(ptsInTripod, communicator.yaw, communicator.pitch)
@@ -241,7 +242,7 @@ while True:
 
                   
 
-                        aPtsInWorld = ptsInCam2World(a.aimPoint, communicator.yaw, communicator.pitch)
+                        aPtsInWorld = ptsInCam2World(aimPoint, communicator.yaw, communicator.pitch)
 
                         drawX.append(aPtsInWorld[0])
                         drawY.append(aPtsInWorld[1])
@@ -287,7 +288,7 @@ while True:
                     drawPoint(frame, a.center, (0, 255, 0))                    
                     prePtsInImg = ptsInWorld2Img(predictedPtsInWorld, communicator.yaw, communicator.pitch, a.rvec, cameraMatrix, distCoeffs)                    
                            
-                    ptsInImg,_ = cv2.projectPoints(a.aimPoint, a.rvec, ptsInCam2World(a.aimPoint,communicator.yaw,communicator.pitch), cameraMatrix, distCoeffs)
+                    ptsInImg,_ = cv2.projectPoints(aimPoint, a.rvec, ptsInCam2World(aimPoint,communicator.yaw,communicator.pitch), cameraMatrix, distCoeffs)
                     drawPoint(frame,np.reshape(ptsInImg,(2,)), (0,0,255))
                     drawPoint(frame,np.reshape(prePtsInImg,(2,)), (255,0,0))
 
@@ -295,7 +296,7 @@ while True:
                     if enablePredict:
                         communicator.send(*predictedPtsInWorld)
                     else:
-                        target_in_gimabl = np.array([a.aimPoint]).T
+                        target_in_gimabl = np.array([aimPoint]).T
                         yaw, pitch = communicator.yaw / 180 * math.pi, communicator.pitch / 180 * math.pi
                         yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
                                                     [0, 1, 0],
