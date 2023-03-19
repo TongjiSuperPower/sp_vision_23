@@ -27,10 +27,10 @@ class FunctionType(enum.Enum):
 #################################################
 debug = True
 useCamera = True
-exposureMs = 7 # 相机曝光时间(ms)
+exposureMs = 4 # 相机曝光时间(ms)
 useSerial = False
 enablePredict = False # 开启KF滤波与预测
-savePts = True # 是否把相机坐标系下的坐标保存txt文件
+savePts = False # 是否把相机坐标系下的坐标保存txt文件
 enableDrawKF = False
 functionType = FunctionType.autoaim
 port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
@@ -158,9 +158,10 @@ if enableDrawKF:
     plt.ion()
     # aFig = plt.subplot(2, 1, 1)
     # bFig = plt.subplot(2, 1, 2)
-color = 'r'
-# 传入参数为 1.颜色代码：B/b -> 蓝色,  R/r -> 红色;
-w = NahsorMarker(color, 20, debug=0, get_R_method=1)
+if functionType == FunctionType.smallEnergy or functionType == FunctionType.bigEnergy:
+    color = 'r'
+    # 传入参数为 1.颜色代码：B/b -> 蓝色,  R/r -> 红色;
+    w = NahsorMarker(color, 20, debug=0, get_R_method=1)
 time1 = time.time()
 while True:
     if not useSerial or communicator.received():
@@ -170,7 +171,7 @@ while True:
         time2 = time.time()
 
         if((time2-time1))>10:
-            break
+            pass
 
         timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
         twoTimeStampUs.append(timeStampUs)
