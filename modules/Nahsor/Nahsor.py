@@ -1,5 +1,6 @@
 import cv2
 import time
+import math
 from modules.Nahsor.NahsorConfig import *
 from modules.Nahsor.Utils import *
 
@@ -41,7 +42,7 @@ class NahsorMarker(object):
         self.__init_v = init_v
         self.__frame = None
         self.__color = None
-        self.__cur_mode = SMALL
+        self.__cur_mode = BIG
 
         if color == 'B' or color == 'b':
             self.__color = 'blue'  # 目标颜色：红or蓝
@@ -57,6 +58,9 @@ class NahsorMarker(object):
         self.__pre_box = []  # 预测的装甲板矩形
         self.__w_scale = 1
         self.__h_scale = 1
+
+        self.__contours =None
+        self.__mask = None
 
         self.__center_change = 0  # 圆心是否变化，0：未改变 / 1：改变
         self.__fan_change = 0  # 待击打扇叶是否变化，0：未改变 / 1：改变
@@ -110,34 +114,35 @@ class NahsorMarker(object):
         # mask = cv2.dilate(mask, kernel)
         # mask = cv2.morphologyEx(mask, cv2.MORPH_ERODE, kernel)
         # ----------- 图像预处理 end ------------
-
-        if self.__debug:
-            cv2.namedWindow('mask', 0)
-            cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
-            cv2.imshow('mask', mask)
+        self.__mask=mask
+        # if self.__debug:
+        #     cv2.namedWindow('mask', 0)
+        #     cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
+        #     cv2.imshow('mask', mask)
 
         # 获取轮廓
         mask_cp = mask.copy()
         cnts, hierarchy = cv2.findContours(mask_cp, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        self.__contours = cnts
 
         parent_edge = {}
         R_edge = []
         targets = []
 
-        ###############
-        if self.__debug:
-            orig1 = img.copy()
-            for i, c in enumerate(cnts):
-                if cv2.contourArea(c) < MIN_AREA:
-                    continue
-                rect = cv2.minAreaRect(c)
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                orig1 = cv2.drawContours(orig1, [box], 0, (0, 255, 0), 3)
-                orig1 = cv2.putText(orig1, str(i), tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.namedWindow('contours', 0)
-            cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
-            cv2.imshow('contours', orig1)
+        ###############  画出待选框 ###############
+        # if self.__debug:
+        #     orig1 = img.copy()
+        #     for i, c in enumerate(cnts):
+        #         if cv2.contourArea(c) < MIN_AREA:
+        #             continue
+        #         rect = cv2.minAreaRect(c)
+        #         box = cv2.boxPoints(rect)
+        #         box = np.int0(box)
+        #         orig1 = cv2.drawContours(orig1, [box], 0, (0, 255, 0), 3)
+        #         orig1 = cv2.putText(orig1, str(i), tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        #     cv2.namedWindow('contours', 0)
+        #     cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
+        #     cv2.imshow('contours', orig1)
         ###############
 
         # ----------- 按约束条件筛选轮廓 start -----------
@@ -157,6 +162,8 @@ class NahsorMarker(object):
             length = max(rect[1][0], rect[1][1])
             width = min(rect[1][0], rect[1][1])
 
+            # print('value:',value)
+
             # 只有一个子轮廓的父轮廓才是目标装甲板
             if len(value) == 1:
                 # 4个约束条件：父轮廓外接矩形的长宽比 & 轮廓占外接矩形的比例 & 目标装甲板占外接矩形的比例 & 目标装甲板的长宽比
@@ -165,9 +172,8 @@ class NahsorMarker(object):
                 h_armor = min(rect_armor[1][0], rect_armor[1][1])
                 area_ratio = (w_armor * h_armor) / (length * width)
 
-                if self.__debug:
-                    pass
-                    # print(length / width, cv2.contourArea(cnts[key]) / (length * width), area_ratio)
+                # print(length / width, cv2.contourArea(cnts[key]) / (length * width), area_ratio,w_armor / h_armor)
+
                 if ASPECT_RATIO[0] < length / width < ASPECT_RATIO[1] \
                         and AREA_LW_RATIO[0] < cv2.contourArea(cnts[key]) / (length * width) < AREA_LW_RATIO[1] \
                         and ARMOR_AREA_RATIO[0] < area_ratio < ARMOR_AREA_RATIO[1]:
@@ -191,6 +197,8 @@ class NahsorMarker(object):
                 if R_ASPECT_RATIO[0] < length / width < R_ASPECT_RATIO[1]:
                     R_edge.append((key, rect))
         # ----------- 按约束条件筛选轮廓 end ------------
+        # print('targets:',len(targets))
+
 
         if len(targets) == 1:
             self.__STATUS = 1
@@ -249,7 +257,7 @@ class NahsorMarker(object):
                     if self.r_center:
                         if self.last_calc_point is None:
                             self.last_calc_point = cur_point
-
+                        
                         if time_left in range(60, 175):
                             # 大符
                             self.__cur_mode = BIG
@@ -368,6 +376,7 @@ class NahsorMarker(object):
                     self.__pre_box = self.__box
 
                 self.last_point = cur_point
+
                 if self.__fan_change:
                     self.last_points = []
                 else:
@@ -376,9 +385,13 @@ class NahsorMarker(object):
                     else:
                         self.last_points.pop(0)
                         self.last_points.append(cur_point)
+
+            return rect_armor,self.r_center
+                
         else:
             # 此时该帧图像中没有满足要求的装甲板 或者 有过多满足要求的装甲板
             self.__STATUS = 0
+            return None,None
             pass
 
     def markFrame(self):
@@ -391,7 +404,7 @@ class NahsorMarker(object):
             pre_box = self.__pre_box
             pre_box = get_vertex(self.__pre_box, cv2.minAreaRect(self.__pre_box))
             for p in self.fit_circle_points:
-                orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
+                orig = cv2.circle(orig, (int(p[0]), int(p[1])), 5, (0, 255, 0), 1)
 
             # for i in range(len(pre_box)):
             #     orig = cv2.circle(orig, (pre_box[i][0], pre_box[i][1]), 5, (0, 255, 0), 2)
@@ -419,6 +432,21 @@ class NahsorMarker(object):
                            (0, 255, 0), 2)
 
         return orig
+
+    def getMask(self):
+        return self.__mask
+
+    def markCnts(self):
+        orig1 = img.copy()
+        for i, c in enumerate(self.__contours):
+            if cv2.contourArea(c) < MIN_AREA:
+                continue
+            rect = cv2.minAreaRect(c)
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            orig1 = cv2.drawContours(orig1, [box], 0, (0, 255, 0), 3)
+            orig1 = cv2.putText(orig1, str(i), tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        return orig1
 
     def getResult(self):
         """
@@ -465,3 +493,47 @@ class NahsorMarker(object):
         return (
             int(self.r_center[0] + cosA * xx - sinA * yy),
             int(self.r_center[1] + sinA * xx + cosA * yy))
+    
+
+class NahsorArmor:
+    def __init__(self, rect,center) -> None:
+        def dis(p1,p2):
+            return math.sqrt(pow(p1[0]-p2[0],2)+pow(p1[1]-p2[1],2))
+        self.points = cv2.boxPoints(rect)
+
+        if dis(self.points[0],self.points[1])<dis(self.points[0],self.points[3]):
+            self.imgPoints = self.points
+        else:
+            self.imgPoints=np.float32([self.points[1],self.points[2],self.points[3],self.points[0]])
+        # print(diss)
+        # print(self.imgPoints)
+        # self.imgPoints = rect.points
+
+        # after self.tagered(...)
+        self.rvec = None
+        self.tvec = None
+        self.center = None
+        self.aimPoint = None
+        self.yaw = None
+        self.pitch = None
+
+    def targeted(self, objPoints, cameraMatrix, distCoeffs):
+        _, self.rvec, self.tvec = cv2.solvePnP(objPoints, self.imgPoints, cameraMatrix, distCoeffs)
+        self.center = cv2.projectPoints(np.float32([[0, 0, 0]]), self.rvec, self.tvec, cameraMatrix, distCoeffs)[0][0][0]
+
+        rotationMatrix, _ = cv2.Rodrigues(self.rvec)
+        self.aimPoint = (np.dot(rotationMatrix, np.float32([0, 0, 0]).reshape(3, 1)) + self.tvec).reshape(1, 3)[0]
+
+        x, y, z = self.aimPoint  # 相机坐标系：相机朝向为z正方向，相机右侧为x正方向，相机下侧为y正方向，符合右手系
+
+        yaw = cv2.fastAtan2(x, (y**2 + z**2)**0.5)
+        self.yaw = yaw - 360 if yaw > 180 else yaw
+
+        pitch = cv2.fastAtan2(y, (x**2 + z**2)**0.5)
+        self.pitch = pitch - 360 if pitch > 180 else pitch
+
+    def __str__(self) -> str:
+        return f'Armor({self.points})'
+
+    def __repr__(self) -> str:
+        return self.__str__()

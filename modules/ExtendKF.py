@@ -46,8 +46,16 @@ class EKF():
     def check_symmetric(self, a, rtol=1e-05, atol=1e-08):
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
 
-    def step(self, deltaT, gesture, _state, observation, ptsInCam):
-        '''EKF更新一个周期。deltaT:时间差值,gesture:云台的yaw和pitch值,_state:当前时刻的状态量,observation:观测量z、α、β'''   
+    def step(self, deltaT, gesture, _state, observation, ptsInCam = None):
+        '''
+        EKF更新一个周期。返回更新后的滤波世界坐标值。
+
+        deltaT:时间差值; 
+        gesture:云台的yaw和pitch值; 
+        _state:当前时刻的状态量;
+        observation:观测量z、α、β;
+        ptsInCam:相机坐标系下的坐标,弃用。
+        '''   
         #print('step\n')       
         self.stepNumber += 1
         if self.first:
@@ -152,7 +160,11 @@ class EKF():
             
 
     def getParaTime(self, pos, bulletSpeed):
-        '''用抛物线求子弹到目标位置的时间'''
+        '''
+        用抛物线求子弹到目标位置的时间.
+        pos:目标的坐标(mm);
+        bulletSpeed:子弹速度(m/s);
+        '''
         pos = np.reshape(pos, (3,))
         x = pos[0]
         y = pos[1]
@@ -182,7 +194,7 @@ class EKF():
         '''输入当前世界坐标(mm)，输出一段时间后目标的世界坐标(即枪管应该指向的世界坐标)(包括弹道下坠补偿);
         deltaTime:系统延迟时间(ms)
         bulletSpeed:弹速(m/s)
-        mode:进行匀速直线预测的维数(3:x,y,z; 2:x,y; 1:x; 0:不做匀速直线预测)'''
+        mode:进行匀速直线预测的维数(3:x,y,z; 2:x,y; 1:x; 0:不做匀速直线预测,只补偿下坠)'''
         flyTime = self.getParaTime(pts, bulletSpeed)
         # flyTime = 40
         prePts = self.getPredictedPtsInWorld(flyTime+deltaTime) # 匀速直线模型计算的坐标

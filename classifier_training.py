@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision.io import read_image
 from torchvision.transforms import Resize
 from torch.utils.data import Dataset, DataLoader
-from modules.classification import LeNet, class_names
+from modules.classification import class_names
 import matplotlib.pyplot as plt
 
 
@@ -38,6 +38,35 @@ class ArmorPatternDataset(Dataset):
         if self.target_transform:
             label = self.target_transform(label)
         return image, label
+
+
+class LeNet(nn.Module):
+    def __init__(self, num_classes):
+        super(LeNet, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 6, kernel_size=5),
+            nn.BatchNorm2d(6),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(6, 16, kernel_size=5),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(16 * 9 * 9, 120),
+            nn.ReLU(),
+            nn.Linear(120, 84),
+            nn.ReLU(),
+            nn.Linear(84, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.reshape(x.size(0), -1)
+        logits = self.classifier(x)
+        return logits
 
 
 if __name__ == '__main__':
@@ -88,8 +117,17 @@ if __name__ == '__main__':
 
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, Accuracy: {(100 * correct / total):.4f}')
 
-    torch.save(model.state_dict(), 'assets/model.pth')
-    print('Model is saved at assets/model.pth')
+    # 导出
+    export_dir = 'assets/model.onnx'
+    x = torch.randn(1, 1, 50, 50)
+    torch.onnx.export(model,
+                      x,
+                      export_dir,
+                      input_names=['input'],
+                      output_names=['output'],
+                      dynamic_axes={'input': {0: 'batch_size'},
+                                    'output': {0: 'batch_size'}})
+    print(f'Model is exported at {export_dir}')
 
     figure = plt.figure(figsize=(8, 8))
     cols, rows = 4, 4

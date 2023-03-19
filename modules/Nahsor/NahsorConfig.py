@@ -4,7 +4,7 @@
 """
 
 # 形态学运算参数
-CORE_SIZE = 10
+CORE_SIZE = 6
 OPEN_PARA = 1
 CLOS_PARA = 1
 DILA_PARA = 3   # 膨胀
@@ -13,7 +13,7 @@ EROD_PARA = 10   # 腐蚀
 USE_HSV = False
 
 # 使用预测
-USE_PREDICT = True
+USE_PREDICT = False
 
 # 目标颜色HSV
 # H_RED_1 = (0, 180)
@@ -46,7 +46,7 @@ MAX_VAR = 5
 SPD_RANGE = (3, 25)
 
 # 限制外接矩形的长宽比
-ASPECT_RATIO = (1.4, 2.3)
+ASPECT_RATIO = (1.4, 2.5)
 ASPECT_RATIO_1 = (1.0, 2.3)
 
 # 限制R标的长宽比
@@ -61,7 +61,7 @@ ARMOR_AREA_RATIO = (0.03, 0.25)
 ARMOR_AREA_RATIO_1 = (0.25, 0.7)
 
 # 目标装甲板长宽比
-ARMOR_WH_RATIO = (0.8, 2.5)
+ARMOR_WH_RATIO = (0.8, 3.2)
 
 # 与能量机关的真实距离，单位m
 DISTANCE = 7
@@ -70,7 +70,7 @@ DISTANCE = 7
 RAD2DEG = 57.3
 
 # 装甲版的实际长和宽(单位:cm)
-TARGET_WIDTH = 25.
+TARGET_WIDTH = 25
 TARGET_HEIGHT = 16.5
 FAN_LEN = 64
 

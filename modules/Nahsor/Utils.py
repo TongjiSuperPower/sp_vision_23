@@ -401,11 +401,11 @@ def fit_curve(x, y, _debug=0):
     y_1 = wavelet_noising(y_1)
     fit_a, fit_b = optimize.curve_fit(spd_func, x_1, y_1, [1, 1, 1, 1], maxfev=500000)
 
+    print('fitt')
     if _debug:
         plt.figure(figsize=(30, 10), dpi=100)
         plt.plot(x_1, y, 'ro-', color='red', alpha=0.8, linewidth=1)
         plt.plot(x_1, y_1, 'ro-', color='blue', alpha=0.8, linewidth=1)
         plt.plot(x_1, spd_func(x_1, fit_a[0], fit_a[1], fit_a[2], fit_a[3]), color='green', alpha=0.8, linewidth=3)
         plt.show()
-
     return fit_a, fit_b

@@ -18,17 +18,30 @@ import cv2
 from matplotlib import pyplot as plt
 import enum
 
-tVecFromCam2Tri = np.array([0, 60, 50])
-
 class FunctionType(enum.Enum):
     '''系统工作模式'''
     autoaim = 1
     smallEnergy = 2
     bigEnergy = 3
 
+#################################################
+debug = True
+useCamera = True
+exposureMs = 7 # 相机曝光时间(ms)
+useSerial = False
+enablePredict = False # 开启KF滤波与预测
+savePts = True # 是否把相机坐标系下的坐标保存txt文件
+enableDrawKF = False
+functionType = FunctionType.autoaim
+port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
+#################################################
+
+tVecFromCam2Tri = np.array([0, 60, 50])
+
+
 def readConfig():
     '''读取配置文件'''
-    cfgFile = 'assets/cam3Config.toml'
+    cfgFile = 'assets/camConfig3.toml'
 
     if not os.path.exists(cfgFile):
         print(cfgFile + ' not found')
@@ -95,17 +108,7 @@ def ptsInWorld2Img(ptsInWorld:np.ndarray, yaw:float, pitch:float, rvec, cameraMa
     return np.reshape(ptsInImg,(2,))
 
 
-#################################################
-debug = False
-useCamera = True
-exposureMs = 4 # 相机曝光时间(ms)
-useSerial = True
-enablePredict = False  # 开启KF滤波与预测
-savePts = False # 是否把相机坐标系下的坐标保存txt文件
-enableDrawKF = False
-functionType = FunctionType.autoaim
-port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
-#################################################
+
 
 [cameraMatrix, distCoeffs] = readConfig()
 
@@ -133,6 +136,9 @@ if debug:
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
     timeFile = open('assets/time.txt', mode='w')
+    ptsInWorldFile = open('assets/ptsInWorld.txt', mode='w')
+    prePtsInWorldFile = open('assets/prePtsInWorld.txt', mode='w')
+    yawPitchFile = open('assets/yawPitch.txt', mode='w')
 totalTime = []
 if enablePredict:
     ekfilter = EKF(6, 3)
@@ -152,11 +158,18 @@ if enableDrawKF:
     plt.ion()
     # aFig = plt.subplot(2, 1, 1)
     # bFig = plt.subplot(2, 1, 2)
-
+color = 'r'
+# 传入参数为 1.颜色代码：B/b -> 蓝色,  R/r -> 红色;
+w = NahsorMarker(color, 20, debug=0, get_R_method=1)
+time1 = time.time()
 while True:
     if not useSerial or communicator.received():
         success, frame = cap.read()
         if not success:
+            break
+        time2 = time.time()
+
+        if((time2-time1))>10:
             break
 
         timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
@@ -165,20 +178,16 @@ while True:
         deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
 
         totalTime.append(deltaTime)
-        # print("time:")
-        # print(deltaTime)
-        # print("\n")
 
         if functionType == FunctionType.autoaim :
-            time1 = time.time()
+
+            
             lightBars, armors, patterns = detector.detect(frame)
-            time2 = time.time()
-            print("time:")
-            # print(f'{len(paterns)} {1000*(time2-time1)}')
-            print("\n")
+            
 
             if len(armors) > 0:
                 a = armors[0]  # TODO a = classifior.classify(armors)
+
                 aimPoint = a.in_camera(cameraMatrix, distCoeffs)
                 predictedPtsInWorld = ptsInCam2World(np.reshape(aimPoint,(3,)),communicator.yaw,communicator.pitch)
 
@@ -187,6 +196,11 @@ while True:
                     txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
                     timeFile.write(str(deltaTime)+"\n")
 
+                    x, y, z = predictedPtsInWorld
+                    ptsInWorldFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+
+                    yawPitchFile.write(str(communicator.yaw)+" "+str(communicator.pitch)+"\n")
+                    
 
                 if not useSerial:
                     communicator.yaw = 0
@@ -196,7 +210,7 @@ while True:
                     x, y, z = aimPoint
                     ptsInCam = [x, y, z]
                     ptsInTripod = ptsInCam2Tripod(ptsInCam)
-                    ptsInWorld = ptsInTripod2World(ptsInTripod, communicator.yaw, communicator.pitch)
+                    ptsInWorld = ptsInCam2World(np.reshape(aimPoint,(3,)),communicator.yaw,communicator.pitch)
                     observation = getObservation(ptsInCam)
 
                     twoPtsInCam.append(ptsInCam)
@@ -204,7 +218,9 @@ while True:
                     twoPtsInWorld.append(ptsInWorld) # mm
 
                     
-                    
+                    print("time:")
+                    print(deltaTime)
+                    print("\n")
 
                     if ekfilter.first == False:
                         state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime # m/s
@@ -227,6 +243,10 @@ while True:
                     dx = ekfilter.state[1]
                     dy = ekfilter.state[3]
                     dz = ekfilter.state[5]
+
+                    if savePts:
+                        x, y, z = predictedPtsInWorld
+                        prePtsInWorldFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")                       
 
 
                     if enableDrawKF:
@@ -336,39 +356,49 @@ while True:
                 communicator.reset_input_buffer()
 
         if functionType == FunctionType.smallEnergy:
-            # 新建能量机关对象
-            color = 'R'
-            w = NahsorMarker(color, 20, debug=1, get_R_method=0)   # 传入参数为 1.颜色代码：B/b -> 蓝色,  R/r -> 红色;
+            rect, center = w.mark(frame)
 
-            # 帧率计算
-            nowt = time.time()
-            last = time.time()
-            rfps = 0
-            pfps = 0
-            while (cv2.waitKey(1) & 0xFF) != ord('q'):
-                rfps = rfps + 1
-                nowt = time.time()
-                if nowt - last >= 1:
-                    last = nowt
-                    # print(rfps)
-                    pfps = rfps
-                    rfps = 0
+            target_in_world = None
 
-                img = frame
+            if rect is not None and center is not None:
+                a=NahsorArmor(rect,center)
+                narmorWidth,narmorHeight=22,12
+                objPoints = np.float32([[-narmorWidth / 2, -narmorHeight / 2, 0],
+                    [-narmorWidth / 2, narmorHeight / 2, 0],
+                    [narmorWidth / 2, narmorHeight / 2, 0],
+                    [narmorWidth / 2, -narmorHeight/ 2, 0]])
 
-                # 显示帧率
-                img = cv2.putText(img, str(pfps), (0, 50), cv2.FONT_HERSHEY_COMPLEX, 2.0, (100, 200, 200), 5)
+                a.targeted(objPoints,cameraMatrix, distCoeffs)
 
-                # 使用mark()方法，传入一帧图像
-                w.mark(img)
+                if useSerial:
+                    yaw, pitch = communicator.yaw / 180 * math.pi, communicator.pitch / 180 * math.pi
+                else:
+                    yaw, pitch = 0, 0
+
+                target_in_gimabl = np.array([aimPoint]).T
+                yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                                        [0, 1, 0],
+                                        [-math.sin(yaw), 0, math.cos(yaw)]])
+                xRotationMatrix = np.array([[1, 0, 0],
+                                        [0, math.cos(pitch), -math.sin(pitch)],
+                                        [0, math.sin(pitch), math.cos(pitch)]])
+                target_in_world = (yRotationMatrix @ xRotationMatrix @ target_in_gimabl).T[0]
+
+                if useSerial:
+                    communicator.send(*target_in_world)
 
                 # 使用markFrame()获得标记好的输出图像
                 img = w.markFrame()
 
-                # 使用getResult()方法获得输出
-                # print(w.getResult())
+                putText(frame, f'{target_in_world[0]:.2f} {target_in_world[1]:.2f} {target_in_world[2]:.2f}', center)
+                
+                for i, p in enumerate(a.imgPoints):
+                    putText(frame, f'{i}', p, color=(255, 255, 255))
 
-                cv2.imshow("Press q to end", img)
+                cv2.imshow("Press q to end", frame)
+                output.write(frame)
+                if (cv2.waitKey(1) & 0xFF) == ord('q'):
+                    break
            
 cap.release()
 if debug:
@@ -376,5 +406,8 @@ if debug:
 if savePts:
     txtFile.close()
     timeFile.close()
+    prePtsInWorldFile.close()
+    ptsInWorldFile.close()
+    yawPitchFile.close()
 if enableDrawKF:
     plt.ioff()
