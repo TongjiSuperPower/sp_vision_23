@@ -9,4 +9,4 @@ torch==2.0.0
 torchvision==0.15.1
 onnx >= 1.13.1
 autopep8 >=2.0.2
-pyserial >= 3.5
+
