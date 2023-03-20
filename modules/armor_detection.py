@@ -163,6 +163,6 @@ class ArmorDetector:
 
                 if b.left in (a.left, a.right) or b.right in (a.left, a.right):
                     b.abandoned = True
-        armors = filter(lambda a: not a.abandoned, armors)
+        armors = list(filter(lambda a: not a.abandoned, armors))
 
         return lightbars, armors, patterns

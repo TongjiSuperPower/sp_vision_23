@@ -1,8 +1,12 @@
+import matplotlib as mpl
+mpl.use('TkAgg')
 from modules.ExtendKF import EKF
 from modules.utilities import drawContour, drawPoint, drawAxis, putText
 from modules.communication import Communicator
-from modules.detection import Detector
+from modules.armor_detection import ArmorDetector
 from modules.mindvision import Camera
+from modules.Nahsor.Nahsor import *
+from modules.classification import Classifier
 from collections import deque
 import math
 import toml
@@ -12,13 +16,32 @@ import numpy as np
 import time
 import cv2
 from matplotlib import pyplot as plt
-import matplotlib as mpl
-mpl.use('TkAgg')
+import enum
+
+class FunctionType(enum.Enum):
+    '''系统工作模式'''
+    autoaim = 1
+    smallEnergy = 2
+    bigEnergy = 3
+
+#################################################
+debug = True
+useCamera = True
+exposureMs = 4 # 相机曝光时间(ms)
+useSerial = False
+enablePredict = False # 开启KF滤波与预测
+savePts = False # 是否把相机坐标系下的坐标保存txt文件
+enableDrawKF = False
+functionType = FunctionType.autoaim
+port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
+#################################################
+
+tVecFromCam2Tri = np.array([0, 60, 50])
 
 
 def readConfig():
     '''读取配置文件'''
-    cfgFile = 'assets/camConfig2.toml'
+    cfgFile = 'assets/camConfig3.toml'
 
     if not os.path.exists(cfgFile):
         print(cfgFile + ' not found')
@@ -34,18 +57,22 @@ def readConfig():
 
 def ptsInCam2Tripod(ptsInCam):
     '''相机坐标系->云台坐标系'''
-    ptsInTripod = ptsInCam + np.array([0, 60, 50])
+    ptsInTripod = ptsInCam + tVecFromCam2Tri
     return ptsInTripod
 
 
-def ptsInTripod2World(ptsInTripod, yaw, pitch):
+def ptsInTripod2World(ptsInTripod:np.ndarray, yaw:float, pitch:float):
+    '''云台坐标系->世界坐标系。yaw、pitch为角度'''
+    yaw = yaw/180.0*math.pi
+    pitch = pitch/180.0*math.pi
     yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)], [0, 1, 0], [-math.sin(yaw), 0, math.cos(yaw)]])
     xRotationMatrix = np.array([[1, 0, 0], [0, math.cos(pitch), -math.sin(pitch)], [0, math.sin(pitch), math.cos(pitch)]])
-    ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix, ptsInTripod)).T
-    return ptsInWorld
+    ptsInWorld = np.dot(yRotationMatrix, np.dot(xRotationMatrix, np.reshape(ptsInTripod,(3,1)))).T
+    return np.reshape(ptsInWorld,(3,))
 
 
 def ptsInCam2World(ptsInCam, yaw, pitch):
+    '''相机坐标系->世界坐标系。yaw、pitch为角度'''
     ptsInTripod = ptsInCam2Tripod(ptsInCam)
     ptsInWorld = ptsInTripod2World(ptsInTripod, yaw, pitch)
     return ptsInWorld
@@ -60,15 +87,28 @@ def getObservation(ptsInCam):
     observation = [z, alpha, beta]
     return observation
 
+def getInvMatrix(matrix: np.ndarray)->np.ndarray:   
+    u, s, v = np.linalg.svd(matrix, full_matrices=False)
+    inv = np.matmul(v.T * 1 / s, u.T)
+    return inv
 
-debug = True
-useCamera = True
-exposureMs = 1
-useSerial = True
-enablePredict = False  # 开启KF滤波与预测
-savePts = False  # 是否把相机坐标系下的坐标保存txt文件
-enableDrawKF = False
-port = '/dev/ttyUSB0'  # for ubuntu: '/dev/ttyUSB0'
+def ptsInWorld2Img(ptsInWorld:np.ndarray, yaw:float, pitch:float, rvec, cameraMatrix, distCoeffs)->np.ndarray:
+    '''世界坐标系->图像坐标系。yaw、pitch为角度'''
+    # 世界坐标系->云台坐标系：
+    yaw = yaw/180.0*math.pi
+    pitch = pitch/180.0*math.pi
+    yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)], [0, 1, 0], [-math.sin(yaw), 0, math.cos(yaw)]])
+    xRotationMatrix = np.array([[1, 0, 0], [0, math.cos(pitch), -math.sin(pitch)], [0, math.sin(pitch), math.cos(pitch)]])
+    ptsInTripod = np.dot(getInvMatrix(xRotationMatrix), np.dot(getInvMatrix(yRotationMatrix),np.reshape(ptsInWorld,(3,1)))).T
+    # 云台坐标系->相机坐标系：
+    ptsInCam = np.reshape(ptsInTripod,(3,)) - tVecFromCam2Tri 
+    # 相机坐标系->图像坐标系：
+    tvec = ptsInCam
+    ptsInImg,_ = cv2.projectPoints(ptsInCam, rvec, tvec, cameraMatrix, distCoeffs)
+    return np.reshape(ptsInImg,(2,))
+
+
+
 
 [cameraMatrix, distCoeffs] = readConfig()
 
@@ -80,171 +120,295 @@ objPoints = np.float32([[-armorWidth / 2, -lightBarLength / 2, 0],
                         [-armorWidth / 2, lightBarLength / 2, 0]])
 
 cap = Camera(exposureMs) if useCamera else cv2.VideoCapture('assets/input.avi')
-detector = Detector()
+class VisualComu():
+    yaw=10.
+    pitch=2.
+    def __init__(self) -> None:
+        pass
+classifier = Classifier()
+detector = ArmorDetector(classifier)
 if useSerial:
     communicator = Communicator(port)
+else:
+    communicator = VisualComu()
 if debug:
     output = cv2.VideoWriter('assets/output.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (1280, 1024))
 if savePts:
     txtFile = open('assets/ptsInCam.txt', mode='w')
+    timeFile = open('assets/time.txt', mode='w')
+    ptsInWorldFile = open('assets/ptsInWorld.txt', mode='w')
+    prePtsInWorldFile = open('assets/prePtsInWorld.txt', mode='w')
+    yawPitchFile = open('assets/yawPitch.txt', mode='w')
+totalTime = []
 if enablePredict:
     ekfilter = EKF(6, 3)
-    maxLostFrame = 4  # 最大丢失帧数
+    maxLostFrame = 3  # 最大丢失帧数
     lostFrame = 0  # 丢失帧数
     state = np.zeros((6, 1))
     twoPtsInCam = deque(maxlen=2)  # a queue with max 2 capaticity
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
-    twoTimeStampUs = deque(maxlen=2)
+twoTimeStampUs = deque(maxlen=2)
 if enableDrawKF:
     drawCount = 0
     drawXAxis, drawYaw, drawPredictedYaw, drawPitch, drawPredictedPitch = [], [], [], [], []
     drawX, drawPredictedX, drawY, drawPredictedY, drawZ, drawPredictedZ = [], [], [], [], [], []
+    drawDx,drawDy,drawDz=[],[],[]
+    drawEKFx, drawEKFy, drawEKFz = [],[],[]
     plt.ion()
-    aFig = plt.subplot(2, 1, 1)
-    bFig = plt.subplot(2, 1, 2)
-
+    # aFig = plt.subplot(2, 1, 1)
+    # bFig = plt.subplot(2, 1, 2)
+if functionType == FunctionType.smallEnergy or functionType == FunctionType.bigEnergy:
+    color = 'r'
+    # 传入参数为 1.颜色代码：B/b -> 蓝色,  R/r -> 红色;
+    w = NahsorMarker(color, 20, debug=0, get_R_method=1)
+time1 = time.time()
 while True:
     if not useSerial or communicator.received():
         success, frame = cap.read()
         if not success:
             break
+        time2 = time.time()
 
-        lightBars, armors = detector.detect(frame)
+        if((time2-time1))>10:
+            pass
 
-        if len(armors) > 0:
-            a = armors[0]  # TODO a = classifior.classify(armors)
+        timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
+        twoTimeStampUs.append(timeStampUs)
 
-            a.targeted(objPoints, cameraMatrix, distCoeffs)
+        deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])/1e3 if len(twoTimeStampUs) == 2 else 5  # ms
 
-            if savePts:
-                x, y, z = a.aimPoint
-                txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+        totalTime.append(deltaTime)
 
-            if enablePredict:
-                ptsInCam = [x, y, z]
-                ptsInTripod = ptsInCam2Tripod(ptsInCam)
-                ptsInWorld = ptsInTripod2World(ptsInTripod, communicator.yaw, communicator.pitch)
-                observation = getObservation(ptsInCam)
+        if functionType == FunctionType.autoaim :
 
-                twoPtsInCam.append(ptsInCam)
-                twoPtsInTripod.append(ptsInTripod)
-                twoPtsInWorld.append(ptsInWorld)
+            
+            lightBars, armors, patterns = detector.detect(frame)
+            
 
-                timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
-                twoTimeStampUs.append(timeStampUs)
+            if len(armors) > 0:
+                a = armors[0]  # TODO a = classifior.classify(armors)
 
-                deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0])*1e3 if len(twoTimeStampUs) == 2 else 10  # ms
+                aimPoint = a.in_camera(cameraMatrix, distCoeffs)
+                predictedPtsInWorld = ptsInCam2World(np.reshape(aimPoint,(3,)),communicator.yaw,communicator.pitch)
 
-                if ekfilter.first == False:
-                    state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime
-                    state[3] = (twoPtsInWorld[1][1] - twoPtsInWorld[0][1])/deltaTime
-                    state[5] = (twoPtsInWorld[1][2] - twoPtsInWorld[0][2])/deltaTime
+                if savePts:
+                    x, y, z = aimPoint
+                    txtFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+                    timeFile.write(str(deltaTime)+"\n")
 
-                state[0] = ptsInWorld[0]
-                state[2] = ptsInWorld[1]
-                state[4] = ptsInWorld[2]
+                    x, y, z = predictedPtsInWorld
+                    ptsInWorldFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
 
-                predictedPtsInWorld = ekfilter.step(deltaTime, [communicator.yaw, communicator.pitch], state, observation, np.reshape(ptsInCam, (3, 1)))
-                ptsEKF = predictedPtsInWorld.T
-                print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111')
-                print(ptsEKF)
+                    yawPitchFile.write(str(communicator.yaw)+" "+str(communicator.pitch)+"\n")
+                    
 
-                predictTime = 2000*1e-3  # ms
-                bulletSpeed = 5  # TODO 测延迟和子弹速度
-                predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)
+                if not useSerial:
+                    communicator.yaw = 0
+                    communicator.pitch = 0
 
-                if enableDrawKF:
-                    drawXAxis.append(drawCount)
-                    drawCount += 1
-                    drawYaw.append(a.yaw)
-                    drawPredictedYaw.append(predictedYaw)
-                    drawPitch.append(a.pitch)
-                    drawPredictedPitch.append(predictedPitch)
+                if enablePredict:
+                    x, y, z = aimPoint
+                    ptsInCam = [x, y, z]
+                    ptsInTripod = ptsInCam2Tripod(ptsInCam)
+                    ptsInWorld = ptsInCam2World(np.reshape(aimPoint,(3,)),communicator.yaw,communicator.pitch)
+                    observation = getObservation(ptsInCam)
 
-                    plt.clf()
+                    twoPtsInCam.append(ptsInCam)
+                    twoPtsInTripod.append(ptsInTripod)
+                    twoPtsInWorld.append(ptsInWorld) # mm
 
-                    plt.plot(drawXAxis, drawYaw, label='yaw')
-                    plt.plot(drawXAxis, drawPredictedYaw, label='Pyaw')
-                    plt.plot(drawXAxis, drawPitch, label='pitch')
-                    plt.plot(drawXAxis, drawPredictedPitch, label='Ppitch')
-                    plt.legend()
+                    
+                    print("time:")
+                    print(deltaTime)
+                    print("\n")
 
-                    print('1\n')
+                    if ekfilter.first == False:
+                        state[1] = (twoPtsInWorld[1][0] - twoPtsInWorld[0][0])/deltaTime # m/s
+                        state[3] = (twoPtsInWorld[1][1] - twoPtsInWorld[0][1])/deltaTime
+                        state[5] = (twoPtsInWorld[1][2] - twoPtsInWorld[0][2])/deltaTime
 
-                    aPtsInWorld = ptsInCam2World(a.aimPoint, a.yaw, a.pitch)
+                    state[0] = ptsInWorld[0]
+                    state[2] = ptsInWorld[1]
+                    state[4] = ptsInWorld[2]
 
-                    drawX.append(aPtsInWorld[0])
-                    drawY.append(aPtsInWorld[1])
-                    drawZ.append(aPtsInWorld[2])
+                    ptsEKF = ekfilter.step(deltaTime, [communicator.yaw, communicator.pitch], state, observation, np.reshape(ptsInCam, (3, 1)))
+                    ptsEKF = ptsEKF.T
+                    
 
-                    print('2\n')
+                    predictTime = 10  # ms
+                    bulletSpeed = 15  # TODO 测延迟和子弹速度
+                    predictedYaw, predictedPitch = ekfilter.predict(predictTime, bulletSpeed)                    
+                    
+                    predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 10, 15, 0) # predictTime后目标在世界坐标系下的坐标(mm)
+                    dx = ekfilter.state[1]
+                    dy = ekfilter.state[3]
+                    dz = ekfilter.state[5]
 
-                    drawPredictedX.append(ptsEKF[0][0])
-                    drawPredictedY.append(ptsEKF[0][1])
-                    drawPredictedZ.append(ptsEKF[0][2])
+                    if savePts:
+                        x, y, z = predictedPtsInWorld
+                        prePtsInWorldFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")                       
 
-                    print('3\n')
 
-                    bFig.plot(drawXAxis, drawX, label='x')
-                    bFig.plot(drawXAxis, drawY, label='y')
-                    bFig.plot(drawXAxis, drawZ, label='z')
-                    bFig.plot(drawXAxis, drawPredictedX, label='Px')
-                    bFig.plot(drawXAxis, drawPredictedY, label='Py')
-                    bFig.plot(drawXAxis, drawPredictedZ, label='Pz')
-                    bFig.legend()
+                    if enableDrawKF:
+                        drawXAxis.append(drawCount)
+                        drawCount += 1
+                        drawYaw.append(a.yaw)
+                        drawPredictedYaw.append(predictedYaw)
+                        drawPitch.append(a.pitch)
+                        drawPredictedPitch.append(predictedPitch)
 
-                    print('4\n')
+                        plt.clf()
 
-                    plt.pause(0.001)
+                        # plt.plot(drawXAxis, drawYaw, label='yaw')
+                        # plt.plot(drawXAxis, drawPredictedYaw, label='Pyaw')
+                        # plt.plot(drawXAxis, drawPitch, label='pitch')
+                        # plt.plot(drawXAxis, drawPredictedPitch, label='Ppitch')
+                        # plt.legend()
+
+                  
+
+                        aPtsInWorld = ptsInCam2World(aimPoint, communicator.yaw, communicator.pitch)
+
+                        drawX.append(aPtsInWorld[0])
+                        drawY.append(aPtsInWorld[1])
+                        drawZ.append(aPtsInWorld[2])
+
+                    
+                        drawPredictedX.append(predictedPtsInWorld[0])
+                        drawPredictedY.append(predictedPtsInWorld[1])
+                        drawPredictedZ.append(predictedPtsInWorld[2])
+                     
+
+                        # plt.plot(drawXAxis, drawX, label='x')
+                        # plt.plot(drawXAxis, drawY, label='y')
+                        # plt.plot(drawXAxis, drawZ, label='z')
+                        # plt.plot(drawXAxis, drawPredictedX, label='Px')
+                        # plt.plot(drawXAxis, drawPredictedY, label='Py')
+                        # plt.plot(drawXAxis, drawPredictedZ, label='Pz')
+
+                        drawEKF = np.reshape(ptsEKF, (3,))
+                        drawEKFx.append(drawEKF[0])
+                        drawEKFy.append(drawEKF[1])
+                        drawEKFz.append(drawEKF[2])
+                        # plt.plot(drawXAxis, drawEKFx, label='Ex')
+                        # plt.plot(drawXAxis, drawEKFy, label='Ey')
+                        # plt.plot(drawXAxis, drawEKFz, label='Ez')
+                      
+
+                        drawDx.append(dx)
+                        drawDy.append(dy)
+                        drawDz.append(dz)
+
+                        plt.plot(drawXAxis, drawDx, label='dx')
+                        plt.plot(drawXAxis, drawDy, label='dy')
+                        plt.plot(drawXAxis, drawDz, label='dz')
+
+                        plt.legend()                      
+
+                        plt.pause(0.001)
+
+                if debug:
+                    drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+                    putText(frame, f'{a.yaw:.2f} {a.pitch:.2f}', a.center)
+                    drawPoint(frame, a.center, (0, 255, 0))                    
+                    prePtsInImg = ptsInWorld2Img(predictedPtsInWorld, communicator.yaw, communicator.pitch, a.rvec, cameraMatrix, distCoeffs)                    
+                           
+                    ptsInImg,_ = cv2.projectPoints(aimPoint, a.rvec, ptsInCam2World(aimPoint,communicator.yaw,communicator.pitch), cameraMatrix, distCoeffs)
+                    drawPoint(frame,np.reshape(ptsInImg,(2,)), (0,0,255))
+                    drawPoint(frame,np.reshape(prePtsInImg,(2,)), (255,0,0))
+
+                if useSerial:
+                    if enablePredict:
+                        communicator.send(*predictedPtsInWorld)
+                    else:
+                        target_in_gimabl = np.array([aimPoint]).T
+                        yaw, pitch = communicator.yaw / 180 * math.pi, communicator.pitch / 180 * math.pi
+                        yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                                                    [0, 1, 0],
+                                                    [-math.sin(yaw), 0, math.cos(yaw)]])
+                        xRotationMatrix = np.array([[1, 0, 0],
+                                                    [0, math.cos(pitch), -math.sin(pitch)],
+                                                    [0, math.sin(pitch), math.cos(pitch)]])
+                        target_in_world = (yRotationMatrix @ xRotationMatrix @ target_in_gimabl).T[0]
+                        communicator.send(*target_in_world)
+
+            else:
+                if enablePredict:
+                    # TODO 通过数字识别判断装甲板ID号，从而制定filter重置逻辑
+                    lostFrame += 1
+                    if lostFrame > maxLostFrame:
+                        # after losing armor for a while
+                        lostFrame = 0
+                        ekfilter = EKF(6, 3)  # create a new filter
 
             if debug:
-                drawAxis(frame, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
-                putText(frame, f'{a.yaw:.2f} {a.pitch:.2f}', a.center)
-                drawPoint(frame, a.center, (255, 255, 255))
+                for l in lightBars:
+                    drawContour(frame, l.points, (0, 255, 255), 10)
+                for a in armors:
+                    drawContour(frame, a.points)
+                cv2.imshow('result', frame)
+                output.write(frame)
+
+                if (cv2.waitKey(30) & 0xFF) == ord('q'):
+                    break
 
             if useSerial:
-                if enablePredict:
-                    communicator.send_yaw_pitch(communicator.yaw - predictedYaw, communicator.pitch - predictedPitch)  # 这里未验证方向是否正确
-                else:
-                    target_in_gimabl = np.array([a.aimPoint]).T
+                communicator.reset_input_buffer()
+
+        if functionType == FunctionType.smallEnergy:
+            rect, center = w.mark(frame)
+
+            target_in_world = None
+
+            if rect is not None and center is not None:
+                a=NahsorArmor(rect,center)
+                narmorWidth,narmorHeight=22,12
+                objPoints = np.float32([[-narmorWidth / 2, -narmorHeight / 2, 0],
+                    [-narmorWidth / 2, narmorHeight / 2, 0],
+                    [narmorWidth / 2, narmorHeight / 2, 0],
+                    [narmorWidth / 2, -narmorHeight/ 2, 0]])
+
+                a.targeted(objPoints,cameraMatrix, distCoeffs)
+
+                if useSerial:
                     yaw, pitch = communicator.yaw / 180 * math.pi, communicator.pitch / 180 * math.pi
-                    yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
-                                                [0, 1, 0],
-                                                [-math.sin(yaw), 0, math.cos(yaw)]])
-                    xRotationMatrix = np.array([[1, 0, 0],
-                                                [0, math.cos(pitch), -math.sin(pitch)],
-                                                [0, math.sin(pitch), math.cos(pitch)]])
-                    target_in_world = (yRotationMatrix @ xRotationMatrix @ target_in_gimabl).T[0]
+                else:
+                    yaw, pitch = 0, 0
+
+                target_in_gimabl = np.array([aimPoint]).T
+                yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                                        [0, 1, 0],
+                                        [-math.sin(yaw), 0, math.cos(yaw)]])
+                xRotationMatrix = np.array([[1, 0, 0],
+                                        [0, math.cos(pitch), -math.sin(pitch)],
+                                        [0, math.sin(pitch), math.cos(pitch)]])
+                target_in_world = (yRotationMatrix @ xRotationMatrix @ target_in_gimabl).T[0]
+
+                if useSerial:
                     communicator.send(*target_in_world)
 
-        else:
-            if enablePredict:
-                # TODO 通过数字识别判断装甲板ID号，从而制定filter重置逻辑
-                lostFrame += 1
-                if lostFrame > maxLostFrame:
-                    # after losing armor for a while
-                    lostFrame = 0
-                    ekfilter = EKF(6, 3)  # create a new filter
+                # 使用markFrame()获得标记好的输出图像
+                img = w.markFrame()
 
-        if debug:
-            for l in lightBars:
-                drawContour(frame, l.points, (0, 255, 255), 10)
-            for a in armors:
-                drawContour(frame, a.points)
-            cv2.imshow('result', frame)
-            output.write(frame)
+                putText(frame, f'{target_in_world[0]:.2f} {target_in_world[1]:.2f} {target_in_world[2]:.2f}', center)
+                
+                for i, p in enumerate(a.imgPoints):
+                    putText(frame, f'{i}', p, color=(255, 255, 255))
 
-            if (cv2.waitKey(30) & 0xFF) == ord('q'):
-                break
-
-        if useSerial:
-            communicator.reset_input_buffer()
-
+                cv2.imshow("Press q to end", frame)
+                output.write(frame)
+                if (cv2.waitKey(1) & 0xFF) == ord('q'):
+                    break
+           
 cap.release()
 if debug:
     output.release()
 if savePts:
     txtFile.close()
-if enableDrawKF():
+    timeFile.close()
+    prePtsInWorldFile.close()
+    ptsInWorldFile.close()
+    yawPitchFile.close()
+if enableDrawKF:
     plt.ioff()
