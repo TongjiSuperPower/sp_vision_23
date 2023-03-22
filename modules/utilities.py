@@ -8,9 +8,12 @@ def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     cv2.drawContours(img, [points], -1, color, thickness)
 
 
-def drawPoint(img: cv2.Mat, point, color=(0, 0, 255)) -> None:
+def drawPoint(img: cv2.Mat, point, color=(0, 0, 255), radius=3, thickness=None) -> None:
     center = np.int32(point)
-    cv2.circle(img, center, 6, color, 2)
+    if thickness == None:
+        cv2.circle(img, center, radius, color, cv2.FILLED)
+    else:
+        cv2.circle(img, center, radius, color, thickness)
 
 
 def drawAxis(img, origin, rvec, tvec, cameraMatrix, distCoeffs, scale=30, thickness=3) -> None:
@@ -30,6 +33,7 @@ def putText(img: cv2.Mat, text: str, point, color=(0, 0, 255), thickness=2) -> N
     anchor = np.int32(point)
     cv2.putText(img, text, anchor, cv2.FONT_HERSHEY_SIMPLEX, 1, color, thickness)
 
+
 def getParaTime(pos, bulletSpeed):
     '''
     用抛物线求子弹到目标位置的时间.
@@ -39,8 +43,8 @@ def getParaTime(pos, bulletSpeed):
     pos = np.reshape(pos, (3,))
     x = pos[0]
     y = pos[1]
-    z = pos[2]        
-    
+    z = pos[2]
+
     dxz = math.sqrt(x*x+z*z)
     a = 0.5*9.7940/1000*dxz*dxz/(bulletSpeed*bulletSpeed)
     b = dxz
@@ -54,13 +58,14 @@ def getParaTime(pos, bulletSpeed):
 
     t1 = dxz/(bulletSpeed*math.cos(beta1))
     t2 = dxz/(bulletSpeed*math.cos(beta2))
-    
-    #t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
 
-    t = t1 if t1<t2 else t2
+    # t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
+
+    t = t1 if t1 < t2 else t2
 
     return t
 
+
 def compensateGravity(pos, flyTime):
     dropDistance = 0.5 * 9.7940/1000 * flyTime**2
-    pos[1] -= dropDistance # 因为y轴方向向下，所以是减法
+    pos[1] -= dropDistance  # 因为y轴方向向下，所以是减法

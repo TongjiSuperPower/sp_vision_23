@@ -118,16 +118,16 @@ if __name__ == '__main__':
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, Accuracy: {(100 * correct / total):.4f}')
 
     # 导出
-    export_dir = 'assets/model.onnx'
+    export_path = 'assets/model.onnx'
     x = torch.randn(1, 1, 50, 50)
     torch.onnx.export(model,
                       x,
-                      export_dir,
+                      export_path,
                       input_names=['input'],
                       output_names=['output'],
                       dynamic_axes={'input': {0: 'batch_size'},
                                     'output': {0: 'batch_size'}})
-    print(f'Model is exported at {export_dir}')
+    print(f'Model is exported at {export_path}')
 
     figure = plt.figure(figsize=(8, 8))
     cols, rows = 4, 4
