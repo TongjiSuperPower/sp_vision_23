@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Remote Visualizer</title>
+    <script src="{{url_for('static', filename='plotly-2.18.2.min.js')}}"></script>
+    <script src="{{url_for('static', filename='plot.js')}}"></script>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        #container {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #plot {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="plot"></div>
+    </div>
+</body>
+
+</html>
