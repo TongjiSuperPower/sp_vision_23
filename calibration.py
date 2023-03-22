@@ -2,7 +2,7 @@ import cv2
 import math
 import numpy as np
 from modules.mindvision import Camera
-from modules.utilities import drawContour, drawPoint, drawAxis, putText
+from modules.tools import drawContour, drawPoint, drawAxis, putText
 
 
 def calibrate_aperture():
