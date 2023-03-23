@@ -61,6 +61,15 @@ def getParaTime(pos, bulletSpeed):
 
     return t
 
-def compensateGravity(pos, flyTime):
+
+def compensateGravity(pos, bulletSpeed):
+    '''
+    gravity
+    '''
+    flyTime = getParaTime(pos, bulletSpeed)
+    
     dropDistance = 0.5 * 9.7940/1000 * flyTime**2
+
     pos[1] -= dropDistance # 因为y轴方向向下，所以是减法
+
+    return pos
