@@ -39,6 +39,13 @@ if __name__ == '__main__':
     else:
         communicator = tools.VirtualComu()
 
+    if savePts:
+        ptsInCamFile = open('assets/ptsInCam.txt', mode='w')
+        timeFile = open('assets/time.txt', mode='w')
+        ptsInWorldFile = open('assets/ptsInWorld.txt', mode='w')
+        prePtsInWorldFile = open('assets/prePtsInWorld.txt', mode='w')
+        yawPitchFile = open('assets/yawPitch.txt', mode='w')
+
     if enablePredict:
         ekfilter = EKF(6, 3)
         maxLostFrame = 3  # 最大丢失帧数
@@ -90,7 +97,17 @@ if __name__ == '__main__':
 
             armor = armors[0]
             predictedPtsInWorld = armor.in_imu # 如果没开EKF，就发送识别值
+            
+            if savePts:
+                x, y, z = armor.in_camera
+                ptsInCamFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+                timeFile.write(str(deltaTime)+"\n")
 
+                x, y, z = predictedPtsInWorld
+                ptsInWorldFile.write(str(x) + " " + str(y) + " " + str(z) + " \n")
+
+                yawPitchFile.write(str(communicator.yaw)+" "+str(communicator.pitch)+"\n")
+                
             if enablePredict:
                 twoPtsInCam.append(armor.in_camera)
                 twoPtsInTripod.append(armor.in_gimbal)
@@ -117,3 +134,10 @@ if __name__ == '__main__':
                 break
 
     cap.release()
+    
+    if savePts:
+        ptsInCamFile.close()
+        timeFile.close()
+        prePtsInWorldFile.close()
+        ptsInWorldFile.close()
+        yawPitchFile.close()
