@@ -1,11 +1,10 @@
-import os
-import sys
+import cv2
+import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-import math
-import cv2
-import toml
-from utilities import getParaTime
+from tools import getParaTime
+
+import configs.EKF as config
 
 class EKF():
     '''EKF类,支持2维(xz)和3维(xyz)状态量'''
@@ -17,7 +16,7 @@ class EKF():
         self.measurement = np.zeros((self.measurementDimension,1))
 
         self.rotationMatrix = None # 云台坐标系旋转矩阵C_b^n
-        self.qMatrix, self.rrMatrix = self.readEKFConfig() # 过程噪声矩阵和观测噪声矩阵
+        self.qMatrix, self.rrMatrix = config.Q, config.Rr # 过程噪声矩阵和观测噪声矩阵
         self.rMatrix = None # 转换后的观测噪声矩阵（由rr矩阵计算得到）
         self.pMatrix = None # 预测值的协方差矩阵
 
@@ -28,21 +27,6 @@ class EKF():
 
         self.first = True
         self.stepNumber = 0
-
-    def readEKFConfig(self):
-        '''读取配置文件'''    
-        cfgFile = 'assets/EKFConfig.toml'
-
-        if not os.path.exists(cfgFile):
-            print(cfgFile + ' not found')
-            sys.exit(-1)
-        
-        content = toml.load(cfgFile) 
-
-        Q = np.float32(content['Q'])  
-        Rr = np.float32(content['Rr']) 
-
-        return Q, Rr
 
     def check_symmetric(self, a, rtol=1e-05, atol=1e-08):
         return np.allclose(a, a.T, rtol=rtol, atol=atol)
@@ -119,6 +103,7 @@ class EKF():
         if(self.check_symmetric(self.pMatrix) == False):
             print(np.matrix(self.pMatrix))
         return res
+
     
 
     def getPredictedPtsInWorld(self, time):
@@ -158,7 +143,8 @@ class EKF():
         
         return tn
             
-    
+
+       
     def getCompensatedPtsInWorld(self, pts, deltaTime, bulletSpeed, mode = 2):
         '''输入当前世界坐标(mm)，输出一段时间后目标的世界坐标(即枪管应该指向的世界坐标)(包括弹道下坠补偿);
         deltaTime:系统延迟时间(ms)
@@ -180,4 +166,30 @@ class EKF():
         prePts[1] -= dropDistance # 因为y轴方向向下，所以是减法
         return prePts
 
+
+    
+    def predict(self, time, bulletSpeed):
+        '''返回时间time后云台应该旋转的相对yaw和pitch值,not used'''        
+        distance = np.linalg.norm(self.hMatrix @ self.state) # 世界坐标系下的距离(mm)
+        flyTime = distance/bulletSpeed # 子弹飞行时间(ms)
+        dropDistance = 0.5 * 9.7940/1000 * flyTime**2 # 下坠距离(mm)
+
+        # 世界坐标系->云台坐标系       
+        predictedPosInWorld = self.getPredictedPtsInWorld(time+flyTime) 
+        predictedPosInTripod = np.linalg.inv(self.rotationMatrix) @ predictedPosInWorld
+
+        # 弹道下坠补偿        
+        predictedPosInTripod[1] -= dropDistance 
+
+        # 坐标值->yaw、pitch
+        [x,y,z] = np.reshape(predictedPosInTripod,[3,])
+        x = float(x)
+        y = float(y)
+        z = float(z) 
+        yaw = cv2.fastAtan2(x, z)
+        yaw = yaw if yaw<180 else yaw-360
+        pitch = cv2.fastAtan2(-y, math.sqrt(x**2 + z**2))
+        pitch = pitch if pitch<180 else pitch-360
+
+        return yaw, pitch
 
