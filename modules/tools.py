@@ -1,7 +1,5 @@
-import os
 import cv2
 import math
-import toml
 import numpy as np
 
 
@@ -34,21 +32,6 @@ def drawAxis(img, origin, rvec, tvec, cameraMatrix, distCoeffs, scale=30, thickn
 def putText(img: cv2.Mat, text: str, point, color=(0, 0, 255), thickness=2) -> None:
     anchor = np.int32(point)
     cv2.putText(img, text, anchor, cv2.FONT_HERSHEY_SIMPLEX, 1, color, thickness)
-
-
-def get_cameraMatrix_distCoeffs_cameraVector(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    '''从配置文件中获得相机内参、畸变系数、相机光心到云台轴心的平移向量'''
-
-    if not os.path.exists(path):
-        raise RuntimeError(f'{path} not found')
-
-    content = toml.load(path)
-
-    cameraMatrix = np.float32(content['cameraMatrix'])
-    distCoeffs = np.float32(content['distCoeffs'])
-    cameraVector = np.float32([content['cameraVector']]).T
-
-    return cameraMatrix, distCoeffs, cameraVector
 
 
 def getParaTime(pos, bulletSpeed):
