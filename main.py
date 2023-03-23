@@ -1,11 +1,10 @@
 import matplotlib as mpl
 mpl.use('TkAgg')
 from modules.ExtendKF import EKF
-from modules.utilities import drawContour, drawPoint, drawAxis, putText
+from modules.tools import drawContour, drawPoint, drawAxis, putText
 from modules.communication import Communicator
 from modules.armor_detection import ArmorDetector
 from modules.mindvision import Camera
-from modules.Nahsor.Nahsor import *
 from modules.classification import Classifier
 from collections import deque
 import math
