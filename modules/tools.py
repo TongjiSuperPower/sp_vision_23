@@ -2,6 +2,15 @@ import cv2
 import math
 import numpy as np
 
+class VirtualComu():
+    yaw=10.
+    pitch=2.
+    def __init__(self) -> None:
+        pass
+    def received():
+        return True
+    def send(a):
+        print('virtualSent')
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     points = np.int32(points)
