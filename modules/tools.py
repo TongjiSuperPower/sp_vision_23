@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 
+
 class VirtualComu():
     yaw=10.
     pitch=2.
@@ -11,6 +12,7 @@ class VirtualComu():
         return True
     def send(a):
         print('virtualSent')
+
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     points = np.int32(points)
@@ -75,6 +77,7 @@ def getParaTime(pos, bulletSpeed):
     return t
 
 
+
 def compensateGravity(pos, bulletSpeed):
     '''
     重力补偿。输入世界坐标(mm)和弹速(m/s)，输出补偿后的世界坐标
@@ -86,3 +89,4 @@ def compensateGravity(pos, bulletSpeed):
     pos[1] -= dropDistance # 因为y轴方向向下，所以是减法
 
     return pos
+

@@ -3,7 +3,6 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from tools import getParaTime
-
 import configs.EKF as config
 
 class EKF():
