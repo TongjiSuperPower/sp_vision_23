@@ -1,6 +1,6 @@
 import cv2
-import modules.mvsdk as mvsdk
 import numpy as np
+from . import mvsdk
 
 
 class Camera:
