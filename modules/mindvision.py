@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from . import mvsdk
+import modules.mvsdk as mvsdk
 
 
 class Camera:
@@ -27,7 +27,7 @@ class Camera:
 
         # 相机参数设置
         mvsdk.CameraSetTriggerMode(self.camera, 2 if has_trigger else 0)  # 0:连续采集 1:软触发 2:硬触发
-        mvsdk.CameraSetFrameSpeed(self.camera, mvsdk.FRAME_SPEED_HIGH)  # 高帧率模式
+        mvsdk.CameraSetFrameSpeed(self.camera, mvsdk.FRAME_SPEED_NORMAL)  # NORMAL帧率可以达到200fps
         if exposure_ms != None:
             mvsdk.CameraSetAeState(self.camera, mvsdk.FALSE)  # 手动曝光
             mvsdk.CameraSetExposureTime(self.camera, exposure_ms * 1000)  # 曝光时间ms

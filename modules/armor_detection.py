@@ -1,7 +1,7 @@
 import cv2
 import math
 import numpy as np
-from .classification import Classifier
+from modules.classification import Classifier
 
 # 预处理
 threshold_value = 100  # 二值化阈值

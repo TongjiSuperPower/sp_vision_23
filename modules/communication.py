@@ -105,18 +105,29 @@ class Communicator:
         x, y, z = yaw_pitch_to_xyz(yaw, pitch)
         self.send(x*1e3, y*1e3, z*1e3)
 
-    def read(self, debug: bool = False):
-        while True:
-            frame = self.serial.read_all()
-            if len(frame) != frame_rx_len:
-                continue
+    def receive_no_wait(self, debug: bool = False) -> tuple[bool, None | tuple[int, float, float, float, int]]:
+        frame = self.serial.read_all()
+        if len(frame) != frame_rx_len:
+            if debug:
+                print(f'failed to receive {frame.hex()}')
+            return False, None
 
-            success, data = unpack_frame(frame)
+        success, message = unpack_frame(frame)
+        if not success:
+            if debug:
+                print(f'failed to unpack {frame.hex()}')
+            return False, None
+
+        if debug:
+            stamp, yaw, pitch, bullet_speed, flag = message
+            # print(f'received {stamp=} yaw={yaw:.1f} pitch={pitch:.1f} bullet_speed={bullet_speed:.1f} {flag=} {frame.hex()}')
+
+        return True, message
+
+    def receive(self, debug: bool = False) -> tuple[int, float, float, float, int]:
+        while True:
+            success, message = self.receive_no_wait(debug)
             if not success:
                 continue
 
-            if debug:
-                stamp, yaw, pitch, bullet_speed, flag = data
-                print(f'read {stamp=} yaw={yaw:.1f} pitch={pitch:.1f} bullet_speed={bullet_speed:.1f} {flag=} {frame.hex()}')
-
-            return data
+            return message
