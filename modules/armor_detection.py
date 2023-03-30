@@ -135,19 +135,21 @@ class ArmorDetector:
         self._cameraVector = cameraVector
         self._classifier = classifier
 
-        # 以下list均为未经filter的原始数据，方便调试
+        # 方便调试查看结果
         self._processed_img: cv2.Mat = None
         self._lightbars: list[Lightbar] = None
+        self._filtered_lightbars: list[Lightbar] = None
         self._lightbar_pairs: list[LightbarPair] = None
+        self._filtered_lightbar_pairs: list[LightbarPair] = None
         self._armors: list[Armor] = None
 
-    def _set_processed_img(self, img: cv2.Mat) -> None:
+    def _get_processed_img(self, img: cv2.Mat) -> None:
         gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, threshold_img = cv2.threshold(gray_img, threshold_value, 255, cv2.THRESH_BINARY)
 
-        self._processed_img = threshold_img
+        return threshold_img
 
-    def _set_lightbars(self, img: cv2.Mat, processed_img: cv2.Mat) -> None:
+    def _get_lightbars(self, img: cv2.Mat, processed_img: cv2.Mat) -> None:
         lightbars: list[Lightbar] = []
         contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -176,9 +178,9 @@ class ArmorDetector:
             lightbar = Lightbar(h, angle, center, color, area, ratio)
             lightbars.append(lightbar)
 
-        self._lightbars = lightbars
+        return lightbars
 
-    def _set_lightbar_pairs(self, lightbars: list[Lightbar]) -> None:
+    def _get_lightbar_pairs(self, lightbars: list[Lightbar]) -> None:
         lightbar_pairs: list[LightbarPair] = []
         lightbars.sort(key=lambda l: l.center[0])
 
@@ -200,9 +202,9 @@ class ArmorDetector:
                 lightbar_pair = LightbarPair(left, right, side_ratio, angle, ratio)
                 lightbar_pairs.append(lightbar_pair)
 
-        self._lightbar_pairs = lightbar_pairs
+        return lightbar_pairs
 
-    def _set_armors(self, img: cv2.Mat, lightbar_pairs: list[LightbarPair]) -> None:
+    def _get_armors(self, img: cv2.Mat, lightbar_pairs: list[LightbarPair]) -> None:
         armors: list[Armor] = []
 
         for lightbar_pair in lightbar_pairs:
@@ -235,20 +237,18 @@ class ArmorDetector:
             armor = Armor(lightbar_pair, confidence, name, pattern)
             armors.append(armor)
 
-        self._armors = armors
+        return armors
 
     def detect(self, img: cv2.Mat, yaw: float, pitch: float) -> list[Armor]:
-        self._set_processed_img(img)
+        self._processed_img = self._get_processed_img(img)
+        
+        self._lightbars = self._get_lightbars(img, self._processed_img)
+        self._filtered_lightbars= list(filter(lambda l: l.passed, self._lightbars))
 
-        processed_img = self._processed_img
-        self._set_lightbars(img, processed_img)
-
-        lightbars = list(filter(lambda l: l.passed, self._lightbars))
-        self._set_lightbar_pairs(lightbars)
-
-        lightbar_pairs = list(filter(lambda lp: lp.passed, self._lightbar_pairs))
-        self._set_armors(img, lightbar_pairs)
-
+        self._lightbar_pairs = self._get_lightbar_pairs(self._filtered_lightbars)
+        self._filtered_lightbar_pairs = list(filter(lambda lp: lp.passed, self._lightbar_pairs))
+        
+        self._armors = self._get_armors(img, self._filtered_lightbar_pairs)
         armors = list(filter(lambda a: a.passed, self._armors))
 
         # 分类器可能会误识别，如果两个装甲板共用一个灯条，选择置信度高的
