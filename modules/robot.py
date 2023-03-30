@@ -1,54 +1,115 @@
 import cv2
 import time
+import queue
 import ctypes
 import numpy as np
-from multiprocessing import Process, Lock, Queue, RawArray
-from modules.sensor import Sensor
+from multiprocessing import Process, Queue, RawArray
+from modules.mindvision import CallbackCamera
 from modules.communication import Communicator
 
 
-def receiving(exposure_ms: float, port: str, rx_queue, buffer: RawArray, lock: Lock):
-    Sensor(exposure_ms, port, rx_queue, buffer, lock)
+def communicating(port: str, tx: Queue, rx: Queue) -> None:
+    communicator = Communicator(port)
+    success_count = 0
 
     while True:
-        time.sleep(1)
+        time.sleep(0.001)
+
+        # 发送命令
+        try:
+            command = rx.get_nowait()
+            assert type(command) == tuple
+            communicator.send(*command)
+        except queue.Empty:
+            pass
+
+        # 接收机器人的状态
+        success, state = communicator.receive_no_wait(False)
+        if not success:
+            continue
+
+        try:
+            tx.put_nowait(state)
+        except queue.Full:
+            try:
+                tx.get_nowait()
+            except queue.Empty:
+                pass
+            finally:
+                try:
+                    tx.put_nowait(state)
+                except queue.Full:
+                    print(f'State Queue Full! Successed Count: {success_count}')
+                    success_count = -1
+
+        success_count += 1
 
 
-class Robot(Communicator):
+def capturing(exposure_ms: float, tx: Queue, buffer: RawArray) -> None:
+    CallbackCamera(exposure_ms, tx, buffer)
+
+    while True:
+        time.sleep(10)
+
+
+class Robot:
     def __init__(self, exposure_ms: float, port: str) -> None:
-        self.lock = Lock()
         self.buffer = RawArray(ctypes.c_uint8, 3932160)
-        self.rx_queue = Queue(maxsize=1)
-        self.rx_process = Process(target=receiving, args=(exposure_ms, port, self.rx_queue, self.buffer, self.lock))
-        self.rx_process.start()
+        self.camera_rx = Queue(maxsize=1)
+        self.capturing = Process(target=capturing, args=(exposure_ms, self.camera_rx, self.buffer))
 
-        self.callback_time: float = None
-        self.camera_stamp: int = None
-        self.serial_stamp: int = None
-        self.frame: cv2.Mat = None
+        self.communicator_rx = Queue(maxsize=1)
+        self.communicator_tx = Queue(maxsize=1)
+        self.communicating = Process(target=communicating, args=(port, self.communicator_rx, self.communicator_tx))
+
+        self.capturing.start()
+        self.camera_rx.get()
+        self.communicating.start()
+
+        self.callback_time_s: float = None
+        self.camera_stamp_ms: int = None
+        self.img: cv2.Mat = None
+
+        self.state_stamp: int = None
         self.yaw: float = None
         self.pitch: float = None
         self.bullet_speed: float = None
         self.flag: int = None
 
-        self.rx_queue.get()
-        Communicator.__init__(self, port)
-        print('Robot initiated')
-
-    def update(self):
-        callback_time, camera_timestamp, message = self.rx_queue.get()
-
-        with self.lock:
-            img = np.frombuffer(self.buffer, dtype=np.uint8)
+    def update(self) -> None:
+        callback_time_s, camera_stamp_ms = self.camera_rx.get()
+        img = np.frombuffer(self.buffer, dtype=np.uint8)
         img = img.reshape((1024, 1280, 3))
 
-        self.callback_time = callback_time
-        self.camera_stamp = camera_timestamp
-        self.frame = img
+        state = self.communicator_rx.get()
 
-        serial_stamp, yaw, pitch, bullet_speed, flag = message
-        self.serial_stamp = serial_stamp
+        self.callback_time_s = callback_time_s
+        self.camera_stamp_ms = camera_stamp_ms
+        self.img = img
+
+        state_stamp, yaw, pitch, bullet_speed, flag = state
+        self.state_stamp = state_stamp
         self.yaw = yaw
         self.pitch = pitch
         self.bullet_speed = bullet_speed
         self.flag = flag
+
+    def send(
+        self,
+        x_in_imu: float = 0, y_in_imu: float = 0, z_in_imu: float = 0,
+        vx_in_imu: float = 0, vy_in_imu: float = 0, vz_in_imu: float = 0,
+        stamp: int = 0, flag: int = 0,
+    ) -> None:
+        command = (x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, stamp, flag)
+        try:
+            self.communicator_tx.put_nowait(command)
+        except queue.Full:
+            try:
+                self.communicator_tx.get_nowait()
+            except queue.Empty:
+                pass
+            finally:
+                try:
+                    self.communicator_tx.put_nowait(command)
+                except queue.Full:
+                    print(f'Command Queue Full!')

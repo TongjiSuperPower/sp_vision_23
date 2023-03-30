@@ -1,5 +1,9 @@
 import cv2
+import time
+import queue
+import ctypes
 import numpy as np
+from multiprocessing import Queue, RawArray
 import modules.mvsdk as mvsdk
 
 
@@ -52,11 +56,48 @@ class Camera:
         except mvsdk.CameraException:
             return False, None
 
-    def getTimeStampUs(self) -> int:
-        return mvsdk.CameraGetFrameTimeStamp(self.camera)
+    def get_stamp_ms(self) -> int:
+        return mvsdk.CameraGetFrameTimeStamp(self.camera) / 1e3
 
     def release(self) -> None:
         # 关闭相机
         mvsdk.CameraUnInit(self.camera)
         # 释放帧缓存
         mvsdk.CameraAlignFree(self.buffer)
+
+
+class CallbackCamera(Camera):
+    def __init__(self, exposure_ms: float, tx: Queue, buffer: RawArray):
+        Camera.__init__(self, exposure_ms, True)
+
+        self.tx = tx
+        self.buffer_address = ctypes.addressof(buffer)
+        mvsdk.CameraSetCallbackFunction(self.camera, self.callback)
+
+        self.success_count = 0
+
+    @mvsdk.method(mvsdk.CAMERA_SNAP_PROC)
+    def callback(self, hCamera, pRawData, pFrameHead, pContext):
+        callback_time_s = time.time()
+
+        head = pFrameHead[0]
+        camera_stamp_ms = head.uiTimeStamp / 10
+
+        mvsdk.CameraImageProcess(hCamera, pRawData, self.buffer_address, head)
+        mvsdk.CameraReleaseImageBuffer(hCamera, pRawData)
+
+        try:
+            self.tx.put_nowait((callback_time_s, camera_stamp_ms))
+        except queue.Full:
+            try:
+                self.tx.get_nowait()
+            except queue.Empty:
+                pass
+            finally:
+                try:
+                    self.tx.put_nowait((callback_time_s, camera_stamp_ms))
+                except queue.Full:
+                    print(f'Camera Queue Full! Successed Count: {self.success_count}')
+                    self.success_count = -1
+
+        self.success_count += 1

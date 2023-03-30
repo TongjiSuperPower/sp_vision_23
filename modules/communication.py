@@ -85,6 +85,8 @@ def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
 class Communicator:
     def __init__(self, port: str) -> None:
         self.serial = serial.Serial(port, 115200)
+        self.serial.reset_input_buffer()
+        self.serial.reset_output_buffer()
 
     def send(
         self,
@@ -100,34 +102,33 @@ class Communicator:
         if debug:
             print(f'sent {stamp=} x={x_in_imu} y={y_in_imu} z={z_in_imu} vx={vx_in_imu} vy={vy_in_imu} vz={vz_in_imu} {flag=} {frame.hex()}')
 
-    def send_yaw_pitch(self, yaw: float, pitch: float) -> None:
+    def send_yaw_pitch(self, yaw: float, pitch: float, debug: bool = False) -> None:
         '''旋转正方向符合对应坐标轴右手螺旋'''
         x, y, z = yaw_pitch_to_xyz(yaw, pitch)
-        self.send(x*1e3, y*1e3, z*1e3)
+        self.send(x*1e3, y*1e3, z*1e3, debug)
 
     def receive_no_wait(self, debug: bool = False) -> tuple[bool, None | tuple[int, float, float, float, int]]:
         frame = self.serial.read_all()
         if len(frame) != frame_rx_len:
-            if debug:
+            if len(frame) != 0:
                 print(f'failed to receive {frame.hex()}')
             return False, None
 
-        success, message = unpack_frame(frame)
+        success, state = unpack_frame(frame)
         if not success:
-            if debug:
-                print(f'failed to unpack {frame.hex()}')
+            print(f'failed to unpack {frame.hex()}')
             return False, None
 
         if debug:
-            stamp, yaw, pitch, bullet_speed, flag = message
-            # print(f'received {stamp=} yaw={yaw:.1f} pitch={pitch:.1f} bullet_speed={bullet_speed:.1f} {flag=} {frame.hex()}')
+            stamp, yaw, pitch, bullet_speed, flag = state
+            print(f'received {stamp=} yaw={yaw:.1f} pitch={pitch:.1f} bullet_speed={bullet_speed:.1f} {flag=} {frame.hex()}')
 
-        return True, message
+        return True, state
 
     def receive(self, debug: bool = False) -> tuple[int, float, float, float, int]:
         while True:
-            success, message = self.receive_no_wait(debug)
+            success, state = self.receive_no_wait(debug)
             if not success:
                 continue
 
-            return message
+            return state
