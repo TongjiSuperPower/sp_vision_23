@@ -24,15 +24,12 @@ if __name__ == '__main__':
     twoPtsInCam = deque(maxlen=2)  # a queue with max 2 capaticity
     twoPtsInWorld = deque(maxlen=2)
     twoPtsInTripod = deque(maxlen=2)
-    twoTimeStampUs = deque(maxlen=2)
-    totalTime = []
+    twoTimeStampMs = deque(maxlen=2)
+    continuousFrameCount = 0
 
     while True:
         robot.update()
 
-        twoTimeStampUs.append(robot.camera_stamp_ms)
-        deltaTime = (twoTimeStampUs[1] - twoTimeStampUs[0]) if len(twoTimeStampUs) == 2 else 5  # ms
-        totalTime.append(deltaTime)
 
         img = robot.img
         armors = armor_detector.detect(img, robot.yaw, robot.pitch)
@@ -55,8 +52,15 @@ if __name__ == '__main__':
                 # after losing armor for a while
                 lostFrame = 0
                 ekfilter = EKF(6, 3)  # create a new filter
+                print(f'Lost Over {maxLostFrame} Frames! {continuousFrameCount=}')
+                continuousFrameCount = 0
 
         if len(armors) > 0:
+            continuousFrameCount += 1
+
+            twoTimeStampMs.append(robot.camera_stamp_ms)
+            deltaTime = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 5
+
             armor = armors[0]
             predictedPtsInWorld = armor.in_imu.T[0]  # 如果没开EKF，就发送识别值
 
