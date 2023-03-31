@@ -56,7 +56,8 @@ class EKF():
         k = _state
 
         # 计算R_k矩阵   
-        [yaw,pitch] = gesture     
+        yaw, pitch = gesture     
+        yaw, pitch = math.radians(yaw), math.radians(pitch)    
         yRotationMatrix = np.array([[math.cos(yaw),0,math.sin(yaw)],[0,1,0],[-math.sin(yaw),0,math.cos(yaw)]])
         xRotationMatrix = np.array([[1,0,0],[0,math.cos(pitch),-math.sin(pitch)],[0,math.sin(pitch),math.cos(pitch)]])
         self.rotationMatrix = yRotationMatrix @ xRotationMatrix
