@@ -3,7 +3,6 @@ import time
 import numpy as np
 
 import modules.tools as tools
-from modules.classification import Classifier
 from modules.armor_detection import ArmorDetector
 
 if __name__ == '__main__':
@@ -12,8 +11,7 @@ if __name__ == '__main__':
     video_path = 'assets/input.avi'
 
     cap = cv2.VideoCapture(video_path)
-    classifier = Classifier()
-    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector, classifier)
+    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
 
     while True:
         success, frame = cap.read()

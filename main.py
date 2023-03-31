@@ -6,7 +6,6 @@ from collections import deque
 import modules.tools as tools
 from modules.robot import Robot
 from modules.ExtendKF import EKF
-from modules.classification import Classifier
 from modules.armor_detection import ArmorDetector
 
 from remote_visualizer import Visualizer
@@ -16,8 +15,7 @@ if __name__ == '__main__':
     robot = Robot(3, '/dev/ttyUSB0')
     visualizer = Visualizer()
 
-    classifier = Classifier()
-    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector, classifier)
+    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
 
     ekfilter = EKF(6, 3)
     maxLostFrame = 3  # 最大丢失帧数
