@@ -64,7 +64,8 @@ class EKF():
         #print('step update\n')
         #print(self.rotationMatrix)
 
-        [z, alpha, beta] = observation
+        z, alpha, beta = observation
+        alpha, beta = math.radians(alpha), math.radians(beta)
 
         gMatrix = np.array([
             [math.tan(alpha), z/(math.cos(alpha)**2), 0], 

@@ -123,8 +123,8 @@ class Armor:
 
         # 将相机坐标系下的坐标转换为观测量
         x, y, z = self.in_camera.T[0]
-        alpha = math.atan(x/z)  # rad
-        beta = math.atan(y/z)  # rad
+        alpha = math.degrees(math.atan(x/z))
+        beta = math.degrees(math.atan(y/z))
         self.observation = (z, alpha, beta)
 
 
