@@ -48,11 +48,9 @@ def pack_frame(
     x_in_imu = int(x_in_imu)
     y_in_imu = int(y_in_imu)
     z_in_imu = int(z_in_imu)
-
-    # TODO
-    vx_in_imu = int(vx_in_imu)
-    vy_in_imu = int(vy_in_imu)
-    vz_in_imu = int(vz_in_imu)
+    vx_in_imu = int(vx_in_imu * 1e3)
+    vy_in_imu = int(vy_in_imu * 1e3)
+    vz_in_imu = int(vz_in_imu * 1e3)
 
     crc_part = struct.pack('=BBhhhhhhB', frame_head, stamp, x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, flag)
     crc = calculateCrc8(crc_part)
