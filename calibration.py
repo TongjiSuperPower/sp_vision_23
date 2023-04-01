@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 from modules.mindvision import Camera
+from modules.armor_detection import ArmorDetector
 from modules.tools import drawContour, drawPoint, drawAxis, putText
 
 
@@ -145,7 +146,56 @@ def take_pictures():
     cap.release()
 
 
+def alpha_beta_variance():
+    from configs.camera2 import cameraMatrix, cameraVector, distCoeffs
+
+    cap = Camera(4)
+
+    detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
+
+    alphas = []
+    betas = []
+
+    while True:
+        success, img = cap.read()
+        if not success:
+            continue
+
+        armors = detector.detect(img, 0, 0)
+        drawing = img.copy()
+        for l in detector._filtered_lightbars:
+            drawContour(drawing, l.points, (255, 255, 0), 5)
+        for a in armors:
+            cx, cy, cz = a.in_camera.T[0]
+            drawContour(drawing, a.points)
+            drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+            putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
+            putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
+        cv2.imshow('', drawing)
+
+        # 显示所有图案图片
+        for i, a in enumerate(detector._armors):
+            cv2.imshow(f'{i}', a.pattern)
+
+        key = cv2.waitKey(1) & 0xff
+        if key == ord('q'):
+            print(f'{alphas=}')
+            print(f'{betas=}')
+            alphas = np.array(alphas)
+            betas = np.array(betas)
+            print(f'alpha variance{alphas.var()}')
+            print(f'beta variance{betas.var()}')
+            break
+        if key == ord('a'):
+            a = armors[0]
+            _, alpha, beta = a.observation
+            alphas.append(alpha)
+            betas.append(beta)
+            print(f'added {len(alphas)}')
+
+
 if __name__ == '__main__':
     # calibrate_aperture()
     # calibrate_intrinsic_and_distortion()
     take_pictures()
+    # alpha_beta_variance()
