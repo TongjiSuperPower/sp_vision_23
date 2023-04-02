@@ -17,7 +17,7 @@ def get_local_ip():
     return my_ip
 
 
-def visualizing(port: int, frame_queue: Queue, plot_queue: Queue):
+def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
     import json
     import logging
     from flask import Flask, Response, render_template, make_response
@@ -42,10 +42,10 @@ def visualizing(port: int, frame_queue: Queue, plot_queue: Queue):
     def video_feed():
         def next_frame():
             while True:
-                frame = frame_queue.get()
-                _, buffer = cv2.imencode('.jpg', frame)
-                frame = buffer.tobytes()
-                yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+frame+b'\r\n'
+                img = show_queue.get()
+                _, buffer = cv2.imencode('.jpg', img)
+                img = buffer.tobytes()
+                yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'+img+b'\r\n'
 
         return Response(next_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
@@ -58,13 +58,13 @@ def visualizing(port: int, frame_queue: Queue, plot_queue: Queue):
 
 class Visualizer:
     def __init__(self, port: int = 60000) -> None:
-        self._frame_queue = Queue(maxsize=1)
+        self._show_queue = Queue(maxsize=1)
         self._plot_queue = Queue(maxsize=1)
         self._plot_buffer = []
 
         self._process = Process(
             target=visualizing,
-            args=(port, self._frame_queue, self._plot_queue)
+            args=(port, self._show_queue, self._plot_queue)
         )
 
         self._process.start()
@@ -73,7 +73,9 @@ class Visualizer:
 
     def show(self, img: cv2.Mat) -> None:
         try:
-            self._frame_queue.put_nowait(img)
+            h, w, _ = img.shape
+            img = cv2.resize(img, (w//2, h//2))
+            self._show_queue.put_nowait(img)
         except queue.Full:
             pass
 
