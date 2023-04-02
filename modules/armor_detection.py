@@ -90,6 +90,8 @@ class Armor:
         self.in_gimbal: np.ndarray = None  # [[x], [y], [z]]
         self.in_imu: np.ndarray = None  # [[x], [y], [z]]
         self.observation: tuple[float, float, float] = None  # (z, alpha, beta)
+        self.yaw: float = None
+        self.pitch: float = None
 
     @property
     def passed(self) -> bool:
@@ -126,6 +128,8 @@ class Armor:
         alpha = math.degrees(math.atan(x/z))
         beta = math.degrees(math.atan(y/z))
         self.observation = (z, alpha, beta)
+        self.yaw = alpha
+        self.pitch = math.degrees(math.atan(y / (x*x + z*z)**0.5))
 
 
 class ArmorDetector:
