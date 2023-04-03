@@ -175,8 +175,16 @@ class ArmorDetector:
 
             # 判断颜色
             roi_x, roi_y, roi_w, roi_h = cv2.boundingRect(contour)  # (左上x, 左上y, w, h)
-            blue_sum = np.sum(img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 0])
-            red_sum = np.sum(img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 2])
+            blue_sum, red_sum = 0, 0
+            for i in range(roi_y, roi_y+roi_h):
+                for j in range(roi_x, roi_x+roi_w):
+                    if cv2.pointPolygonTest(contour, (j, i), False) < 0:
+                        continue
+                    blue, _, red = img[i, j]
+                    if blue > red:
+                        blue_sum += 1
+                    else:
+                        red_sum += 1
             color = 'blue' if blue_sum > red_sum else 'red'
 
             lightbar = Lightbar(h, angle, center, color, area, ratio)
@@ -245,13 +253,13 @@ class ArmorDetector:
 
     def detect(self, img: cv2.Mat, yaw: float, pitch: float) -> list[Armor]:
         self._processed_img = self._get_processed_img(img)
-        
+
         self._lightbars = self._get_lightbars(img, self._processed_img)
-        self._filtered_lightbars= list(filter(lambda l: l.passed, self._lightbars))
+        self._filtered_lightbars = list(filter(lambda l: l.passed, self._lightbars))
 
         self._lightbar_pairs = self._get_lightbar_pairs(self._filtered_lightbars)
         self._filtered_lightbar_pairs = list(filter(lambda lp: lp.passed, self._lightbar_pairs))
-        
+
         self._armors = self._get_armors(img, self._filtered_lightbar_pairs)
         armors = list(filter(lambda a: a.passed, self._armors))
 
