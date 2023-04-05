@@ -30,21 +30,20 @@ if __name__ == '__main__':
     while True:
         robot.update()
 
-
         img = robot.img
         armors = armor_detector.detect(img, robot.yaw, robot.pitch)
 
         # 调试用
         drawing = img.copy()
         for l in armor_detector._filtered_lightbars:
-            tools.drawContour(drawing, l.points, (255, 255, 0), 5)
+            tools.drawContour(drawing, l.points, (0, 255, 255), 10)
         for a in armors:
             cx, cy, cz = a.in_camera.T[0]
             tools.drawContour(drawing, a.points)
             tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
             tools.putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
             tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
-        visualizer.show(drawing)
+        # visualizer.show(drawing)
 
         if len(armors) == 0:
             lostFrame += 1
@@ -52,7 +51,8 @@ if __name__ == '__main__':
                 # after losing armor for a while
                 lostFrame = 0
                 ekfilter = EKF(6, 3)  # create a new filter
-                print(f'Lost Over {maxLostFrame} Frames! {continuousFrameCount=}')
+                # if continuousFrameCount > 0:
+                    # print(f'last {continuousFrameCount=}')
                 continuousFrameCount = 0
 
         if len(armors) > 0:
@@ -84,18 +84,26 @@ if __name__ == '__main__':
             state[4] = armor.in_imu[2]
 
             ptsEKF = ekfilter.step(deltaTime, (robot.yaw, robot.pitch), state, armor.observation)
-            predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 20, 10, 0)  # predictTime后目标在世界坐标系下的坐标(mm)
-            robot.send(*predictedPtsInWorld)
+            predictedPtsInWorld = ekfilter.getCompensatedPtsInWorld(ptsEKF, 50, 17, 3)  # predictTime后目标在世界坐标系下的坐标(mm)
 
             # 调试用
-            # cx, cy, cz = armor.in_camera.T[0]
-            # x, y, z = armor.in_imu.T[0]
-            # px, py, pz = ptsEKF.T[0]
-            # _state = ekfilter.state.T[0]
-            # vx, vy, vz = _state[1], _state[3], _state[5]
-            # v.plot((cx, x, r.yaw*10), ('cx', 'x', 'yaw'))
+            cx, cy, cz = armor.in_camera.T[0]
+            x, y, z = armor.in_imu.T[0]
+            px, py, pz = ptsEKF.T[0]
+            ppx,ppy,ppz = predictedPtsInWorld
+            _state = ekfilter.state.T[0]
+            vx, vy, vz = _state[1], _state[3], _state[5]
+            visualizer.plot((cy, y, robot.yaw*10, robot.pitch*20), ('cy', 'y', 'yaw', 'pitch'))
             # v.plot((r.yaw, r.pitch), ('yaw', 'pitch'))
-            # v.plot((x, y, z, r.yaw*10, r.pitch*10), ('x', 'y', 'z', 'yaw', 'pitch'))
-            # v.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
+            # visualizer.plot((x, y, z, robot.yaw*10, robot.pitch*50), ('x', 'y', 'z', 'yaw', 'pitch'))
+            # visualizer.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
+            # visualizer.plot((x, y, z, px,py,pz,ppx, ppy, ppz), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz'))
+            # visualizer.plot((x, y, z, px,py,pz,ppx, ppy, ppz,vx*10,vy*10,vz*10), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz','vx','vy','vz'))
+            
             # v.plot((x, y, z), ('x', 'y', 'z'))
             # v.plot((vx,vy,vz), ('x', 'y', 'z'))
+            # robot.send(ppx, ppy, ppz)
+            # robot.send(px, py, pz, vx, vy, vz)
+            # robot.send(px, py, pz)
+            # robot.send(ppx, ppy-60, ppz)
+            # print(z)

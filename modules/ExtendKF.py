@@ -85,7 +85,7 @@ class EKF():
         # correct:
         # 更新P_k
         if self.stepNumber <= 2:
-            self.pMatrix = gammaMatrix @ self.qMatrix @ gammaMatrix.T
+            self.pMatrix = (gammaMatrix @ self.qMatrix @ gammaMatrix.T)*10 # TODO
             return self.hMatrix @ self.state
             
         else:
