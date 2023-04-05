@@ -130,3 +130,10 @@ class Communicator:
                 continue
 
             return state
+
+    def __enter__(self) -> 'Communicator':
+        return self
+
+    def __exit__(self, *args, **kwargs) -> None:
+        self.serial.close()
+        print('Communicator closed.')

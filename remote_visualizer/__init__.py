@@ -1,6 +1,6 @@
 import cv2
 import queue
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Manager
 
 
 def get_local_ip():
@@ -58,18 +58,18 @@ def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
 
 class Visualizer:
     def __init__(self, port: int = 60000) -> None:
-        self._show_queue = Queue(maxsize=1)
+        self._show_queue = Manager().Queue(maxsize=1)
         self._plot_queue = Queue(maxsize=1)
         self._plot_buffer = []
 
-        self._process = Process(
+        self.visualizing = Process(
             target=visualizing,
             args=(port, self._show_queue, self._plot_queue)
         )
 
-        self._process.start()
+        self.visualizing.start()
         host_ip = get_local_ip()
-        print(f'\n * Remote Visualizer will be running on http://{host_ip}:{port}')
+        print(f'\n * Visualizer will be running on http://{host_ip}:{port}')
 
     def show(self, img: cv2.Mat) -> None:
         try:
@@ -86,3 +86,11 @@ class Visualizer:
             self._plot_buffer = []
         except queue.Full:
             pass
+
+    def __enter__(self) -> 'Visualizer':
+        return self
+
+    def __exit__(self, *args, **kwargs) -> None:
+        self.visualizing.terminate()
+        self.visualizing.join()
+        print('Visualizer closed.')

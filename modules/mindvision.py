@@ -65,6 +65,13 @@ class Camera:
         # 释放帧缓存
         mvsdk.CameraAlignFree(self.buffer)
 
+    def __enter__(self) -> 'Camera':
+        return self
+
+    def __exit__(self, *args, **kwargs) -> None:
+        self.release()
+        print('Camera closed.')
+
 
 class CallbackCamera(Camera):
     def __init__(self, exposure_ms: float, tx: Queue, buffer: RawArray):
@@ -72,9 +79,8 @@ class CallbackCamera(Camera):
 
         self.tx = tx
         self.buffer_address = ctypes.addressof(buffer)
-        mvsdk.CameraSetCallbackFunction(self.camera, self.callback)
-
         self.success_count = 0
+        mvsdk.CameraSetCallbackFunction(self.camera, self.callback)
 
     @mvsdk.method(mvsdk.CAMERA_SNAP_PROC)
     def callback(self, hCamera, pRawData, pFrameHead, pContext):
