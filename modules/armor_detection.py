@@ -175,17 +175,10 @@ class ArmorDetector:
 
             # 判断颜色
             roi_x, roi_y, roi_w, roi_h = cv2.boundingRect(contour)  # (左上x, 左上y, w, h)
-            blue_sum, red_sum = 0, 0
-            for i in range(roi_y, roi_y+roi_h):
-                for j in range(roi_x, roi_x+roi_w):
-                    if cv2.pointPolygonTest(contour, (j, i), False) < 0:
-                        continue
-                    blue, _, red = img[i, j]
-                    if blue > red:
-                        blue_sum += 1
-                    else:
-                        red_sum += 1
-            color = 'blue' if blue_sum > red_sum else 'red'
+            roi_blue = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 0]
+            roi_red = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 2]
+            blue_sum = np.count_nonzero(cv2.subtract(roi_blue, roi_red))
+            color = 'blue' if blue_sum > roi_w * roi_h /2 else 'red'
 
             lightbar = Lightbar(h, angle, center, color, area, ratio)
             lightbars.append(lightbar)
