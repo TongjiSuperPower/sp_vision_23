@@ -8,59 +8,82 @@ from modules.mindvision import CallbackCamera
 from modules.communication import Communicator
 
 
-def communicating(port: str, tx: Queue, rx: Queue) -> None:
-    communicator = Communicator(port)
-    success_count = 0
+def communicating(port: str, tx: Queue, rx: Queue, quit_queue: Queue) -> None:
+    with Communicator(port) as communicator:
+        success_count = 0
 
-    while True:
-        time.sleep(0.001)
+        while True:
+            time.sleep(0.001)
 
-        # 发送命令
-        try:
-            command = rx.get_nowait()
-            assert type(command) == tuple
-            communicator.send(*command)
-        except queue.Empty:
-            pass
-
-        # 接收机器人的状态
-        success, state = communicator.receive_no_wait(False)
-        if not success:
-            continue
-
-        try:
-            tx.put_nowait(state)
-        except queue.Full:
+            # 判断是否退出
             try:
-                tx.get_nowait()
+                quit = quit_queue.get_nowait()
+                if quit:
+                    break
             except queue.Empty:
                 pass
-            finally:
+
+            # 发送命令
+            try:
+                command = rx.get_nowait()
+                assert type(command) == tuple
+                communicator.send(*command)
+            except queue.Empty:
+                pass
+
+            # 接收机器人的状态
+            success, state = communicator.receive_no_wait(False)
+            if not success:
+                continue
+
+            try:
+                tx.put_nowait(state)
+            except queue.Full:
                 try:
-                    tx.put_nowait(state)
-                except queue.Full:
-                    print(f'State Queue Full! Successed Count: {success_count}')
-                    success_count = -1
+                    tx.get_nowait()
+                except queue.Empty:
+                    pass
+                finally:
+                    try:
+                        tx.put_nowait(state)
+                    except queue.Full:
+                        print(f'State Queue Full! Successed Count: {success_count}')
+                        success_count = -1
 
-        success_count += 1
+            success_count += 1
 
 
-def capturing(exposure_ms: float, tx: Queue, buffer: RawArray) -> None:
-    CallbackCamera(exposure_ms, tx, buffer)
+def capturing(exposure_ms: float, tx: Queue, buffer: RawArray, quit_queue: Queue) -> None:
+    with CallbackCamera(exposure_ms, tx, buffer) as camera:
+        while True:
+            time.sleep(10)
 
-    while True:
-        time.sleep(10)
+            # 判断是否退出
+            try:
+                quit = quit_queue.get_nowait()
+                if quit:
+                    break
+            except queue.Empty:
+                pass
 
 
 class Robot:
     def __init__(self, exposure_ms: float, port: str) -> None:
         self.buffer = RawArray(ctypes.c_uint8, 3932160)
         self.camera_rx = Queue(maxsize=1)
-        self.capturing = Process(target=capturing, args=(exposure_ms, self.camera_rx, self.buffer))
+        self.camera_quit = Queue()
+        self.capturing = Process(
+            target=capturing,
+            args=(exposure_ms, self.camera_rx, self.buffer, self.camera_quit)
+        )
 
         self.communicator_rx = Queue(maxsize=1)
         self.communicator_tx = Queue(maxsize=1)
-        self.communicating = Process(target=communicating, args=(port, self.communicator_rx, self.communicator_tx))
+        self.communicator_quit = Queue()
+        self.communicating = Process(
+            target=communicating,
+            args=(port, self.communicator_rx, self.communicator_tx, self.communicator_quit)
+        )
 
         self.capturing.start()
         self.camera_rx.get()
@@ -113,3 +136,15 @@ class Robot:
                     self.communicator_tx.put_nowait(command)
                 except queue.Full:
                     print(f'Command Queue Full!')
+
+    def __enter__(self) -> 'Robot':
+        return self
+
+    def __exit__(self, *args, **kwargs) -> None:
+        self.communicator_quit.put(True)
+        self.communicating.join()
+
+        self.camera_quit.put(True)
+        self.capturing.join()
+
+        print('Robot closed.')

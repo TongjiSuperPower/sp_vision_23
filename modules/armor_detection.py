@@ -90,6 +90,8 @@ class Armor:
         self.in_gimbal: np.ndarray = None  # [[x], [y], [z]]
         self.in_imu: np.ndarray = None  # [[x], [y], [z]]
         self.observation: tuple[float, float, float] = None  # (z, alpha, beta)
+        self.yaw: float = None
+        self.pitch: float = None
 
     @property
     def passed(self) -> bool:
@@ -126,6 +128,8 @@ class Armor:
         alpha = math.degrees(math.atan(x/z))
         beta = math.degrees(math.atan(y/z))
         self.observation = (z, alpha, beta)
+        self.yaw = alpha
+        self.pitch = math.degrees(math.atan(y / (x*x + z*z)**0.5))
 
 
 class ArmorDetector:
@@ -171,8 +175,10 @@ class ArmorDetector:
 
             # 判断颜色
             roi_x, roi_y, roi_w, roi_h = cv2.boundingRect(contour)  # (左上x, 左上y, w, h)
-            blue_sum = np.sum(img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 0])
-            red_sum = np.sum(img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 2])
+            roi_blue = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 0]
+            roi_red = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 2]
+            blue_sum = np.count_nonzero(cv2.subtract(roi_blue, roi_red) > 10)
+            red_sum = np.count_nonzero(cv2.subtract(roi_red, roi_blue) > 10)
             color = 'blue' if blue_sum > red_sum else 'red'
 
             lightbar = Lightbar(h, angle, center, color, area, ratio)
@@ -241,13 +247,13 @@ class ArmorDetector:
 
     def detect(self, img: cv2.Mat, yaw: float, pitch: float) -> list[Armor]:
         self._processed_img = self._get_processed_img(img)
-        
+
         self._lightbars = self._get_lightbars(img, self._processed_img)
-        self._filtered_lightbars= list(filter(lambda l: l.passed, self._lightbars))
+        self._filtered_lightbars = list(filter(lambda l: l.passed, self._lightbars))
 
         self._lightbar_pairs = self._get_lightbar_pairs(self._filtered_lightbars)
         self._filtered_lightbar_pairs = list(filter(lambda lp: lp.passed, self._lightbar_pairs))
-        
+
         self._armors = self._get_armors(img, self._filtered_lightbar_pairs)
         armors = list(filter(lambda a: a.passed, self._armors))
 
