@@ -57,8 +57,10 @@ class LeNet(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(16 * 9 * 9, 120),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(120, 84),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(84, num_classes),
         )
 
@@ -74,7 +76,7 @@ if __name__ == '__main__':
     device = torch.device('cpu')
 
     # 超参数
-    batch_size = 2
+    batch_size = 16
     learning_rate = 0.001
     num_epochs = 15
 
@@ -90,6 +92,7 @@ if __name__ == '__main__':
 
     for epoch in range(num_epochs):
         # train
+        model.train()
         for images, labels in train_loader:
             images = images.to(device)
             labels = labels.to(device)
@@ -102,6 +105,7 @@ if __name__ == '__main__':
             optimizer.step()
 
         # test
+        model.eval()
         correct = 0
         total = 0
         with torch.no_grad():
@@ -120,6 +124,7 @@ if __name__ == '__main__':
     # 导出
     export_path = 'assets/model.onnx'
     x = torch.randn(1, 1, 50, 50)
+    x = x.to(device)
     torch.onnx.export(model,
                       x,
                       export_path,
@@ -129,11 +134,14 @@ if __name__ == '__main__':
                                     'output': {0: 'batch_size'}})
     print(f'Model is exported at {export_path}')
 
+    # show result
+    model.eval()
     figure = plt.figure(figsize=(8, 8))
     cols, rows = 4, 4
     for i in range(1, cols * rows + 1):
         sample_idx = torch.randint(len(test_dataset), size=(1,)).item()
         img, label = test_dataset[sample_idx]
+        img = img.to(device)
 
         with torch.no_grad():
             outputs = model(img.unsqueeze(0))
@@ -145,5 +153,6 @@ if __name__ == '__main__':
         figure.add_subplot(rows, cols, i)
         plt.title(f'{class_names[class_id]} {confidence:.2f} {"T" if label==class_id else "F"}')
         plt.axis("off")
+        img = img.to('cpu')
         plt.imshow(img.squeeze(), cmap="gray")
     plt.show()
