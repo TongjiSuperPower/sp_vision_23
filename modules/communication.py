@@ -66,7 +66,7 @@ def unpack_frame(frame: bytes) -> tuple[bool, None | tuple[int, float, float, fl
 
     yaw = math.degrees(yaw / 1e4)
     pitch = math.degrees(pitch / 1e4)
-    bullet_speed = bullet_speed  # TODO
+    bullet_speed = bullet_speed / 1e3
 
     return True, (stamp, yaw, pitch, bullet_speed, flag)
 

@@ -57,7 +57,11 @@ def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
 
 
 class Visualizer:
-    def __init__(self, port: int = 60000) -> None:
+    def __init__(self, port: int = 60000, enable: bool = True) -> None:
+        self.enable = enable
+        if not self.enable:
+            return
+
         self._show_queue = Manager().Queue(maxsize=1)
         self._plot_queue = Queue(maxsize=1)
         self._plot_buffer = []
@@ -72,6 +76,9 @@ class Visualizer:
         print(f'\n * Visualizer will be running on http://{host_ip}:{port}')
 
     def show(self, img: cv2.Mat) -> None:
+        if not self.enable:
+            return
+
         try:
             h, w, _ = img.shape
             img = cv2.resize(img, (w//2, h//2))
@@ -80,6 +87,9 @@ class Visualizer:
             pass
 
     def plot(self, values=(), names=()) -> None:
+        if not self.enable:
+            return
+
         self._plot_buffer.append({'values': values, 'names': names})
         try:
             self._plot_queue.put_nowait(self._plot_buffer)
@@ -91,6 +101,9 @@ class Visualizer:
         return self
 
     def __exit__(self, *args, **kwargs) -> None:
+        if not self.enable:
+            return
+
         self.visualizing.terminate()
         self.visualizing.join()
         print('Visualizer closed.')
