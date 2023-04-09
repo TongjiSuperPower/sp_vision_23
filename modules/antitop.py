@@ -27,6 +27,7 @@ weight_threshold = 150 #识别时容忍出现的左右偏差，大于这个值�
 dropframe_threshold =8 #容忍连续未检测到框的帧数，超过这个值就说明无检测了
 top_threshold = 2+1 #判断是否为小陀螺的阈值,至少要转几次(可能一次是一个半圈,这个变量的值是转的次数+1（因为存的是结点不是过程）)
 rot_threshold = 5 #判断是否在旋转的阈值，旋转帧超过这个阈值且检测框位置变化很大说明转过了一个半圈
+rot_toplimit_threshold = 70 #如果连续转x帧还没有转半圈就说明没动
 var_threshold = 0.01  #判断是否是小陀螺时使用的时间差方差阈值，如果相差时间小于这个阈值就说明是旋转的（前提是小陀螺是稳定旋转不是大幅度变速）
 
 #====================
@@ -107,6 +108,7 @@ class TopStateDeque:
             #如果掉帧系数已到阈值：
             if self.dropframe == dropframe_threshold : #到达阈值
                 self.armorsDetectionDeque.clear() #清空队列
+                self.timeDiffDeque.clear()
                 self.dropframe = 0 #重置
                 self.speed = -1 
             else: #如果掉帧系数没到阈值：
@@ -121,10 +123,14 @@ class TopStateDeque:
             now_center = self.nowArmorState.getArmors()[0].in_imu.T[0]  #多个检测框时 以最左边为基准 center形式：[x y z]
             last_center = self.lastArmorState.getArmors()[0].in_imu.T[0] #TODO 以当前队列表示的数字为基准
         
-            #如果 两次检测的中心差 小于一个阈值，就说明没有转半圈,记旋转值+1,return
+            #如果 两次检测的中心差 小于一个阈值，就说明没有转半圈,记旋转值+1
             if abs(now_center[0] - last_center[0]) < weight_threshold :
                 self.rot += 1
-
+                if self.rot > rot_toplimit_threshold:  #说明没转着
+                    self.speed = -1
+                    self.armorsDetectionDeque.clear() #清空队列
+                    self.timeDiffDeque.clear()
+                    
             else:   # 如果大于这个阈值：
                 if self.rot >= rot_threshold :   #到达阈值且旋转值到阈值，也就是在转的状态且转过半圈
 
