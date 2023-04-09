@@ -17,6 +17,7 @@ if __name__ == '__main__':
     topStateDeque = TopStateDeque()
     armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
     frame_num = 0  #当前是第几帧
+    speed = 0 #小陀螺速度
 
     while True:
         success, frame = cap.read()
@@ -30,8 +31,7 @@ if __name__ == '__main__':
         frame_num += 1
         if antiTop:
             timeStampUs = cap.getTimeStampUs() if useCamera else int(time.time() * 1e6)
-            topStateDeque.insertArmorsDetection2(armors,frame_num)
-            topStateDeque.getTopState2()
+            speed = topStateDeque.getTopState2(armors,frame_num)
 
         # 显示并绘制
         drawing = frame.copy()
@@ -42,9 +42,14 @@ if __name__ == '__main__':
             x, y, z = a.in_imu.T[0]
             tools.putText(drawing, f'x{x:.1f} y{y:.1f} z{z:.1f}', a.left.bottom, (255, 255, 255))
 
+        if speed != -1:
+            cv2.putText(drawing,f'speed={speed:.2f}',(20,20),cv2.FONT_HERSHEY_COMPLEX,0.75,(255, 255, 255),2)
+        else:
+            cv2.putText(drawing,"not top",(20,20),cv2.FONT_HERSHEY_COMPLEX,0.75,(255, 255, 255),2)
+        
         cv2.imshow('press q to exit', drawing)
 
-        key = cv2.waitKey(0) & 0xff
+        key = cv2.waitKey(1) & 0xff
         if key == ord('q'):
             break
 
