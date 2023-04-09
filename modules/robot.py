@@ -98,6 +98,8 @@ class Robot:
         self.pitch: float = None
         self.bullet_speed: float = None
         self.flag: int = None
+        self.color: str = None
+        self.id: int = None
 
     def update(self) -> None:
         callback_time_s, camera_stamp_ms = self.camera_rx.get()
@@ -114,8 +116,16 @@ class Robot:
         self.state_stamp = state_stamp
         self.yaw = yaw
         self.pitch = pitch
-        self.bullet_speed = bullet_speed
+        self.bullet_speed = bullet_speed if bullet_speed > 5 else 15
         self.flag = flag
+
+        # 机器人ID:
+        # 1:红方英雄机器人 2:红方工程机器人 3/4/5:红方步兵机器人 6:红方空中机器人 
+        # 7:红方哨兵机器人 8:红方飞镖机器人 9:红方雷达站 
+        # 101:蓝方英雄机器人 102:蓝方工程机器人 103/104/105:蓝方步兵机器人 
+        # 106:蓝方空中机器人 107:蓝方哨兵机器人 108:蓝方飞镖机器人 109:蓝方雷达站。
+        self.color = 'red' if self.flag < 100 else 'blue'
+        self.id = self.flag % 100
 
     def send(
         self,

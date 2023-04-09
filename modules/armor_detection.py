@@ -22,8 +22,8 @@ pattern_h_coefficient = 0.9  # 获得装甲板图案的上下边界的系数
 margin = 50  # 透视变换后获得的图像宽度为 pattern_w + 2*margin
 pattern_h, pattern_w = 100, 100  # 裁剪后所获得图案图片的大小
 min_confidence = 0.8  # 判断为装甲板的最低置信度
-# lightbar_length, small_width, big_width = 56, 135, 230  # 真装甲板 单位mm
-lightbar_length, small_width, big_width = 70, 140, 230  # 假装甲板 单位mm
+lightbar_length, small_width, big_width = 56, 135, 230  # 真装甲板 单位mm
+# lightbar_length, small_width, big_width = 70, 140, 230  # 假装甲板 单位mm
 
 
 class Lightbar:

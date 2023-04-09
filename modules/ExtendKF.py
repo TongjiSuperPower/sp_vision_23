@@ -53,7 +53,6 @@ class EKF():
             fMatrix[2*i, 2*i+1] = deltaT
             gammaMatrix[2*i, i] = deltaT*deltaT/2
             gammaMatrix[2*i+1, i] = deltaT       
-        k = _state
 
         # 计算R_k矩阵   
         yaw, pitch = gesture     
