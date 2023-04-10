@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 
 import modules.tools as tools
-from modules.robot import Robot
+from modules.io.robot import Robot
 from modules.ExtendKF import EKF
 from modules.armor_detection import ArmorDetector
 

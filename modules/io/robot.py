@@ -4,8 +4,8 @@ import queue
 import ctypes
 import numpy as np
 from multiprocessing import Process, Queue, RawArray
-from modules.mindvision import CallbackCamera
-from modules.communication import Communicator
+from modules.io.mindvision import CallbackCamera
+from modules.io.communication import Communicator
 
 
 def communicating(port: str, tx: Queue, rx: Queue, quit_queue: Queue) -> None:

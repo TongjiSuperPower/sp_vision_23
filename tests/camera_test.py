@@ -1,5 +1,5 @@
 from remote_visualizer import Visualizer
-from modules.mindvision import Camera
+from modules.io.mindvision import Camera
 
 with Camera(3, True) as camera, Visualizer(enable=False) as visualizer:
     last = 0

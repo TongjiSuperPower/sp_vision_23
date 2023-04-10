@@ -4,7 +4,7 @@ import queue
 import ctypes
 import numpy as np
 from multiprocessing import Queue, RawArray
-import modules.mvsdk as mvsdk
+import modules.io.mvsdk as mvsdk
 
 
 class Camera:
