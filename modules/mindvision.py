@@ -68,9 +68,14 @@ class Camera:
     def __enter__(self) -> 'Camera':
         return self
 
-    def __exit__(self, *args, **kwargs) -> None:
+    def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
+        # 按ctrl+c所引发的KeyboardInterrupt，判断为手动退出，不打印报错信息
+        ignore_error = (exc_type == KeyboardInterrupt)
+
         self.release()
         print('Camera closed.')
+
+        return ignore_error
 
 
 class CallbackCamera(Camera):

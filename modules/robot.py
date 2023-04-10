@@ -120,9 +120,9 @@ class Robot:
         self.flag = flag
 
         # 机器人ID:
-        # 1:红方英雄机器人 2:红方工程机器人 3/4/5:红方步兵机器人 6:红方空中机器人 
-        # 7:红方哨兵机器人 8:红方飞镖机器人 9:红方雷达站 
-        # 101:蓝方英雄机器人 102:蓝方工程机器人 103/104/105:蓝方步兵机器人 
+        # 1:红方英雄机器人 2:红方工程机器人 3/4/5:红方步兵机器人 6:红方空中机器人
+        # 7:红方哨兵机器人 8:红方飞镖机器人 9:红方雷达站
+        # 101:蓝方英雄机器人 102:蓝方工程机器人 103/104/105:蓝方步兵机器人
         # 106:蓝方空中机器人 107:蓝方哨兵机器人 108:蓝方飞镖机器人 109:蓝方雷达站。
         self.color = 'red' if self.flag < 100 else 'blue'
         self.id = self.flag % 100
@@ -150,11 +150,14 @@ class Robot:
     def __enter__(self) -> 'Robot':
         return self
 
-    def __exit__(self, *args, **kwargs) -> None:
+    def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
+        # 按ctrl+c所引发的KeyboardInterrupt，判断为手动退出，不打印报错信息
+        ignore_error = (exc_type == KeyboardInterrupt)
+
         self.communicator_quit.put(True)
         self.communicating.join()
-
         self.camera_quit.put(True)
         self.capturing.join()
-
         print('Robot closed.')
+
+        return ignore_error
