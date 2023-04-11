@@ -15,11 +15,11 @@ if __name__ == '__main__':
         
         robot.update()
         if robot.id == 3:
-            from configs.infantry3 import cameraMatrix, distCoeffs, cameraVector
+            from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
         elif robot.id == 4:
-            from configs.infantry4 import cameraMatrix, distCoeffs, cameraVector
+            from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
-        armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
+        armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
         ekfilter = EKF(6, 3)
         maxLostFrame = 3  # 最大丢失帧数

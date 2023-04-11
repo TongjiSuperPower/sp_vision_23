@@ -3,17 +3,6 @@ import math
 import numpy as np
 
 
-class VirtualComu():
-    yaw=10.
-    pitch=2.
-    def __init__(self) -> None:
-        pass
-    def received():
-        return True
-    def send(a):
-        print('virtualSent')
-
-
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     points = np.int32(points)
     cv2.drawContours(img, [points], -1, color, thickness)
@@ -77,16 +66,12 @@ def getParaTime(pos, bulletSpeed):
     return t
 
 
-
-def compensateGravity(pos, bulletSpeed):
-    '''
-    重力补偿。输入世界坐标(mm)和弹速(m/s)，输出补偿后的世界坐标
-    '''
-    flyTime = getParaTime(pos, bulletSpeed)
-    
-    dropDistance = 0.5 * 9.7940/1000 * flyTime**2
-
-    pos[1] -= dropDistance # 因为y轴方向向下，所以是减法
-
-    return pos
-
+def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
+    yaw, pitch = math.radians(yaw), math.radians(pitch)
+    R_y = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                    [0, 1, 0],
+                    [-math.sin(yaw), 0, math.cos(yaw)]])
+    R_x = np.array([[1, 0, 0],
+                    [0, math.cos(pitch), -math.sin(pitch)],
+                    [0, math.sin(pitch), math.cos(pitch)]])
+    return R_y @ R_x

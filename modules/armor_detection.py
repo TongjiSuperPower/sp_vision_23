@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 from modules.classification import Classifier
+from modules.tools import R_gimbal2imu
 
 # 预处理
 threshold_value = 100  # 二值化阈值
@@ -99,7 +100,7 @@ class Armor:
         name_check = self.name != 'no_pattern'
         return confidence_check and name_check
 
-    def _solve(self, cameraMatrix: np.ndarray, distCoeffs: np.ndarray, cameraVector: np.ndarray, yaw: float, pitch: float) -> None:
+    def _solve(self, cameraMatrix: np.ndarray, distCoeffs: np.ndarray, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray, yaw: float, pitch: float) -> None:
         # 获得装甲板中心点在相机坐标系下的坐标
         width = big_width if 'big' in self.name else small_width
         points_2d = self.points
@@ -111,17 +112,10 @@ class Armor:
         self.in_camera = self.tvec  # points_3d是以装甲板中心点为原点, 所以tvec即为装甲板中心点在相机坐标系下的坐标
 
         # 获得装甲板中心点在云台坐标系下的坐标
-        self.in_gimbal = self.in_camera + cameraVector
+        self.in_gimbal = R_camera2gimbal @ self.in_camera + t_camera2gimbal
 
         # 获得装甲板中心点在陀螺仪坐标系下的坐标
-        yaw, pitch = math.radians(yaw), math.radians(pitch)
-        yRotationMatrix = np.array([[math.cos(yaw), 0, math.sin(yaw)],
-                                    [0, 1, 0],
-                                    [-math.sin(yaw), 0, math.cos(yaw)]])
-        xRotationMatrix = np.array([[1, 0, 0],
-                                    [0, math.cos(pitch), -math.sin(pitch)],
-                                    [0, math.sin(pitch), math.cos(pitch)]])
-        self.in_imu = yRotationMatrix @ xRotationMatrix @ self.in_gimbal
+        self.in_imu = R_gimbal2imu(yaw, pitch) @ self.in_gimbal
 
         # 将相机坐标系下的坐标转换为观测量
         x, y, z = self.in_camera.T[0]
@@ -133,10 +127,11 @@ class Armor:
 
 
 class ArmorDetector:
-    def __init__(self, cameraMatrix: np.ndarray, distCoeffs: np.ndarray, cameraVector: np.ndarray) -> None:
+    def __init__(self, cameraMatrix: np.ndarray, distCoeffs: np.ndarray, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray) -> None:
         self._cameraMatrix = cameraMatrix
         self._distCoeffs = distCoeffs
-        self._cameraVector = cameraVector
+        self._R_camera2gimbal = R_camera2gimbal
+        self._t_camera2gimbal = t_camera2gimbal
         self._classifier = Classifier()
 
         # 方便调试查看结果
@@ -273,6 +268,6 @@ class ArmorDetector:
 
         # 对装甲板进行位置解算
         for a in armors:
-            a._solve(self._cameraMatrix, self._distCoeffs, self._cameraVector, yaw, pitch)
+            a._solve(self._cameraMatrix, self._distCoeffs, self._R_camera2gimbal, self._t_camera2gimbal, yaw, pitch)
 
         return armors
