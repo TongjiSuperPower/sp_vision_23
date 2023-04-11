@@ -4,7 +4,7 @@ with Communicator('/dev/ttyUSB0') as communicator:
     test: str = None
 
     while True:
-        test = input('测试发送/接收?输入[tx/rx]')
+        test = input('测试发送/接收?输入[tx/rx]\n')
         if test == 'rx' or test == 'tx':
             break
         else:
@@ -22,4 +22,4 @@ with Communicator('/dev/ttyUSB0') as communicator:
 
     # 测试接收
     while test == 'rx':
-        print(communicator.receive())
+        communicator.receive(debug=True)
