@@ -116,11 +116,11 @@ def calibrate_camera():
             error = cv2.norm(points_2d[i], projected_points, cv2.NORM_L2) / len(projected_points)
             mean_error += error
         mean_error /= len(points_3d)
-        print(f"[DEBUG] error: {mean_error:.4f}px")
+        print(f"# 重投影误差: {mean_error:.4f}px")
 
         # 转换成欧拉角，角度制
         yaw, pitch, roll = Rotation.from_matrix(R_cam2gripper).as_euler('YXZ', degrees=True)
-        print(f'[DEBUG] {yaw=:.2f} {pitch=:.2f} {roll=:.2f}')
+        print(f'# 相机相对于云台: {yaw=:.2f} {pitch=:.2f} {roll=:.2f}')
 
 
 def take_pictures():
