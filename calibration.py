@@ -41,7 +41,7 @@ def calibrate_camera():
     通过手眼标定获得R_camera2gimbal和t_camera2gimbal
     '''
 
-    patternSize = (10, 7)  # 应该是(row, column)但是会失败，所以(column, row)
+    patternSize = (10, 7)  # (x, y)
     center_distance = 40  # 每个圆心间的距离，单位mm
     centers_3d = np.zeros((patternSize[0]*patternSize[1], 3), np.float32)
     centers_3d[:, :2] = np.mgrid[0:patternSize[0], 0:patternSize[1]].T.reshape(-1, 2)

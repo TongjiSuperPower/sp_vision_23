@@ -24,9 +24,9 @@ def drawAxis(img, origin, rvec, tvec, cameraMatrix, distCoeffs, scale=30, thickn
     imgPoints, _ = cv2.projectPoints(axisPoints, rvec, tvec, cameraMatrix, distCoeffs)
     imgPoints = np.int32(imgPoints)
 
+    cv2.line(img, origin, imgPoints[2][0], (0, 0, 255), thickness)
     cv2.line(img, origin, imgPoints[0][0], (255, 0, 0), thickness)
     cv2.line(img, origin, imgPoints[1][0], (0, 255, 0), thickness)
-    cv2.line(img, origin, imgPoints[2][0], (0, 0, 255), thickness)
 
 
 def putText(img: cv2.Mat, text: str, point, color=(0, 0, 255), thickness=2) -> None:
