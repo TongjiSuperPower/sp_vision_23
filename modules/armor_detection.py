@@ -1,6 +1,7 @@
 import cv2
 import math
 import numpy as np
+from scipy.spatial.transform import Rotation
 from modules.classification import Classifier
 from modules.tools import R_gimbal2imu
 
@@ -116,6 +117,13 @@ class Armor:
 
         # 获得装甲板中心点在陀螺仪坐标系下的坐标
         self.in_imu = R_gimbal2imu(yaw, pitch) @ self.in_gimbal
+
+        # 获得装甲板在陀螺仪坐标系下的朝向
+        R_armor2camera, _ = cv2.Rodrigues(self.rvec)
+        R_armor2gimbal = R_armor2camera
+        R_armor2imu = R_gimbal2imu(yaw, pitch) @ R_armor2gimbal
+        yaw_pitch_roll = Rotation.from_matrix(R_armor2imu).as_euler('YXZ', degrees=True)
+        self.yaw_in_imu, self.pitch_in_imu, self.roll_in_imu = yaw_pitch_roll
 
         # 将相机坐标系下的坐标转换为观测量
         x, y, z = self.in_camera.T[0]
