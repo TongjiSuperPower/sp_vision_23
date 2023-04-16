@@ -91,6 +91,7 @@ class Armor:
         self.in_camera: np.ndarray = None  # [[x], [y], [z]]
         self.in_gimbal: np.ndarray = None  # [[x], [y], [z]]
         self.in_imu: np.ndarray = None  # [[x], [y], [z]]
+        self.in_imuM: np.ndarray = None # [[x], [y], [z]],单位(m)
         self.observation: tuple[float, float, float] = None  # (z, alpha, beta)
         self.yaw: float = None
         self.pitch: float = None
@@ -121,6 +122,7 @@ class Armor:
 
         # 获得装甲板中心点在陀螺仪坐标系下的坐标
         self.in_imu = R_gimbal2imu(yaw, pitch) @ self.in_gimbal
+        self.in_imuM = self.in_imu / 1000
 
         # 获得装甲板在陀螺仪坐标系下的朝向
         R_armor2camera, _ = cv2.Rodrigues(self.rvec)

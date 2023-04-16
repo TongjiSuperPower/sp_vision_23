@@ -3,6 +3,7 @@ import numpy as np
 
 
 class Tracker:
+    '''单位采用m、s'''
     def __init__(self, max_match_distance, tracking_threshold, lost_threshold):
         self.tracker_state = "LOST"
         self.tracked_id = ""
@@ -39,7 +40,7 @@ class Tracker:
             predicted_position = self.getArmorPositionFromState(ekf_prediction)
             
             for armor in armors:                
-                position_vec = np.reshape(armor.in_imu,(3,))
+                position_vec = np.reshape(armor.in_imuM,(3,))
                 
                 # Difference of the current armor position and tracked armor's predicted position
                 position_diff = np.norm(predicted_position - position_vec)
@@ -51,7 +52,7 @@ class Tracker:
             if min_position_diff < self.max_match_distance_:
                 # Matching armor found
                 matched = True
-                p = np.reshape(tracked_armor.in_imu,(3,))
+                p = np.reshape(tracked_armor.in_imuM,(3,))
                 # Update EKF
                 measured_yaw = tracked_armor.yaw_in_imu
                 z = np.array([p[0], p[1], p[2], measured_yaw])
@@ -97,7 +98,7 @@ class Tracker:
                 self.lost_count_ = 0
 
     def initEKF(self, a):
-        xa,ya,za = np.reshape(a.in_imu,(3,))        
+        xa,ya,za = np.reshape(a.in_imuM,(3,))        
         self.last_yaw_ = 0
         yaw = a.yaw_in_imu
 
@@ -127,12 +128,12 @@ def handleArmorJump(self, a):
 
     if abs(yaw - self.last_yaw) > 0.4:
         self.last_z = self.target_state[2]
-        self.target_state[2] = np.reshape(a.in_imu,(3,))[2]
+        self.target_state[2] = np.reshape(a.in_imuM,(3,))[2]
         self.target_state[3] = yaw
         np.swapaxes(self.target_state[8], self.last_r, axis=0)
         print("Armor jump!")
 
-    current_p = np.reshape(a.in_imu,(3,))
+    current_p = np.reshape(a.in_imuM,(3,))
     infer_p = self.getArmorPositionFromState(self.target_state)
 
     if np.norm(current_p - infer_p) > self.max_match_distance_:

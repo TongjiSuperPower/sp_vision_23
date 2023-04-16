@@ -63,6 +63,16 @@ def j_h(x):
     dhdx[1, 8] = -np.sin(yaw)
     return dhdx
 
+class Target_msg:
+    def __init__(self):
+        self.position = [0.0, 0.0, 0.0]
+        self.yaw = 0.0
+        self.velocity = [0.0, 0.0, 0.0]
+        self.v_yaw = 0.0
+        self.radius_1 = 0.0
+        self.radius_2 = 0.0
+        self.z_2 = 0.0
+
 
 if __name__ == '__main__':
     with Robot(3, '/dev/ttyUSB0') as robot, Visualizer(enable=False) as visualizer:
@@ -93,6 +103,7 @@ if __name__ == '__main__':
             twoTimeStampMs.append(robot.camera_stamp_ms)
             deltaTime = (
                 twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 5
+            deltaTime = deltaTime/1000 # 转换为s
 
             # 调试用，绘图
             drawing = img.copy()
@@ -141,25 +152,17 @@ if __name__ == '__main__':
                
                 tracker.update(armors)
 
-                
-                    
-
 
             state = tracker.target_state
-            target_msg.position.x = state[0]
-            target_msg.position.y = state[1]
-            target_msg.position.z = state[2]
-            target_msg.yaw = state[3]
-            target_msg.velocity.x = state[4]
-            target_msg.velocity.y = state[5]
-            target_msg.velocity.z = state[6]
-            target_msg.v_yaw = state[7]
-            target_msg.radius_1 = state[8]
-            target_msg.radius_2 = tracker.last_r
-            target_msg.z_2 = tracker.last_z
-        
 
-
+            msg = Target_msg()
+            msg.position = [state[0], state[1], state[2]]
+            msg.yaw = state[3]
+            msg.velocity = [state[4], state[5], state[6]]
+            msg.v_yaw = state[7]
+            msg.radius_1 = state[8]
+            msg.radius_2 = tracker.last_r
+            msg.z_2 = tracker.last_z      
 
             robot.send(ppx, ppy-60, ppz)
 
