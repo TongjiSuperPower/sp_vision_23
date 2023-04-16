@@ -64,9 +64,9 @@ def unpack_frame(frame: bytes) -> tuple[bool, None | tuple[int, float, float, fl
     if head != frame_head or tail != frame_tail or crc != calculateCrc8(frame[:-2]):
         return False, None
 
-    yaw = math.degrees(yaw / 1e4)
-    pitch = math.degrees(pitch / 1e4)
-    bullet_speed = bullet_speed / 1e3
+    yaw = yaw / 1e2
+    pitch = pitch / 1e2
+    bullet_speed = bullet_speed / 1e2
 
     return True, (stamp, yaw, pitch, bullet_speed, flag)
 
@@ -119,7 +119,7 @@ class Communicator:
 
         if debug:
             stamp, yaw, pitch, bullet_speed, flag = state
-            print(f'received {stamp=} yaw={yaw:.1f} pitch={pitch:.1f} bullet_speed={bullet_speed:.1f} {flag=} {frame.hex()}')
+            print(f'received {stamp=} yaw={yaw:.2f} pitch={pitch:.2f} bullet_speed={bullet_speed:.2f} {flag=} {frame.hex()}')
 
         return True, state
 
