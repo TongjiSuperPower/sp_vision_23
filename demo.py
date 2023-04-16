@@ -11,6 +11,7 @@ if __name__ == '__main__':
     video_path = 'assets/input.avi'
 
     cap = cv2.VideoCapture(video_path)
+
     armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
     while True:
