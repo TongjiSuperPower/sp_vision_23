@@ -7,7 +7,7 @@ import modules.tools as tools
 from modules.io.robot import Robot
 from modules.ExtendKF import EKF
 from modules.armor_detection import ArmorDetector
-from modules.tracker import Tracker
+from modules.tracker import Tracker,TrackerState
 from modules.NewEKF import ExtendedKalmanFilter
 
 from remote_visualizer import Visualizer
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
             tracker.ekf = ExtendedKalmanFilter(f, h, j_f, j_h, Q, R, P0)
 
-            if tracker.tracker_state == Tracker.LOST:
+            if tracker.tracker_state == TrackerState.LOST:
                 if len(armors)==0:
                     continue
 

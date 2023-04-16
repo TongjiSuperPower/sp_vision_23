@@ -1,11 +1,17 @@
 from math import cos, sin
 import numpy as np
+from enum import Enum
 
+class TrackerState(Enum):
+        LOST = 0
+        DETECTING = 1
+        TRACKING = 2
+        TEMP_LOST = 3
 
 class Tracker:
     '''单位采用m、s'''
     def __init__(self, max_match_distance, tracking_threshold, lost_threshold):
-        self.tracker_state = "LOST"
+        self.tracker_state = TrackerState.LOST
         self.tracked_id = ""
         self.target_state = np.zeros((9,))
         self.max_match_distance_ = max_match_distance
@@ -23,7 +29,7 @@ class Tracker:
 
         self.initEKF(tracked_armor)
         self.tracked_id = tracked_armor.name
-        self.tracker_state = "DETECTING"
+        self.tracker_state = TrackerState.DETECTING
 
     def update(self, armors):
         # KF predict
@@ -74,27 +80,27 @@ class Tracker:
             self.ekf.setState(target_state)
 
         # Tracking state machine
-        if self.tracker_state == "DETECTING":
+        if self.tracker_state == TrackerState.DETECTING:
             if matched:
                 self.detect_count_ += 1
                 if self.detect_count_ > self.tracking_threshold_:
                     self.detect_count_ = 0
-                    self.tracker_state = "TRACKING"
+                    self.tracker_state = TrackerState.TRACKING
             else:
                 self.detect_count_ = 0
-                self.tracker_state = "LOST"
-        elif self.tracker_state == "TRACKING":
+                self.tracker_state = TrackerState.LOST
+        elif self.tracker_state == TrackerState.TRACKING:
             if not matched:
-                self.tracker_state = "TEMP_LOST"
+                self.tracker_state = TrackerState.TEMP_LOST
                 self.lost_count_ += 1
-        elif self.tracker_state == "TEMP_LOST":
+        elif self.tracker_state == TrackerState.TEMP_LOST:
             if not matched:
                 self.lost_count_ += 1
                 if self.lost_count_ > self.lost_threshold_:
                     self.lost_count_ = 0
-                    self.tracker_state = "LOST"
+                    self.tracker_state = TrackerState.LOST
             else:
-                self.tracker_state = "TRACKING"
+                self.tracker_state = TrackerState.TRACKING
                 self.lost_count_ = 0
 
     def initEKF(self, a):
