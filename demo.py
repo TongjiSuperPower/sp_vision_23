@@ -6,12 +6,13 @@ import modules.tools as tools
 from modules.armor_detection import ArmorDetector
 
 if __name__ == '__main__':
-    from configs.infantry3 import cameraMatrix, distCoeffs, cameraVector
+    from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
     video_path = 'assets/input.avi'
 
     cap = cv2.VideoCapture(video_path)
-    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, cameraVector)
+
+    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
     while True:
         success, frame = cap.read()
