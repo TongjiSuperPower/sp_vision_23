@@ -95,6 +95,10 @@ class Armor:
         self.yaw: float = None
         self.pitch: float = None
 
+        self.yaw_in_imu: float = None
+        self.pitch_in_imu: float = None
+        self.roll_in_imu: float = None
+
     @property
     def passed(self) -> bool:
         confidence_check = self.confidence > min_confidence
