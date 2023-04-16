@@ -1,6 +1,8 @@
 import cv2
 import math
 import numpy as np
+from queue import Empty
+from multiprocessing import Queue
 
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
@@ -65,38 +67,27 @@ def getParaTime(pos, bulletSpeed):
 
     return t
 
-def getParaTimeMtoS(pos, bulletSpeed):
-    '''
-    用抛物线求子弹到目标位置的时间.
-    pos:目标的坐标(m);
-    bulletSpeed:子弹速度(m/s);
-    
-    return:时间，单位(s)
-    '''
-    pos = np.reshape(pos, (3,))
-    x = pos[0]
-    y = pos[1]
-    z = pos[2]
 
-    dxz = math.sqrt(x*x+z*z)
-    a = 0.5*9.7940*dxz*dxz/(bulletSpeed*bulletSpeed)
-    b = dxz
+def shoot_pitch(x, y, z, bullet_speed) -> float:
+    g = 9.794 / 1000
+    distance = (x**2 + z**2)**0.5
+
+    a = 0.5 * g * distance**2 / bullet_speed**2
+    b = -distance
     c = a - y
 
-    res1 = (-b + math.sqrt(b**2-4*a*c))/(2*a)
-    res2 = (-b - math.sqrt(b**2-4*a*c))/(2*a)
+    result1 = (-b + math.sqrt(b**2-4*a*c))/(2*a)
+    result2 = (-b - math.sqrt(b**2-4*a*c))/(2*a)
+    pitch1 = math.atan(result1)
+    pitch2 = math.atan(result2)
+    t1 = distance / (bullet_speed * math.cos(pitch1))
+    t2 = distance / (bullet_speed * math.cos(pitch2))
 
-    beta1 = math.atan(res1)
-    beta2 = math.atan(res2)
+    pitch = pitch1 if t1 < t2 else pitch2
+    pitch = math.degrees(pitch)
 
-    t1 = dxz/(bulletSpeed*math.cos(beta1))
-    t2 = dxz/(bulletSpeed*math.cos(beta2))
+    return pitch
 
-    # t = math.sqrt(x**2+y**2+z**2)/bulletSpeed
-
-    t = t1 if t1 < t2 else t2
-
-    return t
 
 def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
     yaw, pitch = math.radians(yaw), math.radians(pitch)
@@ -107,3 +98,11 @@ def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
                     [0, math.cos(pitch), -math.sin(pitch)],
                     [0, math.sin(pitch), math.cos(pitch)]])
     return R_y @ R_x
+
+
+def clear_queue(q: Queue) -> None:
+    try:
+        while True:
+            q.get_nowait()
+    except Empty:
+        return

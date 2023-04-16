@@ -3,45 +3,50 @@ import time
 import queue
 import datetime
 from multiprocessing import Process, Queue
-
+from modules.tools import clear_queue
 
 def recording(path: str, name: str, fps: int, informations: Queue, quit_queue: Queue):
-    img, state = informations.get()
-    h, w, _ = img.shape
+    try:
+        img, state = informations.get()
+        h, w, _ = img.shape
+        
+        video_path = f'{path}/{name}.avi'
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        video_writer = cv2.VideoWriter(video_path, fourcc, fps, (w, h))
+        video_writer.write(img)
 
-    video_path = f'{path}/{name}.avi'
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-    video_writer = cv2.VideoWriter(video_path, fourcc, fps, (w, h))
-    video_writer.write(img)
+        state_path = f'{path}/{name}.txt'
+        state_writer = open(state_path, 'w')
+        state_writer.write(f'{state}\n')
 
-    state_path = f'{path}/{name}.txt'
-    state_writer = open(state_path, 'w')
-    state_writer.write(f'{state}\n')
+        while True:
+            # 判断是否退出
+            try:
+                quit = quit_queue.get_nowait()
+                if quit:
+                    break
+            except queue.Empty:
+                pass
 
-    while True:
-        # 判断是否退出
-        try:
-            quit = quit_queue.get_nowait()
-            if quit:
-                break
-        except queue.Empty:
-            pass
+            try:
+                img, state = informations.get_nowait()
+                video_writer.write(img)
+                state_writer.write(f'{state}\n')
+            except queue.Empty:
+                pass
+    
+    except KeyboardInterrupt:
+        pass
 
-        try:
-            img, state = informations.get_nowait()
-            video_writer.write(img)
-            state_writer.write(f'{state}\n')
-        except queue.Empty:
-            pass
-
-    video_writer.release()
-    print(f'Video is saved at {video_path}')
-    state_writer.close()
-    print(f'State is saved at {state_path}')
+    finally:
+        video_writer.release()
+        print(f'Video is saved at {video_path}')
+        state_writer.close()
+        print(f'State is saved at {state_path}')
 
 
 class Recorder:
-    def __init__(self, fps: int = 30, path: str = 'assets/recordings/') -> None:
+    def __init__(self, fps: int = 30, path: str = 'assets/recordings') -> None:
         self.fps = fps
         self.path = path
         self.name = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -72,6 +77,10 @@ class Recorder:
 
         self.quit.put(True)
         self.recording.join()
+
+        clear_queue(self.quit)
+        clear_queue(self.infomations)
+
         print('Recorder closed.')
 
         return ignore_error
