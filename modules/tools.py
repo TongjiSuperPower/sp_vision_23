@@ -1,6 +1,8 @@
 import cv2
 import math
 import numpy as np
+from queue import Empty
+from multiprocessing import Queue
 
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
@@ -66,6 +68,27 @@ def getParaTime(pos, bulletSpeed):
     return t
 
 
+def shoot_pitch(x, y, z, bullet_speed) -> float:
+    g = 9.794 / 1000
+    distance = (x**2 + z**2)**0.5
+
+    a = 0.5 * g * distance**2 / bullet_speed**2
+    b = -distance
+    c = a - y
+
+    result1 = (-b + math.sqrt(b**2-4*a*c))/(2*a)
+    result2 = (-b - math.sqrt(b**2-4*a*c))/(2*a)
+    pitch1 = math.atan(result1)
+    pitch2 = math.atan(result2)
+    t1 = distance / (bullet_speed * math.cos(pitch1))
+    t2 = distance / (bullet_speed * math.cos(pitch2))
+
+    pitch = pitch1 if t1 < t2 else pitch2
+    pitch = math.degrees(pitch)
+
+    return pitch
+
+
 def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
     yaw, pitch = math.radians(yaw), math.radians(pitch)
     R_y = np.array([[math.cos(yaw), 0, math.sin(yaw)],
@@ -75,3 +98,11 @@ def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
                     [0, math.cos(pitch), -math.sin(pitch)],
                     [0, math.sin(pitch), math.cos(pitch)]])
     return R_y @ R_x
+
+
+def clear_queue(q: Queue) -> None:
+    try:
+        while True:
+            q.get_nowait()
+    except Empty:
+        return

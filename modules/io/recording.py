@@ -3,7 +3,7 @@ import time
 import queue
 import datetime
 from multiprocessing import Process, Queue
-
+from modules.tools import clear_queue
 
 def recording(path: str, name: str, fps: int, informations: Queue, quit_queue: Queue):
     try:
@@ -78,8 +78,8 @@ class Recorder:
         self.quit.put(True)
         self.recording.join()
 
-        self.quit.close()
-        self.infomations.close()
+        clear_queue(self.quit)
+        clear_queue(self.infomations)
 
         print('Recorder closed.')
 

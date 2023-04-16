@@ -6,6 +6,7 @@ import numpy as np
 from multiprocessing import Process, Queue, RawArray
 from modules.io.mindvision import CallbackCamera
 from modules.io.communication import Communicator
+from modules.tools import clear_queue
 
 
 def communicating(port: str, tx: Queue, rx: Queue, quit_queue: Queue) -> None:
@@ -159,11 +160,11 @@ class Robot:
         self.camera_quit.put(True)
         self.capturing.join()
 
-        self.communicator_quit.close()
-        self.camera_quit.close()
-        self.camera_rx.close()
-        self.communicator_rx.close()
-        self.communicator_tx.close()
+        clear_queue(self.communicator_quit)
+        clear_queue(self.camera_quit)
+        clear_queue(self.camera_rx)
+        clear_queue(self.communicator_rx)
+        clear_queue(self.communicator_tx)
 
         print('Robot closed.')
 

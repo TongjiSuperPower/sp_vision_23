@@ -4,6 +4,14 @@ import queue
 from multiprocessing import Process, Queue
 
 
+def clear_queue(q: Queue) -> None:
+    try:
+        while True:
+            q.get_nowait()
+    except queue.Empty:
+        return
+
+
 def get_local_ip():
     import socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -117,8 +125,8 @@ class Visualizer:
         self.visualizing.terminate()
         self.visualizing.join()
 
-        self._plot_queue.close()
-        self._show_queue.close()
+        clear_queue(self._plot_queue)
+        clear_queue(self._show_queue)
 
         print('Visualizer closed.')
 
