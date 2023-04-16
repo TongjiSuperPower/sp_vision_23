@@ -8,10 +8,10 @@ from modules.armor_detection import ArmorDetector
 if __name__ == '__main__':
     from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
-    video_path = 'assets/input.avi'
+    video_path = 'assets/antitop_top.mp4'
+    # video_path = 'assets/input.avi'
 
     cap = cv2.VideoCapture(video_path)
-
     armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
     while True:
@@ -27,7 +27,7 @@ if __name__ == '__main__':
             tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
             tools.putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
             x, y, z = a.in_imu.T[0]
-            tools.putText(drawing, f'x{x:.1f} y{y:.1f} z{z:.1f}', a.left.bottom, (255, 255, 255))
+            tools.putText(drawing, f'x{x:.1f} y{y:.1f} z{z:.1f}, yaw{a.yaw_in_imu}', a.left.bottom, (255, 255, 255))
             
         cv2.imshow('press q to exit', drawing)
 

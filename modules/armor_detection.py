@@ -91,9 +91,16 @@ class Armor:
         self.in_camera: np.ndarray = None  # [[x], [y], [z]]
         self.in_gimbal: np.ndarray = None  # [[x], [y], [z]]
         self.in_imu: np.ndarray = None  # [[x], [y], [z]]
+        self.in_imuM: np.ndarray = None # [[x], [y], [z]],单位(m)
         self.observation: tuple[float, float, float] = None  # (z, alpha, beta)
         self.yaw: float = None
         self.pitch: float = None
+
+        self.yaw_in_imu: float = None
+        self.pitch_in_imu: float = None
+        self.roll_in_imu: float = None
+
+        self.yawR_in_imu: float = None # 弧度
 
     @property
     def passed(self) -> bool:
@@ -117,6 +124,7 @@ class Armor:
 
         # 获得装甲板中心点在陀螺仪坐标系下的坐标
         self.in_imu = R_gimbal2imu(yaw, pitch) @ self.in_gimbal
+        self.in_imuM = self.in_imu / 1000
 
         # 获得装甲板在陀螺仪坐标系下的朝向
         R_armor2camera, _ = cv2.Rodrigues(self.rvec)
@@ -124,6 +132,7 @@ class Armor:
         R_armor2imu = R_gimbal2imu(yaw, pitch) @ R_armor2gimbal
         yaw_pitch_roll = Rotation.from_matrix(R_armor2imu).as_euler('YXZ', degrees=True)
         self.yaw_in_imu, self.pitch_in_imu, self.roll_in_imu = yaw_pitch_roll
+        self.yawR_in_imu = math.radians(self.yaw_in_imu)
 
         # 将相机坐标系下的坐标转换为观测量
         x, y, z = self.in_camera.T[0]
