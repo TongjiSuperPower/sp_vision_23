@@ -1,6 +1,7 @@
 import cv2
+import time
 import queue
-from multiprocessing import Process, Queue, Manager
+from multiprocessing import Process, Queue
 
 
 def get_local_ip():
@@ -57,12 +58,12 @@ def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
 
 
 class Visualizer:
-    def __init__(self, port: int = 60000, enable: bool = True) -> None:
+    def __init__(self, port: int = 60000, enable: bool = True, fps: int = 30) -> None:
         self.enable = enable
         if not self.enable:
             return
 
-        self._show_queue = Manager().Queue(maxsize=1)
+        self._show_queue = Queue(maxsize=1)
         self._plot_queue = Queue(maxsize=1)
         self._plot_buffer = []
 
@@ -75,14 +76,20 @@ class Visualizer:
         host_ip = get_local_ip()
         print(f'\n * Visualizer will be running on http://{host_ip}:{port}')
 
+        self.fps = fps
+        self.last_put_time = 0
+
     def show(self, img: cv2.Mat) -> None:
         if not self.enable:
             return
 
+        current_time = time.time()
+        if 1 / (current_time - self.last_put_time) > self.fps:
+            return
+
         try:
-            h, w, _ = img.shape
-            img = cv2.resize(img, (w//2, h//2))
             self._show_queue.put_nowait(img)
+            self.last_put_time = current_time
         except queue.Full:
             pass
 
@@ -109,6 +116,10 @@ class Visualizer:
 
         self.visualizing.terminate()
         self.visualizing.join()
+
+        self._plot_queue.close()
+        self._show_queue.close()
+
         print('Visualizer closed.')
 
         return ignore_error

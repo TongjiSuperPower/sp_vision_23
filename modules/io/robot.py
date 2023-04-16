@@ -158,6 +158,13 @@ class Robot:
         self.communicating.join()
         self.camera_quit.put(True)
         self.capturing.join()
+
+        self.communicator_quit.close()
+        self.camera_quit.close()
+        self.camera_rx.close()
+        self.communicator_rx.close()
+        self.communicator_tx.close()
+
         print('Robot closed.')
 
         return ignore_error
