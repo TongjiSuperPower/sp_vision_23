@@ -100,6 +100,8 @@ class Armor:
         self.pitch_in_imu: float = None
         self.roll_in_imu: float = None
 
+        self.yawR_in_imu: float = None # 弧度
+
     @property
     def passed(self) -> bool:
         confidence_check = self.confidence > min_confidence
@@ -130,6 +132,7 @@ class Armor:
         R_armor2imu = R_gimbal2imu(yaw, pitch) @ R_armor2gimbal
         yaw_pitch_roll = Rotation.from_matrix(R_armor2imu).as_euler('YXZ', degrees=True)
         self.yaw_in_imu, self.pitch_in_imu, self.roll_in_imu = yaw_pitch_roll
+        self.yawR_in_imu = math.radians(self.yaw_in_imu)
 
         # 将相机坐标系下的坐标转换为观测量
         x, y, z = self.in_camera.T[0]

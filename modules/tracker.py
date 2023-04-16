@@ -9,7 +9,7 @@ class TrackerState(Enum):
         TEMP_LOST = 3
 
 class Tracker:
-    '''单位采用m、s'''
+    '''单位采用m、s，弧度'''
     def __init__(self, max_match_distance, tracking_threshold, lost_threshold):
         self.tracker_state = TrackerState.LOST
         self.tracked_id = ""
@@ -20,8 +20,9 @@ class Tracker:
         self.lost_count_ = 0
         self.detect_count_=0
         self.last_yaw_ = 0
-        self.last_z_ = 0
+        self.last_y_ = 0
         self.last_r_ = 0
+        self.ekf = None
 
     def init(self, armors):
         # Simply choose the armor that is closest to image center
@@ -60,7 +61,7 @@ class Tracker:
                 matched = True
                 p = np.reshape(tracked_armor.in_imuM,(3,))
                 # Update EKF
-                measured_yaw = tracked_armor.yaw_in_imu
+                measured_yaw = tracked_armor.yawR_in_imu
                 z = np.array([p[0], p[1], p[2], measured_yaw])
                 target_state = self.ekf.update(z)
                 print("EKF update")
@@ -71,7 +72,7 @@ class Tracker:
                         # Armor jump happens
                         matched = True
                         tracked_armor = armor
-                        self.handleArmorJump(tracked_armor)
+                        handleArmorJump(tracked_armor)
                         break
 
         # Suppress R from converging to zero
@@ -106,22 +107,21 @@ class Tracker:
     def initEKF(self, a):
         xa,ya,za = np.reshape(a.in_imuM,(3,))        
         self.last_yaw_ = 0
-        yaw = a.yaw_in_imu
+        yaw = a.yawR_in_imu
 
         # Set initial position at 0.2m behind the target
         target_state = np.zeros((9,))
         r = 0.2
-        xc = xa + r * cos(yaw)
-        yc = ya + r * sin(yaw)
-        zc = za
-        self.last_z = zc
+        xc = xa + r * sin(yaw)
+        yc = ya 
+        zc = za + r * cos(yaw)
+        self.last_y = yc
         self.last_r = r
 
         target_state[0] = xc
         target_state[1] = yc
         target_state[2] = zc
         target_state[3] = yaw
-        target_state[4:] = np.zeros((5,))
         target_state[8] = r
 
         self.ekf.setState(target_state)
@@ -130,13 +130,13 @@ class Tracker:
     
 def handleArmorJump(self, a):
     self.last_yaw = self.target_state[3]
-    yaw = a.yaw_in_imu
+    yaw = a.yawR_in_imu
 
     if abs(yaw - self.last_yaw) > 0.4:
-        self.last_z = self.target_state[2]
+        self.last_y = self.target_state[2]
         self.target_state[2] = np.reshape(a.in_imuM,(3,))[2]
         self.target_state[3] = yaw
-        np.swapaxes(self.target_state[8], self.last_r, axis=0)
+        self.target_state[8], last_r = last_r, self.target_state[8]
         print("Armor jump!")
 
     current_p = np.reshape(a.in_imuM,(3,))
@@ -144,10 +144,10 @@ def handleArmorJump(self, a):
 
     if np.norm(current_p - infer_p) > self.max_match_distance_:
         r = self.target_state[8]
-        self.target_state[0] = p[0] + r * cos(yaw)
-        self.target_state[1] = p[1] + r * sin(yaw)
+        self.target_state[0] = current_p[0] + r * sin(yaw)
+        self.target_state[2] = current_p[2] + r * cos(yaw)
         self.target_state[4] = 0
-        self.target_state[5] = 0
+        self.target_state[6] = 0
         print("State wrong!")
 
     self.ekf.setState(self.target_state)
@@ -157,6 +157,6 @@ def getArmorPositionFromState(self, x):
     # Calculate predicted position of the current armor
     xc, yc, zc = x[:3]
     yaw, r = x[3], x[8]
-    xa = xc - r * cos(yaw)
-    ya = yc - r * sin(yaw)
-    return np.array([xa, ya, zc])
+    xa = xc - r * sin(yaw)
+    za = zc - r * cos(yaw)
+    return np.array([xa, yc, za])

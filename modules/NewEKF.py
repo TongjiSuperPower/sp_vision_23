@@ -27,7 +27,7 @@ class ExtendedKalmanFilter:
         self.x_pri = np.zeros(self.n)  # 预测的状态估计值
         self.x_post = np.zeros(self.n)  # 更新的状态估计值
 
-    def set_state(self, x0):
+    def setState(self, x0):
         '''
         覆盖更新状态估计
 

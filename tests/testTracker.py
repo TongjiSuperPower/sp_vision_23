@@ -2,6 +2,7 @@ import cv2
 import time
 import numpy as np
 from collections import deque
+import math
 
 import modules.tools as tools
 from modules.io.robot import Robot
@@ -27,11 +28,8 @@ def f(x, dt):
     return x_new
 
 # J_f - Jacobian of process function
-
-
-def j_f(x, dt):
-    dfdx = np.zeros((9, 9))
-    dfdx[0, 0] = dfdx[1, 1] = dfdx[2, 2] = dfdx[3, 3] = 1
+def j_f(dt):
+    dfdx = np.eyes((9, 9))
     dfdx[0, 4] = dt
     dfdx[1, 5] = dt
     dfdx[2, 6] = dt
@@ -39,28 +37,24 @@ def j_f(x, dt):
     return dfdx
 
 # h - Observation function
-
-
 def h(x):
     z = np.zeros(4)
     xc, yc, yaw, r = x[0], x[1], x[3], x[8]
-    z[0] = xc - r * np.cos(yaw)  # xa
-    z[1] = yc - r * np.sin(yaw)  # ya
-    z[2] = x[2]                 # za
-    z[3] = yaw                  # yaw
+    z[0] = xc - r * math.sin(yaw)   # xa
+    z[1] = yc                       # ya
+    z[2] = x[2] - r * math.sin(yaw) # za
+    z[3] = yaw                      # yaw
     return z
 
 # J_h - Jacobian of observation function
-
-
 def j_h(x):
     dhdx = np.zeros((4, 9))
     yaw, r = x[3], x[8]
     dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
-    dhdx[0, 3] = -r * np.sin(yaw)
-    dhdx[1, 3] = r * np.cos(yaw)
-    dhdx[0, 8] = -np.cos(yaw)
-    dhdx[1, 8] = -np.sin(yaw)
+    dhdx[0, 3] = -r * math.cos(yaw)
+    dhdx[2, 3] = r * math.sin(yaw)
+    dhdx[0, 8] = -math.sin(yaw)
+    dhdx[2, 8] = -math.cos(yaw)
     return dhdx
 
 class Target_msg:
@@ -71,7 +65,7 @@ class Target_msg:
         self.v_yaw = 0.0
         self.radius_1 = 0.0
         self.radius_2 = 0.0
-        self.z_2 = 0.0
+        self.y_2 = 0.0
 
 
 if __name__ == '__main__':
@@ -144,7 +138,6 @@ if __name__ == '__main__':
             if tracker.tracker_state == TrackerState.LOST:
                 if len(armors)==0:
                     continue
-
                 # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
                 tracker.init(armors)
                 
@@ -161,9 +154,9 @@ if __name__ == '__main__':
             msg.v_yaw = state[7]
             msg.radius_1 = state[8]
             msg.radius_2 = tracker.last_r
-            msg.z_2 = tracker.last_z      
+            msg.y_2 = tracker.last_y      
 
-            robot.send(ppx, ppy-60, ppz)
+            
 
             # 调试用
             # visualizer.plot((cy, y, robot.yaw*10, robot.pitch*10), ('cy', 'y', 'yaw', 'pitch'))
