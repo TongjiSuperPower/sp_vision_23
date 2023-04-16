@@ -69,6 +69,7 @@ if __name__ == '__main__':
                 deltaTime = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 5
 
                 armor = armors[0]
+                print(armor.yaw_in_imu)
                 predictedPtsInWorld = armor.in_imu.T[0]  # 如果没开EKF，就发送识别值
 
                 if ekfilter.first == False:
@@ -93,6 +94,7 @@ if __name__ == '__main__':
                 # robot.send(x, y, z)
                 # robot.send(px, py, pz)
                 robot.send(ppx, ppy-60, ppz)
+                
 
                 # 调试用
                 # visualizer.plot((cy, y, robot.yaw*10, robot.pitch*10), ('cy', 'y', 'yaw', 'pitch'))
