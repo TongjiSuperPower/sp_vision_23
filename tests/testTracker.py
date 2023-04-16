@@ -148,8 +148,7 @@ if __name__ == '__main__':
                 # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
                 tracker.init(armors)
                 
-            else:
-               
+            else:               
                 tracker.update(armors)
 
 
