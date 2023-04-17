@@ -23,84 +23,94 @@ class Target_msg:
 
 
 if __name__ == '__main__':
-    from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
+    with Visualizer() as visualizer:
+        from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
-    video_path = 'assets/antitop_top.mp4'
-    # video_path = 'assets/input.avi'
+        video_path = 'assets/antitop_top.mp4'
+        # video_path = 'assets/input.avi'
 
-    cap = cv2.VideoCapture(video_path)
-    armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+        cap = cv2.VideoCapture(video_path)
+        armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
-    # EKF整车观测：
-    # Tracker
-    max_match_distance = 0.2  # 单位:m
-    tracking_threshold = 5  # 从检测到->跟踪的帧数
-    lost_threshold = 5  # 从暂时丢失->丢失的帧数
-    tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
-    
-    visualizer = Visualizer()
+        # EKF整车观测：
+        # Tracker
+        max_match_distance = 0.2  # 单位:m
+        tracking_threshold = 5  # 从检测到->跟踪的帧数
+        lost_threshold = 5  # 从暂时丢失->丢失的帧数
+        tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
+        
 
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
 
-        armors = armor_detector.detect(frame, 0, 0)
-        armors.sort(key=lambda a: a.observation[0]) # 优先击打最近的
+            armors = armor_detector.detect(frame, 0, 0)
+            armors.sort(key=lambda a: a.observation[0]) # 优先击打最近的
 
-        if tracker.tracker_state == TrackerState.LOST:
-            # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
-            if len(armors) == 0:
-                print('lost.')
-                continue
+            if tracker.tracker_state == TrackerState.LOST:
+                # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
+                if len(armors) == 0:
+                    print('lost.')
+                    continue
 
-            tracker.init(armors)
+                tracker.init(armors)
 
-        else:
-            tracker.update(armors, 1/60)
+            else:
+                tracker.update(armors, 1/60)
 
-        state = tracker.target_state
+            state = tracker.target_state
 
-        msg = Target_msg()
-        msg.position = [state[0], state[1], state[2]]
-        msg.yaw = state[3]
-        msg.velocity = [state[4], state[5], state[6]]
-        msg.v_yaw = state[7]
-        msg.radius_1 = state[8]
-        msg.radius_2 = tracker.last_r
-        msg.y_2 = tracker.last_y
+            msg = Target_msg()
+            msg.position = [state[0], state[1], state[2]]
+            msg.yaw = state[3]
+            msg.velocity = [state[4], state[5], state[6]]
+            msg.v_yaw = state[7]
+            msg.radius_1 = state[8]
+            msg.radius_2 = tracker.last_r
+            msg.y_2 = tracker.last_y
 
-        # 以下为调试相关的代码
+            # 以下为调试相关的代码
 
-        yaw_in_imu = 0  
-        if len(armors)>0:
-            yaw_in_imu = armors[0].yawR_in_imu           
+            yaw_in_imu = 0  
+            if len(armors)>0:
+                yaw_in_imu = armors[0].yawR_in_imu           
 
-        drawing = frame.copy()
+            drawing = cv2.convertScaleAbs(frame, alpha=5)
 
-        for a in armors:
-            tools.drawContour(drawing, a.points)
-            tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
-            tools.putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
-            x, y, z = a.in_imu.T[0]
-            tools.putText(drawing, f'rotate speed: {msg.v_yaw:.2f}', (100, 100), (255, 255, 255))
-            tools.putText(drawing, f'yaw_in_imu: {yaw_in_imu:.2f} yaw: {msg.yaw:.2f}', (100, 400), (255, 255, 255))
-            tools.putText(drawing, f'radius1: {msg.radius_1:.2f} radius2: {msg.radius_2:.2f}', (100, 200), (255, 255, 255))
-            tools.putText(drawing, f'x: {msg.position[0]:.2f} y: {msg.position[1]:.2f} z: {msg.position[2]:.2f}', (100, 300), (255, 255, 255))
+            for a in armors:
+                tools.drawContour(drawing, a.points)
+                tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+                tools.putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
+                x, y, z = a.in_imu.T[0]
+                tools.putText(drawing, f'rotate speed: {msg.v_yaw:.2f}', (100, 100), (255, 255, 255))
+                tools.putText(drawing, f'yaw_in_imu: {yaw_in_imu:.2f} yaw: {msg.yaw:.2f}', (100, 400), (255, 255, 255))
+                tools.putText(drawing, f'radius1: {msg.radius_1:.2f} radius2: {msg.radius_2:.2f}', (100, 200), (255, 255, 255))
+                tools.putText(drawing, f'x: {msg.position[0]:.2f} y: {msg.position[1]:.2f} z: {msg.position[2]:.2f}', (100, 300), (255, 255, 255))
 
-        # cv2.imshow('press q to exit', drawing)
-        visualizer.show(drawing)
-       
-        # visualizer.plot((yaw_in_imu, msg.yaw), ('yaw_in_imu','yaw'))
-        visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
-                         msg.radius_1,msg.radius_2,
-                         msg.position[0],msg.position[1],msg.position[2]), 
-                         ('yaw_in_imu','yaw','v_yaw',
-                          'r1','r2',
-                          'x','y','z'))
+                # 车辆中心重投影
+                center_in_imu = np.array(msg.position).reshape(3,1) * 1000
+                R_imu2gimbal = tools.R_gimbal2imu(0, 0).T
+                center_in_gimbal = R_imu2gimbal @ center_in_imu
+                R_gimbal2camera = R_camera2gimbal.T
+                center_in_camera = R_gimbal2camera @ center_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+                center_in_pixel, _ = cv2.projectPoints(center_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+                center_in_pixel = center_in_pixel[0][0]
+                tools.drawPoint(drawing, center_in_pixel, (255, 255, 255), radius=10)
 
-        key = cv2.waitKey(16) & 0xff
-        if key == ord('q'):
-            break
+            # cv2.imshow('press q to exit', drawing)
+            visualizer.show(drawing)
+        
+            # visualizer.plot((yaw_in_imu, msg.yaw), ('yaw_in_imu','yaw'))
+            visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
+                             msg.radius_1,msg.radius_2,
+                             msg.position[0],msg.position[1],msg.position[2]), 
+                             ('yaw_in_imu','yaw','v_yaw',
+                              'r1','r2',
+                              'x','y','z'))
 
-    cap.release()
+            key = cv2.waitKey(16) & 0xff
+            if key == ord('q'):
+                break
+
+        cap.release()
