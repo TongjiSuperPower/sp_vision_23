@@ -104,10 +104,14 @@ if __name__ == '__main__':
             # visualizer.plot((yaw_in_imu, msg.yaw), ('yaw_in_imu','yaw'))
             visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
                              msg.radius_1,msg.radius_2,
-                             msg.position[0],msg.position[1],msg.position[2]), 
+                             msg.position[0],msg.position[1],msg.position[2],
+                             tracker.arrmor_jump, tracker.state_error,
+                             int(tracker.tracker_state)), 
                              ('yaw_in_imu','yaw','v_yaw',
                               'r1','r2',
-                              'x','y','z'))
+                              'x','y','z',
+                              'arrmor_jump','state_error',
+                              'tracker_state'))
 
             key = cv2.waitKey(16) & 0xff
             if key == ord('q'):

@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from enum import Enum
+from enum import IntEnum
 from modules.NewEKF import ExtendedKalmanFilter
 from modules.armor_detection import Armor
 
@@ -48,7 +48,7 @@ def j_h(x):
     return dhdx
 
 
-class TrackerState(Enum):
+class TrackerState(IntEnum):
     LOST = 0
     DETECTING = 1
     TRACKING = 2
@@ -76,15 +76,27 @@ class Tracker:
         self.last_y = 0
         self.last_r = 0
 
+        self.arrmor_jump = 0
+        self.state_error = 0
+
         # EKF参数:
         # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
-        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-5]
+        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
         Q = np.diag(q_v)
         # R
-        r_v = [1e-2, 1e-2, 5e-2, 2e-1]
+        r_v = [1e-1, 1e-1, 1e-1, 6e-1]
         R = np.diag(r_v)
         # P - error estimate covariance matrix
         P0 = np.eye(9)
+
+        # # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
+        # q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
+        # Q = np.diag(q_v)
+        # # R
+        # r_v = [1e-1, 1e-1, 1e-1, 2e-1]
+        # R = np.diag(r_v)
+        # # P - error estimate covariance matrix
+        # P0 = np.eye(9)
 
         # EKF
         # xa = x_armor, xc = x_robot_center
@@ -101,6 +113,8 @@ class Tracker:
         self.tracker_state = TrackerState.DETECTING
 
     def update(self, armors: list[Armor], dt):
+        self.arrmor_jump *= 0
+        self.state_error *= 0
         # KF predict
         ekf_prediction = self.ekf.predict(dt)
         # print("EKF predict")
@@ -204,6 +218,7 @@ class Tracker:
 
         if abs(yaw - last_yaw) > 0.4:
             print("Armor jump!")
+            self.arrmor_jump = 1
             self.last_y = self.target_state[1]
             self.target_state[1] = np.reshape(a.in_imuM, (3,))[1]
             self.target_state[3] = yaw
@@ -214,6 +229,7 @@ class Tracker:
 
         if np.linalg.norm(current_p - infer_p) > self.max_match_distance:
             print("State wrong!")
+            self.state_error = 1
             r = self.target_state[8]
             self.target_state[0] = current_p[0] + r * math.sin(yaw)
             self.target_state[2] = current_p[2] + r * math.cos(yaw)
