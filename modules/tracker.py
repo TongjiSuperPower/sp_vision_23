@@ -177,12 +177,12 @@ class Tracker:
         xa, ya, za = np.reshape(a.in_imuM, (3,))
         yaw = a.yawR_in_imu
 
+        # Set initial position at 0.2m behind the target
         r = 0.2
         xc = xa + r * math.sin(yaw)
         yc = ya
         zc = za + r * math.cos(yaw)
 
-        # Set initial position at 0.2m behind the target
         self.target_state = np.zeros((9,))
         self.target_state[0] = xc
         self.target_state[1] = yc
@@ -199,13 +199,13 @@ class Tracker:
         print("Init EKF!")
 
     def handleArmorJump(self, a: Armor):
-        self.last_yaw = self.target_state[3]
+        last_yaw = self.target_state[3]
         yaw = a.yawR_in_imu
 
-        if abs(yaw - self.last_yaw) > 0.4:
+        if abs(yaw - last_yaw) > 0.4:
             print("Armor jump!")
             self.last_y = self.target_state[1]
-            self.target_state[2] = np.reshape(a.in_imuM, (3,))[2]
+            self.target_state[1] = np.reshape(a.in_imuM, (3,))[1]
             self.target_state[3] = yaw
             self.target_state[8], self.last_r = self.last_r, self.target_state[8]
 
