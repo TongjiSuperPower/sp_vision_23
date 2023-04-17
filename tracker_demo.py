@@ -37,6 +37,8 @@ if __name__ == '__main__':
     tracking_threshold = 5  # 从检测到->跟踪的帧数
     lost_threshold = 5  # 从暂时丢失->丢失的帧数
     tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
+    
+    visualizer = Visualizer()
 
     while True:
         success, frame = cap.read()
@@ -70,16 +72,32 @@ if __name__ == '__main__':
 
         # 以下为调试相关的代码
 
+        yaw_in_imu = 0  
+        if len(armors)>0:
+            yaw_in_imu = armors[0].yawR_in_imu           
+
         drawing = frame.copy()
+
         for a in armors:
             tools.drawContour(drawing, a.points)
             tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
             tools.putText(drawing, f'{a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
             x, y, z = a.in_imu.T[0]
             tools.putText(drawing, f'rotate speed: {msg.v_yaw:.2f}', (100, 100), (255, 255, 255))
+            tools.putText(drawing, f'yaw_in_imu: {yaw_in_imu:.2f} yaw: {msg.yaw:.2f}', (100, 400), (255, 255, 255))
             tools.putText(drawing, f'radius1: {msg.radius_1:.2f} radius2: {msg.radius_2:.2f}', (100, 200), (255, 255, 255))
+            tools.putText(drawing, f'x: {msg.position[0]:.2f} y: {msg.position[1]:.2f} z: {msg.position[2]:.2f}', (100, 300), (255, 255, 255))
 
-        cv2.imshow('press q to exit', drawing)
+        # cv2.imshow('press q to exit', drawing)
+        visualizer.show(drawing)
+       
+        # visualizer.plot((yaw_in_imu, msg.yaw), ('yaw_in_imu','yaw'))
+        visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
+                         msg.radius_1,msg.radius_2,
+                         msg.position[0],msg.position[1],msg.position[2]), 
+                         ('yaw_in_imu','yaw','v_yaw',
+                          'r1','r2',
+                          'x','y','z'))
 
         key = cv2.waitKey(16) & 0xff
         if key == ord('q'):
