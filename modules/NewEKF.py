@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class ExtendedKalmanFilter:
     def __init__(self, f, h, Jf, Jh, Q, R, P0):
         '''
@@ -35,9 +36,8 @@ class ExtendedKalmanFilter:
         x0: 状态值
         '''
         self.x_post = x0
-    
 
-    def predict(self,dt):
+    def predict(self, dt):
         '''
         使用非线性状态转移函数和其雅可比矩阵预测下一状态
 
@@ -66,7 +66,10 @@ class ExtendedKalmanFilter:
         '''
         H = self.Jh(self.x_pri)
         K = self.P_pri @ H.T @ np.linalg.inv(H @ self.P_pri @ H.T + self.R)  # 卡尔曼增益
-        self.x_post = self.x_pri + K @ (z - self.h(self.x_pri))  # 更新后的状态估计值
+
+        self.x_post = self.x_pri.reshape((-1, 1)) + K @ (z - self.h(self.x_pri)).reshape((-1, 1))  # 更新后的状态估计值
+        self.x_post = self.x_post.reshape((-1,))
+
         self.P_post = (self.I - K @ H) @ self.P_pri  # 更新后的状态估计误差协方差矩阵
 
         return self.x_post
