@@ -103,7 +103,7 @@ class Tracker:
     def update(self, armors: list[Armor], dt):
         # KF predict
         ekf_prediction = self.ekf.predict(dt)
-        print("EKF predict")
+        # print("EKF predict")
 
         matched = False
 
@@ -130,8 +130,8 @@ class Tracker:
                 p = np.reshape(self.tracked_armor.in_imuM, (3,))
                 measured_yaw = self.tracked_armor.yawR_in_imu
                 z = np.array([p[0], p[1], p[2], measured_yaw])
-                target_state = self.ekf.update(z)
-                print("EKF update")
+                self.target_state = self.ekf.update(z)
+                # print("EKF update")
             else:
                 # Check if there is same id armor in current frame
                 for armor in armors:
