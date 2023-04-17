@@ -77,11 +77,11 @@ class Tracker:
         self.last_r = 0
 
         # EKF参数:
-        # Q - process noise covariance matrix
-        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
+        # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
+        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-5]
         Q = np.diag(q_v)
         # R
-        r_v = [1e-1, 1e-1, 1e-1, 2e-1]
+        r_v = [1e-2, 1e-2, 5e-2, 2e-1]
         R = np.diag(r_v)
         # P - error estimate covariance matrix
         P0 = np.eye(9)
@@ -128,7 +128,7 @@ class Tracker:
 
                 # Update EKF
                 p = np.reshape(self.tracked_armor.in_imuM, (3,))
-                measured_yaw = self.tracked_armor.yawR_in_imu
+                measured_yaw = self.get_continous_yaw(self.tracked_armor.yawR_in_imu)
                 z = np.array([p[0], p[1], p[2], measured_yaw])
                 self.target_state = self.ekf.update(z)
                 # print("EKF update")
@@ -175,7 +175,7 @@ class Tracker:
 
     def initEKF(self, a: Armor):
         xa, ya, za = np.reshape(a.in_imuM, (3,))
-        yaw = a.yawR_in_imu
+        yaw = self.get_continous_yaw(a.yawR_in_imu)
 
         # Set initial position at 0.2m behind the target
         r = 0.2
@@ -200,7 +200,7 @@ class Tracker:
 
     def handleArmorJump(self, a: Armor):
         last_yaw = self.target_state[3]
-        yaw = a.yawR_in_imu
+        yaw = self.get_continous_yaw(a.yawR_in_imu)
 
         if abs(yaw - last_yaw) > 0.4:
             print("Armor jump!")
@@ -224,4 +224,32 @@ class Tracker:
 
     def getArmorPositionFromState(self, x):
         return h(x)[:3]
+    
+
+    def get_continous_yaw(self, yaw):
+        yaw = self.last_yaw + self.shortest_angular_distance(self.last_yaw, yaw)
+        self.last_yaw = yaw
+        return yaw
+
+    def normalize_angle_positive(self,angle):
+        """ Normalizes the angle to be 0 to 2*pi
+            It takes and returns radians. """
+        return math.fmod(math.fmod(angle, 2.0*math.pi) + 2.0*math.pi, 2.0*math.pi)
+
+    def normalize_angle(self,angle):
+        """ Normalizes the angle to be -pi to +pi
+            It takes and returns radians."""
+        a = self.normalize_angle_positive(angle)
+        if a > math.pi:
+            a -= 2.0 * math.pi
+        return a
+
+    def shortest_angular_distance(self,from_angle, to_angle):
+        """ Given 2 angles, this returns the shortest angular
+            difference.  The inputs and ouputs are of course radians.
+
+            The result would always be -pi <= result <= pi. Adding the result
+            to "from" will always get you an equivalent angle to "to".
+        """
+        return self.normalize_angle(to_angle - from_angle)
     
