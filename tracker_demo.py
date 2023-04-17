@@ -78,6 +78,50 @@ if __name__ == '__main__':
 
             drawing = cv2.convertScaleAbs(frame, alpha=5)
 
+            # 重投影
+            R_imu2gimbal = tools.R_gimbal2imu(0, 0).T
+            R_gimbal2camera = R_camera2gimbal.T
+
+            # 车辆中心
+            center_in_imu = np.array(msg.position).reshape(3,1) * 1000
+            center_in_gimbal = R_imu2gimbal @ center_in_imu
+            center_in_camera = R_gimbal2camera @ center_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            center_in_pixel, _ = cv2.projectPoints(center_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            center_in_pixel = center_in_pixel[0][0]
+            tools.drawPoint(drawing, center_in_pixel, (0, 0, 255), radius=20)
+
+            # 装甲板1
+            armor1_in_imu = np.array(tracker.getArmorPositionFromState(state)).reshape(3, 1) * 1000
+            armor1_in_gimbal = R_imu2gimbal @ armor1_in_imu
+            armor1_in_camera = R_gimbal2camera @ armor1_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor1_in_pixel, _ = cv2.projectPoints(armor1_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor1_in_pixel = armor1_in_pixel[0][0]
+            tools.drawPoint(drawing, armor1_in_pixel, (255, 255, 255), radius=10)
+
+            # 装甲板2
+            state = state.copy()
+            state[1] = msg.y_2
+            state[3] = msg.yaw + math.pi/2
+            state[8] = msg.radius_2
+            armor2_in_imu = np.array(tracker.getArmorPositionFromState(state)).reshape(3, 1) * 1000
+            armor2_in_gimbal = R_imu2gimbal @ armor2_in_imu
+            armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor2_in_pixel, _ = cv2.projectPoints(armor2_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor2_in_pixel = armor2_in_pixel[0][0]
+            tools.drawPoint(drawing, armor2_in_pixel, (255, 255, 255), radius=10)
+
+            # 装甲板3
+            state = state.copy()
+            state[1] = msg.y_2
+            state[3] = msg.yaw - math.pi/2
+            state[8] = msg.radius_2
+            armor3_in_imu = np.array(tracker.getArmorPositionFromState(state)).reshape(3, 1) * 1000
+            armor3_in_gimbal = R_imu2gimbal @ armor3_in_imu
+            armor3_in_camera = R_gimbal2camera @ armor3_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor3_in_pixel, _ = cv2.projectPoints(armor3_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor3_in_pixel = armor3_in_pixel[0][0]
+            tools.drawPoint(drawing, armor3_in_pixel, (255, 255, 255), radius=10)
+
             for a in armors:
                 tools.drawContour(drawing, a.points)
                 tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
@@ -87,16 +131,6 @@ if __name__ == '__main__':
                 tools.putText(drawing, f'yaw_in_imu: {yaw_in_imu:.2f} yaw: {msg.yaw:.2f}', (100, 400), (255, 255, 255))
                 tools.putText(drawing, f'radius1: {msg.radius_1:.2f} radius2: {msg.radius_2:.2f}', (100, 200), (255, 255, 255))
                 tools.putText(drawing, f'x: {msg.position[0]:.2f} y: {msg.position[1]:.2f} z: {msg.position[2]:.2f}', (100, 300), (255, 255, 255))
-
-                # 车辆中心重投影
-                center_in_imu = np.array(msg.position).reshape(3,1) * 1000
-                R_imu2gimbal = tools.R_gimbal2imu(0, 0).T
-                center_in_gimbal = R_imu2gimbal @ center_in_imu
-                R_gimbal2camera = R_camera2gimbal.T
-                center_in_camera = R_gimbal2camera @ center_in_gimbal - R_gimbal2camera @ t_camera2gimbal
-                center_in_pixel, _ = cv2.projectPoints(center_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
-                center_in_pixel = center_in_pixel[0][0]
-                tools.drawPoint(drawing, center_in_pixel, (255, 255, 255), radius=10)
 
             # cv2.imshow('press q to exit', drawing)
             visualizer.show(drawing)
