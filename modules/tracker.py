@@ -29,9 +29,9 @@ def h(x):
     # h - Observation function
     z = np.zeros(4)
     xc, yc, zc, yaw, r = x[0], x[1], x[2], x[3], x[8]
-    z[0] = xc - r * math.sin(yaw)  # xa
+    z[0] = xc - r * math.cos(yaw)  # xa
     z[1] = yc                      # ya
-    z[2] = zc - r * math.cos(yaw)  # za
+    z[2] = zc - r * math.sin(yaw)  # za
     z[3] = yaw                     # yaw
     return z
 
@@ -41,10 +41,10 @@ def j_h(x):
     dhdx = np.zeros((4, 9))
     yaw, r = x[3], x[8]
     dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
-    dhdx[0, 3] = -r * math.cos(yaw)
-    dhdx[2, 3] = r * math.sin(yaw)
-    dhdx[0, 8] = -math.sin(yaw)
-    dhdx[2, 8] = -math.cos(yaw)
+    dhdx[0, 3] = r * math.sin(yaw)
+    dhdx[2, 3] = -r * math.cos(yaw)
+    dhdx[0, 8] = -math.cos(yaw)
+    dhdx[2, 8] = -math.sin(yaw)
     return dhdx
 
 
@@ -179,9 +179,9 @@ class Tracker:
 
         # Set initial position at 0.2m behind the target
         r = 0.2
-        xc = xa + r * math.sin(yaw)
+        xc = xa + r * math.cos(yaw)
         yc = ya
-        zc = za + r * math.cos(yaw)
+        zc = za + r * math.sin(yaw)
 
         self.target_state = np.zeros((9,))
         self.target_state[0] = xc
@@ -215,8 +215,8 @@ class Tracker:
         if np.linalg.norm(current_p - infer_p) > self.max_match_distance:
             print("State wrong!")
             r = self.target_state[8]
-            self.target_state[0] = current_p[0] + r * math.sin(yaw)
-            self.target_state[2] = current_p[2] + r * math.cos(yaw)
+            self.target_state[0] = current_p[0] + r * math.cos(yaw)
+            self.target_state[2] = current_p[2] + r * math.sin(yaw)
             self.target_state[4] = 0
             self.target_state[6] = 0
 
