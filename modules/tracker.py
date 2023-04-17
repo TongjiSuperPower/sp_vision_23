@@ -204,7 +204,7 @@ class Tracker:
 
         if abs(yaw - self.last_yaw) > 0.4:
             print("Armor jump!")
-            self.last_y = self.target_state[2]
+            self.last_y = self.target_state[1]
             self.target_state[2] = np.reshape(a.in_imuM, (3,))[2]
             self.target_state[3] = yaw
             self.target_state[8], self.last_r = self.last_r, self.target_state[8]
