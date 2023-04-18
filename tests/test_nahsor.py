@@ -2,7 +2,7 @@
 # coding:utf-8
 import time
 
-from Nahsor import *
+from modules.Nahsor.Nahsor import *
 import cv2 as cv
 
 """
@@ -37,7 +37,7 @@ def darkimg(img):
 
 
 def recognise():
-    filename = "new_mid_3.MP4"
+    filename = "../assets/new_mid_3.MP4"
     cap = cv.VideoCapture(filename)
 
     if not cap.isOpened():
@@ -45,7 +45,7 @@ def recognise():
         exit()
     color = COLOR.RED
     # 新建能量机关对象
-    w = NahsorMarker(color=color, fit_debug=1,
+    w = NahsorMarker(color=color, fit_debug=0, find_debug=1,
                      fit_speed_mode=FIT_SPEED_MODE.BY_SPEED)
 
     # 帧率计算
@@ -71,9 +71,7 @@ def recognise():
 
         # img=darkimg(img)
         # 使用mark()方法，传入一帧图像
-        start_time = time.time()
         w.mark(img)
-        print("Start", time.time() - start_time)
         # 使用markFrame()获得标记好的输出图像
         img = w.markFrame()
         img = cv2.putText(img, str(pfps), (0, 50), cv2.FONT_HERSHEY_COMPLEX, 2.0, (100, 200, 200), 5)
