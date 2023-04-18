@@ -1,4 +1,5 @@
 import cv2
+import math
 import time
 import numpy as np
 from collections import deque
@@ -49,7 +50,12 @@ if __name__ == '__main__':
                 x, y, z = armor.in_imu.T[0]
                 imu_yaw = armor.yaw_in_imu
 
-                robot.send(x, y, z)
+                pitch = tools.shoot_pitch(x, y, z, robot.bullet_speed) + 4
+                armor_in_gun = armor.in_imu.copy()
+                armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))
+                print(f'{pitch} {armor.in_imu[1,0]} {armor_in_gun[1,0]}')
+
+                robot.send(*armor_in_gun.T[0])
 
                 # 调试用
                 visualizer.plot((imu_yaw, robot.yaw, robot.pitch), ('imu_yaw', 'yaw', 'pitch'))

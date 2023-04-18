@@ -26,7 +26,8 @@ if __name__ == '__main__':
     with Visualizer() as visualizer:
         from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
-        video_path = 'assets/antitop_top.mp4'
+        # video_path = 'assets/antitop_top.mp4'
+        video_path = 'assets/20230418-133733.avi'
         # video_path = 'assets/input.avi'
 
         cap = cv2.VideoCapture(video_path)
@@ -45,7 +46,7 @@ if __name__ == '__main__':
             if not success:
                 break
 
-            armors = armor_detector.detect(frame, 0, 0)
+            armors = armor_detector.detect(frame, 0, -0.37)
             armors.sort(key=lambda a: a.observation[0]) # 优先击打最近的
 
             if tracker.tracker_state == TrackerState.LOST:
@@ -76,7 +77,7 @@ if __name__ == '__main__':
             if len(armors)>0:
                 yaw_in_imu = armors[0].yawR_in_imu           
 
-            drawing = cv2.convertScaleAbs(frame, alpha=5)
+            drawing = cv2.convertScaleAbs(frame, alpha=3)
 
             # 重投影
             R_imu2gimbal = tools.R_gimbal2imu(0, 0).T
@@ -88,7 +89,7 @@ if __name__ == '__main__':
             center_in_camera = R_gimbal2camera @ center_in_gimbal - R_gimbal2camera @ t_camera2gimbal
             center_in_pixel, _ = cv2.projectPoints(center_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
             center_in_pixel = center_in_pixel[0][0]
-            tools.drawPoint(drawing, center_in_pixel, (0, 0, 255), radius=20)
+            tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=20)
 
             # 装甲板1
             armor1_in_imu = np.array(tracker.getArmorPositionFromState(state)).reshape(3, 1) * 1000
@@ -96,7 +97,7 @@ if __name__ == '__main__':
             armor1_in_camera = R_gimbal2camera @ armor1_in_gimbal - R_gimbal2camera @ t_camera2gimbal
             armor1_in_pixel, _ = cv2.projectPoints(armor1_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
             armor1_in_pixel = armor1_in_pixel[0][0]
-            tools.drawPoint(drawing, armor1_in_pixel, (255, 255, 255), radius=10)
+            tools.drawPoint(drawing, armor1_in_pixel, (0, 0, 255), radius=10)
 
             # 装甲板2
             state = state.copy()
@@ -108,7 +109,7 @@ if __name__ == '__main__':
             armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
             armor2_in_pixel, _ = cv2.projectPoints(armor2_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
             armor2_in_pixel = armor2_in_pixel[0][0]
-            tools.drawPoint(drawing, armor2_in_pixel, (255, 255, 255), radius=10)
+            tools.drawPoint(drawing, armor2_in_pixel, (0, 0, 255), radius=10)
 
             # 装甲板3
             state = state.copy()
@@ -120,7 +121,7 @@ if __name__ == '__main__':
             armor3_in_camera = R_gimbal2camera @ armor3_in_gimbal - R_gimbal2camera @ t_camera2gimbal
             armor3_in_pixel, _ = cv2.projectPoints(armor3_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
             armor3_in_pixel = armor3_in_pixel[0][0]
-            tools.drawPoint(drawing, armor3_in_pixel, (255, 255, 255), radius=10)
+            tools.drawPoint(drawing, armor3_in_pixel, (0, 0, 255), radius=10)
 
             for a in armors:
                 tools.drawContour(drawing, a.points)
