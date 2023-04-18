@@ -1,18 +1,13 @@
 # coding:utf-8
 import inspect
 
-import numpy as np
-from scipy.integrate import quad
 from scipy.ndimage import gaussian_filter1d
 
 from collections import Counter
-from scipy import optimize
+from scipy.optimize import curve_fit
 
-import cv2
 import time
-from NahsorConfig import *
 from Utils import *
-
 
 # 每局比赛旋转方向固定
 # 小能量机关的转速固定为10RPM
@@ -27,7 +22,7 @@ class NahsorMarker(object):
     fit_times = []  # 取得数据的时间
 
     r_center, radius = None, 0  # 拟合圆圆心和半径
-    rot_direction = 0  # 能量机关转动方向，1为顺时针，-1为逆时针；
+    rot_direction = 1  # 能量机关转动方向，1为顺时针，-1为逆时针；
     rot_speed = 0  # 能量机关转速，单位rad/s
 
     last_center_for_r = None  # 上一次的装甲板中心
@@ -53,16 +48,25 @@ class NahsorMarker(object):
             self.fit_func = angle_func
         params = inspect.signature(self.fit_func).parameters
         param_names = list(params.keys())[1:]
-        self.speed_params_min = []
-        self.speed_params_max = []
+        self.speed_param_bounds = [[], []]
+        self.speed_param_maxerror = []
+        # self.speed_params_min = []
+        # self.speed_params_max = []
         for param_name in param_names:
-            if param_name in SPEED_PARAMS:
-                self.speed_params_min.append(SPEED_PARAMS[param_name][0])
-                self.speed_params_max.append(SPEED_PARAMS[param_name][1])
+            if param_name in SPEED_PARAM_BOUNDS:
+                self.speed_param_bounds[0].append(SPEED_PARAM_BOUNDS[param_name][0])
+                self.speed_param_bounds[1].append(SPEED_PARAM_BOUNDS[param_name][1])
             else:
-                self.speed_params_min.append(-np.inf)
-                self.speed_params_max.append(np.inf)
+                self.speed_param_bounds[0].append(-np.inf)
+                self.speed_param_bounds[1].append(np.inf)
+        self.speed_param_bounds = tuple(self.speed_param_bounds)
 
+        for param_name in param_names:
+            if param_name in SPEED_PARAM_MAXERROR:
+                self.speed_param_maxerror.append(SPEED_PARAM_MAXERROR[param_name])
+            else:
+                self.speed_param_maxerror.append(1)
+        self.speed_param_maxerror = np.array(self.speed_param_maxerror)
         self.big_start_time = time.time()  # 大符开始的时间(实际只是一个基准，不必此时开始)
 
         self.fit_params = None  # 速度正弦函数的参数
@@ -87,7 +91,7 @@ class NahsorMarker(object):
         self.__r_change = 0  # 圆心是否变化，0：未改变 / 1：改变
         self.__fit_speed_status = FIT_SPEED_STATUS.FAILED  # 是否拟合成功
 
-    def __preprocess(self, frame):  # 预处理，进行二值化和
+    def __preprocess(self, frame):  # 预处理，进行二值化和初步处理
         img = frame.copy()
 
         # 二值化开始
@@ -286,64 +290,52 @@ class NahsorMarker(object):
             if USE_PREDICT == 0:
                 self.predict_center = self.current_center
             else:
-                # if self.__r_change == 0 and self.last_center is not None:
-                if self.__target_status == TARGET_STATUS.NOT_FOUND or self.r_center is None:
-                    self.__fit_speed_status = FIT_SPEED_STATUS.FAILED
-                elif self.__fit_speed_status == FIT_SPEED_STATUS.FAILED:
-                    self.__fit_speed_status = FIT_SPEED_STATUS.FITTING
-                    # self.big_start_time = time.time()
-                    self.fit_data = []
-                    self.fit_times = []
-                    # self.last_time_for_fitdata = self.big_start_time
-                    self.last_time_for_fitdata = time.time()
-                    self.last_center_for_fitdata = self.current_center
-                elif self.__fit_speed_status == FIT_SPEED_STATUS.FITTING:
-                    if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
-                        self.set_fit_data()
-
-                        if len(self.fit_data) > FIT_MIN_LEN:
-                            speed_params, speed_cov = self.fit_speed_params()
-                            speed_err = np.sqrt(np.diag(speed_cov))
-                            if max(speed_err) < FIT_MAX_ERROR:
-                                self.__fit_speed_status = FIT_SPEED_STATUS.SUCCESS
-                                self.last_time_for_predict = time.time()
-                            self.fit_params = speed_params
-
-                elif self.__fit_speed_status == FIT_SPEED_STATUS.SUCCESS:
-                    if time.time() - self.last_time_for_predict > SPEED_REFIT_INTERVAL:
+                if self.energy_mode == ENERGY_MODE.BIG:
+                    # if self.__r_change == 0 and self.last_center is not None:
+                    if self.__target_status == TARGET_STATUS.NOT_FOUND or self.r_center is None:
                         self.__fit_speed_status = FIT_SPEED_STATUS.FAILED
-                    if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
-                        self.set_fit_data()
+                    elif self.__fit_speed_status == FIT_SPEED_STATUS.FAILED:
+                        self.__fit_speed_status = FIT_SPEED_STATUS.FITTING
+                        # self.big_start_time = time.time()
+                        # self.fit_data = []
+                        # self.fit_times = []
+                        # self.last_time_for_fitdata = self.big_start_time
+                        self.last_time_for_fitdata = time.time()
+                        self.last_center_for_fitdata = self.current_center
+                    elif self.__fit_speed_status == FIT_SPEED_STATUS.FITTING:
+                        if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
+                            self.set_fit_data()
 
-                if self.fit_params is not None:
-                    self.rot_speed = speed_func(time.time() - self.big_start_time, self.fit_params[0],
-                                                self.fit_params[1], self.fit_params[2],
-                                                self.fit_params[3])
+                            if len(self.fit_data) > FIT_MIN_LEN:
+                                speed_params, speed_cov = self.fit_speed_params()
+                                speed_err = np.sqrt(np.diag(speed_cov))
+                                print("error: ", speed_err)
+                                if np.all(speed_err < self.speed_param_maxerror) and len(self.fit_data) > 5 * FIT_MIN_LEN:
+                                    self.__fit_speed_status = FIT_SPEED_STATUS.SUCCESS
+                                    self.last_time_for_predict = time.time()
+                                self.fit_params = speed_params
 
-                    if self.__r_change == 0 and len(self.target_centers) > FIT_MIN_LEN:
-                        clockwise1 = get_clockwise(self.r_center, self.target_centers[-3],
-                                                   self.target_centers[-1])
-                        if self.rot_direction is None or self.rot_direction != clockwise1:
-                            self.rot_direction = self.get_rot_direction()
+                    elif self.__fit_speed_status == FIT_SPEED_STATUS.SUCCESS:
+                        if time.time() - self.last_time_for_predict > SPEED_REFIT_INTERVAL:
+                            self.__fit_speed_status = FIT_SPEED_STATUS.FITTING
+                        if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
+                            self.set_fit_data()
 
-                    if self.rot_direction is not None:
-                        self.predict_center = self.get_predict_center()
+                    # if self.fit_params is not None:
+                    #     self.rot_speed = speed_func(time.time() - self.big_start_time, self.fit_params[0],
+                    #                                 self.fit_params[1], self.fit_params[2],
+                    #                                 self.fit_params[3])
+                else:
+                    self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
-            #
-            #             rot_angles_sum = add_list(self.rot_angles)
-            #             speed_params, speed_cov = fit_angle_func(self.times, rot_angles_sum)
-            #             # speed_err = np.sqrt(np.diag(speed_cov))
+                if self.__r_change == 0 and len(self.target_centers) > FIT_MIN_LEN:
+                    clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
+                                               self.target_centers[-1])
+                    if self.rot_direction is None or self.rot_direction != clockwise1:
+                        self.rot_direction = self.get_rot_direction()
 
-        # if self.r_center is not None:
-        #     self.__rect = self.__find_hit_rect(armor_contour)
-        #     self.__box = np.int0(cv2.boxPoints(self.__rect))
-        #     self.__cur_point = tuple(np.int0(self.__rect[0]))
-        #     self.__status = FOUND
-        # else:
-        #     self.__rect = cv2.minAreaRect(armor_contour)
-        #     self.__box = np.int0(cv2.boxPoints(self.__rect))
-        #     self.__cur_point = tuple(np.int0(self.__rect[0]))
-        #     self.__status = 0
+                if self.rot_direction is not None:
+                    self.predict_center = self.get_predict_center()
 
     def markFrame(self):
         """
@@ -379,7 +371,7 @@ class NahsorMarker(object):
 
         return orig
 
-    def getPredTime(self):
+    def get_predict_time(self):
         """
         返回向后预测的时间
         """
@@ -389,21 +381,24 @@ class NahsorMarker(object):
         """
         返回下一个点与当前点的角度
         """
-        popt = self.fit_params
-        predict_speed_args = tuple(self.fit_params)
-        if popt is not None:
-            if self.fit_speed_mode == FIT_SPEED_MODE.BY_SPEED:
-                angle = self.getPredTime() * speed_func(time.time() - self.big_start_time + self.getPredTime(),
-                                                        *predict_speed_args)
+        if self.energy_mode == ENERGY_MODE.BIG:
+            if self.fit_params is not None:
+                fit_param_args = tuple(self.fit_params[0:4])
+
+                # angle = self.get_predict_time() * speed_func(
+                #     time.time() - self.big_start_time + self.get_predict_time(),
+                #     *fit_param_args)
+                # angle = self.get_predict_time() * self.rot_speed
                 # angle, _ = quad(speed_func, time.time() - self.big_start_time,
-                #                  time.time() + self.getPredTime() - self.big_start_time, args=predict_speed_args)
+                #                 time.time() + self.get_predict_time() - self.big_start_time, args=fit_param_args)
+                angle = angle_func(time.time() + self.get_predict_time() - self.big_start_time,
+                                   *fit_param_args) - angle_func(time.time() - self.big_start_time,
+                                                                 *fit_param_args)
             else:
-                angle = angle_func(time.time() + self.getPredTime() - self.big_start_time,
-                                   *predict_speed_args) - angle_func(time.time() - self.big_start_time,
-                                                                     *predict_speed_args)
+                angle = self.get_predict_time() * self.rot_speed
+                # angle = 0
         else:
-            angle = self.getPredTime() * self.rot_speed
-            # angle = 0
+            angle = self.get_predict_time() * self.rot_speed
         return angle * 180 / np.pi
 
     def get_predict_center(self):
@@ -427,6 +422,8 @@ class NahsorMarker(object):
         counter = Counter(rot_directions)
         return counter.most_common(1)[0][0]
 
+
+# 拆出计算速度的部分，如果误差过大重新预测
     def set_fit_data(self):
         current_time = time.time()
         interval = current_time - self.last_time_for_fitdata
@@ -464,20 +461,22 @@ class NahsorMarker(object):
         # angles = smooth_data(angles)
         # angles = wavelet_noising(angles)
 
-        bounds = (self.speed_params_min, self.speed_params_max)
-        # if self.fit_params is None:
-        p0 = []
-        for i in range(len(bounds[0])):
-            if not np.isinf(bounds[0][i]) and not np.isinf(bounds[1][i]):
-                p0.append((bounds[0][i] + bounds[1][i]) / 2)
-            else:
-                p0.append(1)
-        # else:
-        #     p0 = self.fit_params
+        # bounds = (self.speed_params_min, self.speed_params_max)
+        bounds = self.speed_param_bounds
+        if self.fit_params is None:
+            p0 = []
+            for i in range(len(bounds[0])):
+                if not np.isinf(bounds[0][i]) and not np.isinf(bounds[1][i]):
+                    p0.append((bounds[0][i] + bounds[1][i]) / 2)
+                else:
+                    p0.append(1)
+        else:
+            p0 = self.fit_params
 
-        speed_params, speed_cov = optimize.curve_fit(self.fit_func, add_times, smooth_data, maxfev=10000,
+        speed_params, speed_cov = curve_fit(self.fit_func, add_times, smooth_data, maxfev=10000,
                                                      bounds=bounds, p0=p0)
 
+        # 最小二乘法拟合
         # def residual(params, t, target_speed):
         #     a, w, b, c = params
         #     return speed_func(t, a, w, b, c) - target_speed
@@ -485,18 +484,19 @@ class NahsorMarker(object):
         # speed_params, cov = leastsq(residual, [1, 1, 1, 1], args=(add_times, smooth_angles))
 
         if self.fit_debug == 1:
+            # self.visualizer.plot(())
             plt.figure(figsize=(30, 10), dpi=100, num=1)
             plt.clf()
             plt.plot(add_times, self.fit_data, alpha=0.8, linewidth=1)
             plt.plot(add_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
-            predict_speed_args = tuple(speed_params)
-            predict_speed = [self.fit_func(add_time, *predict_speed_args)
-                             for add_time in add_times]
-            plt.plot(add_times, predict_speed, alpha=0.8, linewidth=1)
+            predict_args = tuple(speed_params)
+            predict_data = [self.fit_func(add_time, *predict_args)
+                            for add_time in add_times]
+            plt.plot(add_times, predict_data, alpha=0.8, linewidth=1)
             # plt.plot(np.arange(1, 13, 0.1), func(np.arange(1, 13, 0.1)), alpha=0.8, linewidth=2, marker='o')
-            plt.pause(0.0001)
-            # print("Speed paras:", speed_params)
-            # print('speed cov:', speed_cov)
+            plt.pause(0.00001)
+            print("Speed paras:", speed_params)
+            print('speed cov:', speed_cov)
         return speed_params, speed_cov
 
     def show_fit_result(self):
@@ -509,12 +509,11 @@ class NahsorMarker(object):
             plt.clf()
             plt.plot(add_times, self.fit_data, alpha=0.8, linewidth=1)
             plt.plot(add_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
-            predict_speed_args = tuple(self.fit_params)
-            predict_speed = [self.fit_func(add_time, *predict_speed_args)
-                             for add_time in add_times]
-            plt.plot(add_times, predict_speed, alpha=0.8, linewidth=1)
+            predict_args = tuple(self.fit_params)
+            predict_data = [self.fit_func(add_time, *predict_args)
+                            for add_time in add_times]
+            plt.plot(add_times, predict_data, alpha=0.8, linewidth=1)
             # plt.plot(np.arange(1, 13, 0.1), func(np.arange(1, 13, 0.1)), alpha=0.8, linewidth=2, marker='o')
             plt.pause(0.0001)
             # print("Speed paras:", speed_params)
             # print('speed cov:', speed_cov)
-
