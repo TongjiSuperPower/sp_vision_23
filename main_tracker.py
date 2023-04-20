@@ -6,12 +6,11 @@ import math
 
 import modules.tools as tools
 from modules.io.robot import Robot
+from modules.io.communication import Communicator
 
-from modules.ExtendKF import EKF
 from modules.armor_detection import ArmorDetector
 import modules.tools as tools
 from modules.tracker import Tracker, TrackerState
-from modules.NewEKF import ExtendedKalmanFilter
 from modules.shot_point import Shot_Point
 
 from remote_visualizer import Visualizer
@@ -27,7 +26,11 @@ class Target_msg:
         self.y_2 = 0.0
 
 if __name__ == '__main__':
-    with Robot(3, '/dev/ttyUSB0') as robot, Visualizer(enable=True) as visualizer:
+    port = '/dev/ttyUSB0'
+    with Communicator(port) as communicator:
+        communicator.receive_no_wait(True)
+
+    with Robot(3, port) as robot, Visualizer(enable=True) as visualizer:
         
         robot.update()
         if robot.id == 3:
