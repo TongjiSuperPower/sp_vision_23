@@ -40,10 +40,9 @@ class Shot_Point:
         deltaTime: system delta time(s)
         '''    
         
+        flyTime = tools.getParaTime(state[:3] * 1000, bulletSpeed) / 1000      
         
-        flyTime = tools.getParaTime(state*1000, bulletSpeed)        
-        
-        state = f(state,deltatime+flyTime) # predicted
+        state = f(state, deltatime+flyTime) # predicted
         
         self.pre_armor_0 = np.array(tracker.getArmorPositionFromState(state)).reshape(3, 1) * 1000# x y z
         
@@ -65,7 +64,7 @@ class Shot_Point:
         # _state[8] = tracker.last_r
         # self.pre_armor_3 = np.array(tracker.getArmorPositionFromState(_state)).reshape(3, 1) * 1000               
         
-        self.four_predict_points = [self.pre_armor_0,self.pre_armor_1,self.pre_armor_2]
+        self.four_predict_points = [self.pre_armor_0, self.pre_armor_1, self.pre_armor_2]
         # print("aaaa{}".format(self.four_predict_points))
         
                     
@@ -75,7 +74,11 @@ class Shot_Point:
         
         # 得到三个可疑点的重投影点 armors_in_pixel 
         # 与枪管的夹角
+        min_angle = 180
+
         for armor_state in self.four_predict_points:
+
+            # 调试用
             armor2_in_imu = armor_state
             armor2_in_gimbal = R_imu2gimbal @ armor2_in_imu
             armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
@@ -87,32 +90,25 @@ class Shot_Point:
             a = (armor_state[0]**2 + armor_state[2]**2) 
             a = a[0]
             a = math.sqrt(a)
-            b = math.sqrt((state[0]*1000)**2 + (state[2]*1000)**2) #
+            b = math.sqrt((state[0]*1000)**2 + (state[2]*1000)**2)
             c = tracker.last_r * 1000
             
-            t = 0
             if self.is_triangle(a,b,c):
-                if len(self.pre_armors_angle) != 0 :
-                    for i in self.pre_armors_angle:
-                        temp = self.triangle_angles(a , b, c)                        
-                        if temp < t :
-                            self.shot_point = armor2_in_pixel
-                            
-                else: #when len()=0 对列表初始化 以便后续排序                              
-                    self.pre_armors_angle.append(self.triangle_angles(a , b, c))
-                    t = self.triangle_angles(a , b, c)
+                angle = self.triangle_angles(a , b, c)                        
+                
+                if angle < min_angle:
+                    min_angle = angle
                     self.shot_point_in_pixel = armor2_in_pixel
-                    self.shot_point_in_imu = armor_state
+                    self.shot_point_in_imu = armor_state                    
 
             else:
+                min_angle = 0
                 self.shot_point_in_pixel = armor2_in_pixel
                 self.shot_point_in_imu = armor_state
-                temp = 0
-                self.pre_armors_angle.append(temp)
             
-            if enableGravity:
-                dropDistance = 0.5 * 9.7940 * flyTime**2
-                self.shot_point_in_imu[1] -= dropDistance # 因为y轴方向向下，所以是减法 gravity
+        # if enableGravity:
+        #     dropDistance = 0.5 * 9.7940 * flyTime**2
+        #     self.shot_point_in_imu[1] -= dropDistance # 因为y轴方向向下，所以是减法 gravity
                 
         return self.shot_point_in_imu
 
