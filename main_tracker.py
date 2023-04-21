@@ -37,6 +37,8 @@ if __name__ == '__main__':
             from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
         elif robot.id == 4:
             from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
+        elif robot.id == 7:
+            from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
 
         armor_detector = ArmorDetector(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
@@ -101,7 +103,8 @@ if __name__ == '__main__':
                 armor_in_gun = np.array([x, y, z]).reshape(3, 1)
                 armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))
                 
-                robot.send(*armor_in_gun.T[0])
+                fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
+                robot.send(*armor_in_gun.T[0], flag=fire)
            
                 # 调试用
                 # visualizer.plot((cy, y, robot.yaw*10, robot.pitch*10), ('cy', 'y', 'yaw', 'pitch'))
