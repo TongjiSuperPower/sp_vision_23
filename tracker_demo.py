@@ -40,13 +40,15 @@ if __name__ == '__main__':
         lost_threshold = 5  # 从暂时丢失->丢失的帧数
         tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
         
+        robot_yaw = -74.02
+        robot_pitch = -0.37
 
         while True:
             success, frame = cap.read()
             if not success:
                 break
 
-            armors = armor_detector.detect(frame, 0, -0.37)
+            armors = armor_detector.detect(frame, robot_yaw, robot_pitch)
             armors.sort(key=lambda a: a.observation[0]) # 优先击打最近的
 
             if tracker.tracker_state == TrackerState.LOST:
@@ -80,7 +82,7 @@ if __name__ == '__main__':
             drawing = cv2.convertScaleAbs(frame, alpha=3)
 
             # 重投影
-            R_imu2gimbal = tools.R_gimbal2imu(0, 0).T
+            R_imu2gimbal = tools.R_gimbal2imu(robot_yaw, robot_pitch).T
             R_gimbal2camera = R_camera2gimbal.T
 
             # 车辆中心
