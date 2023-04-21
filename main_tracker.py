@@ -6,6 +6,7 @@ import math
 
 import modules.tools as tools
 from modules.io.robot import Robot
+from modules.io.recording import Recorder
 from modules.io.communication import Communicator
 
 from modules.armor_detection import ArmorDetector
@@ -30,7 +31,7 @@ if __name__ == '__main__':
     with Communicator(port) as communicator:
         communicator.receive_no_wait(True)
 
-    with Robot(3, port) as robot, Visualizer(enable=True) as visualizer:
+    with Robot(3, port) as robot, Visualizer(enable=True) as visualizer, Recorder() as recorder:
         
         robot.update()
         if robot.id == 3:
@@ -54,6 +55,7 @@ if __name__ == '__main__':
         while True:
             robot.update()
             img = robot.img
+            recorder.record(img, (robot.camera_stamp_ms, robot.yaw, robot.pitch))
             
             twoTimeStampMs.append(robot.camera_stamp_ms)
             dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 5 # (ms)
