@@ -81,7 +81,8 @@ class Tracker:
 
         # EKF参数:
         # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
-        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
+        # q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
+        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2, 1e-3]
         Q = np.diag(q_v)
         # R
         r_v = [1e-1, 1e-1, 1e-1, 6e-1]
