@@ -7,6 +7,8 @@ import modules.tools as tools
 from modules.armor_detection import ArmorDetector
 from modules.tracker import Tracker, TrackerState
 from modules.NewEKF import ExtendedKalmanFilter
+from modules.shot_point import Shot_Point
+from modules.tracker import f
 
 from remote_visualizer import Visualizer
 
@@ -27,7 +29,7 @@ if __name__ == '__main__':
         from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal
 
         # video_path = 'assets/antitop_top.mp4'
-        video_path = 'assets/20230418-133733.avi'
+        video_path = 'assets/edit.mp4'
         # video_path = 'assets/input.avi'
 
         cap = cv2.VideoCapture(video_path)
@@ -73,6 +75,15 @@ if __name__ == '__main__':
             msg.radius_2 = tracker.last_r
             msg.y_2 = tracker.last_y
 
+            Shot = Shot_Point() 
+
+            target_state = tracker.target_state # after filter   
+
+            flyTime = tools.getParaTime(state[:3] * 1000, 17) / 1000      
+        
+            p_state = f(state, 0.05+flyTime) # predicted     
+            p_state = np.reshape(p_state,(9,))    
+            
             # 以下为调试相关的代码
 
             yaw_in_imu = 0  
@@ -139,16 +150,27 @@ if __name__ == '__main__':
             visualizer.show(drawing)
         
             # visualizer.plot((yaw_in_imu, msg.yaw), ('yaw_in_imu','yaw'))
+            # visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
+            #                  msg.radius_1,msg.radius_2,
+            #                  msg.position[0],msg.position[1],msg.position[2],
+            #                  tracker.arrmor_jump, tracker.state_error,
+            #                  int(tracker.tracker_state)), 
+            #                  ('yaw_in_imu','yaw','v_yaw',
+            #                   'r1','r2',
+            #                   'x','y','z',
+            #                   'arrmor_jump','state_error',
+            #                   'tracker_state'))
+            
             visualizer.plot((yaw_in_imu, msg.yaw, msg.v_yaw, 
-                             msg.radius_1,msg.radius_2,
-                             msg.position[0],msg.position[1],msg.position[2],
-                             tracker.arrmor_jump, tracker.state_error,
-                             int(tracker.tracker_state)), 
-                             ('yaw_in_imu','yaw','v_yaw',
-                              'r1','r2',
-                              'x','y','z',
-                              'arrmor_jump','state_error',
-                              'tracker_state'))
+                    msg.radius_1,msg.radius_2,
+                    msg.position[0],msg.position[1],msg.position[2],p_state[0],
+                    msg.velocity[0], msg.velocity[1], msg.velocity[2],
+                    int(tracker.tracker_state)), 
+                    ('yaw_in_imu','yaw','v_yaw',
+                    'r1','r2',
+                    'x','y','z','px',
+                    'vx','vy','vz',
+                    'tracker_state'))
 
             key = cv2.waitKey(16) & 0xff
             if key == ord('q'):
