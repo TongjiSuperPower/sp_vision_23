@@ -6,12 +6,17 @@ from enum import Enum
 
 
 # 状态参数
-class TARGET_STATUS(Enum):
+class STATUS(Enum):
     NOT_FOUND = 0
     FOUND = 1
 
 
-class FIT_SPEED_STATUS(Enum):
+class FIND_TARGET_MODE(Enum):
+    MIDDLE = 2
+    FAR = 3
+
+
+class FIT_STATUS(Enum):
     FAILED = 0
     FITTING = 1
     SUCCESS = 2
@@ -19,8 +24,8 @@ class FIT_SPEED_STATUS(Enum):
 
 # 拟合速度函数的方法参数
 class FIT_SPEED_MODE(Enum):
-    BY_SPEED = 1
-    BY_ANGLE = 2
+    CURVE_FIT = 1
+    PARAM_FIT = 2
 
 
 class COLOR(Enum):
@@ -126,7 +131,7 @@ FIT_MAX_LEN = 100
 FIT_MIN_LEN = 5
 
 # 重新拟合的时间间隔 单位为s
-R_REFIT_INTERVAL = 5
+FIND_R_INTERVAL = 5
 SPEED_REFIT_INTERVAL = 2
 # 每个拟合点的采样间隔
 FIT_INTERVAL = 0.2
@@ -142,11 +147,10 @@ SPEED_PARAM_BOUNDS = {
     "w": [1.6, 2.200],
     "b": [0.8, 1.3]
 }
-SPEED_PARAM_MAXERROR ={
+SPEED_PARAM_MAXERROR = {
     "a": 0.05,
     "w": 0.05,
     "b": 0.05
-
 }
 # 小符旋转速度  RPM
 SMALL_ROT_SPEED = 16

@@ -338,4 +338,7 @@ def get_target(contours, parent_contours):
                 max_area = cv2.contourArea(parent_contour)
                 target_contour = max_child_contour
 
-    return target_contour
+    if target_contour is not None:
+        return cv2.minAreaRect(target_contour)
+    else:
+        return None

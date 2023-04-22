@@ -1,16 +1,19 @@
 # coding:utf-8
 import inspect
 
+from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter1d
+from scipy.signal import medfilt
 
 from collections import Counter
 from scipy.optimize import curve_fit
 
 import time
-from Utils import *
+from modules.Nahsor.Utils import *
+
 
 # 每局比赛旋转方向固定
-# 小能量机关的转速固定为10RPM
+# 小能量机关的转速固定为16RPM
 # 大能量机关转速按照三角函数呈周期性变化。速度目标函数为：speed=a*sin(w*t+b)+c，其中speed的单位为rad/s，t的单位为s
 # -----|----------------|-----|-----------------|--> time
 #      1   <-- 小符 -->  3     4   <-- 大符 -->   7
@@ -18,7 +21,7 @@ from Utils import *
 
 class NahsorMarker(object):
     target_centers = []  # 装甲板中心位置
-    fit_data = []  # 前100次测得的角度或速度
+    fit_speeds = []  # 前100次测得的角度或速度
     fit_times = []  # 取得数据的时间
 
     r_center, radius = None, 0  # 拟合圆圆心和半径
@@ -26,32 +29,30 @@ class NahsorMarker(object):
     rot_speed = 0  # 能量机关转速，单位rad/s
 
     last_center_for_r = None  # 上一次的装甲板中心
-    last_time_for_fit_r = None  # 上次拟合时间
-    last_center_for_fitdata = None
-    last_time_for_predict = time.time()
-    last_time_for_fitdata = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
+    last_time_for_R = None  # 上次拟合时间
+    last_center_for_speed = None
+    last_time_for_fit = time.time()
+    last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
-    def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.BY_SPEED,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, find_debug=0,
+    def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
 
         self.origin_frame = None  # 原图
         self.energy_mode = energy_mode  # 大符或小符
-        self.find_debug = find_debug
+        self.target_debug = target_debug
         self.fit_debug = fit_debug
         self.fit_speed_mode = fit_speed_mode
-        if self.fit_speed_mode == FIT_SPEED_MODE.BY_SPEED:
-            self.fit_func = speed_func
-        else:
-            self.fit_func = angle_func
-        params = inspect.signature(self.fit_func).parameters
+
+        self.speed_func = speed_func
+
+        params = inspect.signature(self.speed_func).parameters
         param_names = list(params.keys())[1:]
         self.speed_param_bounds = [[], []]
-        self.speed_param_maxerror = []
-        # self.speed_params_min = []
-        # self.speed_params_max = []
+        self.speed_params_maxerror = []
+
         for param_name in param_names:
             if param_name in SPEED_PARAM_BOUNDS:
                 self.speed_param_bounds[0].append(SPEED_PARAM_BOUNDS[param_name][0])
@@ -63,13 +64,13 @@ class NahsorMarker(object):
 
         for param_name in param_names:
             if param_name in SPEED_PARAM_MAXERROR:
-                self.speed_param_maxerror.append(SPEED_PARAM_MAXERROR[param_name])
+                self.speed_params_maxerror.append(SPEED_PARAM_MAXERROR[param_name])
             else:
-                self.speed_param_maxerror.append(1)
-        self.speed_param_maxerror = np.array(self.speed_param_maxerror)
+                self.speed_params_maxerror.append(1)
+        self.speed_params_maxerror = np.array(self.speed_params_maxerror)
         self.big_start_time = time.time()  # 大符开始的时间(实际只是一个基准，不必此时开始)
 
-        self.fit_params = None  # 速度正弦函数的参数
+        self.speed_params = None  # 速度正弦函数的参数
 
         if color in COLOR:
             self.color = color  # 目标颜色：红or蓝
@@ -87,11 +88,12 @@ class NahsorMarker(object):
         self.target_radius = 0  # 击打半径
         self.predict_center = None  # 预测的击打位置
 
-        self.__target_status = TARGET_STATUS.NOT_FOUND  # 状态指示--> not_found(0), found(1), fitting(2)
-        self.__r_change = 0  # 圆心是否变化，0：未改变 / 1：改变
-        self.__fit_speed_status = FIT_SPEED_STATUS.FAILED  # 是否拟合成功
+        self.__target_status = STATUS.NOT_FOUND  # 状态指示--> not_found(0), found(1)
+        self.__R_status = STATUS.NOT_FOUND  # 圆心状态
+        self.__fit_status = FIT_STATUS.FAILED  # 是否拟合成功
+        self.__fan_change = 0
 
-    def __preprocess(self, frame):  # 预处理，进行二值化和初步处理
+    def binaryzate(self, frame):  # 预处理，进行二值化和初步处理
         img = frame.copy()
 
         # 二值化开始
@@ -102,8 +104,6 @@ class NahsorMarker(object):
         elif self.color_space == COLOR_SPACE.SIMU_BLACK:
             cvt_img = cv2.addWeighted(img, 1, np.zeros(img.shape, img.dtype), 0, -150)
             cvt_img = cv2.addWeighted(cvt_img, 2.5, np.zeros(img.shape, img.dtype), 0, 0)
-            # cvt_img = cv2.convertScaleAbs(cvt_img, alpha=1)
-
         else:
             cvt_img = img.copy()
 
@@ -119,18 +119,26 @@ class NahsorMarker(object):
             mask = mask + mask_r2
 
         # # 二值化结束
-        # kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1)
-        # mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        # # 获取矩形形状的结构元素
-        # 对掩膜进行开运算，先进行腐蚀再进行膨胀，去除噪声和小的斑点
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (CORE_SIZE, CORE_SIZE)))
-        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)))
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel1)
-        # # 对掩膜进行闭运算，先进行膨胀再进行腐蚀，连接目标区域的间断
-        # # 对掩膜进行膨胀操作，填充目标区域的空洞
-        # mask = cv2.dilate(mask, kernel)
+        return mask
 
+    def morphological_operation(self, mask):  # 形态学操作
+        # # 腐蚀
+        # cv2.erode(img, kernel, iterations=1)
+        # # 膨胀
+        # cv2.dilate(img, kernel, iterations=1)
+        # # 先进行腐蚀再进行膨胀就叫做开运算。被用来去除噪音。
+        # opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
+        # # 先膨胀再腐蚀。被用来填充前景物体中的小洞，或者前景上的小黑点。
+        # closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+        # # 一幅图像膨胀与腐蚀的差别
+        # gradient = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, kernel)
+        # # 原始图像与进行开运算之后得到的图像的差。
+        # tophat = cv2.morphologyEx(img, cv2.MORPH_TOPHAT, kernel)
+        # # 进行闭运算之后得到的图像与原始图像的差
+        # cv2.morphologyEx(img, cv2.MORPH_BLACKHAT, kernel)
+        # kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 方形
+        # cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 椭圆
+        # cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))  # 十字形
         mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
         mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4)))
@@ -211,11 +219,13 @@ class NahsorMarker(object):
         # self.target_radius = 0  # 击打半径
         # self.predict_center = None  # 预测的击打位置
 
-        self.__target_status = TARGET_STATUS.NOT_FOUND  # 状态指示--> found(1) and not_found(0)
+        self.__target_status = STATUS.NOT_FOUND  # 状态指示--> found(1) and not_found(0)
 
         # ----------- 图像预处理 start -----------
-        mask = self.__preprocess(frame)
-        if self.find_debug:
+
+        mask = self.binaryzate(frame)
+        mask = self.morphological_operation(mask)
+        if self.target_debug:
             cv2.namedWindow('mask', 0)
             cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
             cv2.imshow('mask', mask)
@@ -226,19 +236,19 @@ class NahsorMarker(object):
         contours, hierarchy = cv2.findContours(mask_cp, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         parent_contours = get_parent_contours(contours, hierarchy)
-        target_contour = get_target(contours, parent_contours)
+        target = get_target(contours, parent_contours)
 
-        if target_contour is not None:
-            target_center, target_size, target_angle = cv2.minAreaRect(target_contour)
+        if target is not None:
+            target_center, target_size, target_angle = target
             self.last_center_for_r = self.current_center
             self.current_center = target_center
 
             self.target_radius = (target_size[0] + target_size[1]) / 2
-            self.__target_status = TARGET_STATUS.FOUND
+            self.__target_status = STATUS.FOUND
         else:
-            self.__target_status = TARGET_STATUS.NOT_FOUND
+            self.__target_status = STATUS.NOT_FOUND
         ##############
-        if self.find_debug:
+        if self.target_debug:
             orig1 = self.origin_frame.copy()
             if contours is not None:
                 for i, contour in enumerate(contours):
@@ -256,34 +266,35 @@ class NahsorMarker(object):
         ##############
         # ----------- 寻找目标 end ----------
 
-        if self.__target_status == TARGET_STATUS.FOUND:
+        if self.__target_status == STATUS.FOUND:
             # ----------- 寻找圆心的位置 start -----------
             if get_distance(self.current_center, self.last_center_for_r) > CENTER_MAX_DISTANCE:
-                self.__r_change = 1
+                self.__R_status = STATUS.NOT_FOUND
+                self.__fan_change = 1
 
-            if self.__r_change:
-                r_center_by_contours = get_r_by_contours(contours, parent_contours, self.current_center,
-                                                         self.target_radius)
+            if self.__R_status:
+                R_by_contours = get_r_by_contours(contours, parent_contours, self.current_center,
+                                                  self.target_radius)
                 self.set_target_centers()
-                r_center_by_centers = get_r_by_centers(self.target_centers)
+                R_by_centers = get_r_by_centers(self.target_centers)
 
-                if get_distance(r_center_by_contours, r_center_by_centers) < R_MAX_DISTANCE:
-                    self.r_center = r_center_by_contours
-                    self.__r_change = 0
+                if get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
+                    self.r_center = R_by_contours
+                    self.__R_status = STATUS.FOUND
                 else:
-                    if r_center_by_contours is not None:
-                        self.r_center = r_center_by_contours
-                    elif r_center_by_centers is not None:
-                        self.r_center = r_center_by_centers
-                    self.__r_change = 1
-                self.last_time_for_fit_r = time.time()
+                    if R_by_contours is not None:
+                        self.r_center = R_by_contours
+                    elif R_by_centers is not None:
+                        self.r_center = R_by_centers
+                    self.__R_status = STATUS.NOT_FOUND
+                self.last_time_for_R = time.time()
             else:
                 self.set_target_centers()
-                if time.time() - self.last_time_for_fit_r > R_REFIT_INTERVAL:
-                    r_center_by_centers = get_r_by_centers(self.target_centers)
-                    if get_distance(self.r_center, r_center_by_centers) > R_MAX_DISTANCE or \
+                if time.time() - self.last_time_for_R > FIND_R_INTERVAL:
+                    R_by_centers = get_r_by_centers(self.target_centers)
+                    if get_distance(self.r_center, R_by_centers) > R_MAX_DISTANCE or \
                             get_distance(self.current_center, self.last_center_for_r) > CENTER_MAX_DISTANCE:
-                        self.__r_change = 1
+                        self.__R_status = STATUS.NOT_FOUND
             # ----------- 寻找圆心的位置 end -----------
 
             # ----------- 预测 start -----------------
@@ -292,34 +303,38 @@ class NahsorMarker(object):
             else:
                 if self.energy_mode == ENERGY_MODE.BIG:
                     # if self.__r_change == 0 and self.last_center is not None:
-                    if self.__target_status == TARGET_STATUS.NOT_FOUND or self.r_center is None:
-                        self.__fit_speed_status = FIT_SPEED_STATUS.FAILED
-                    elif self.__fit_speed_status == FIT_SPEED_STATUS.FAILED:
-                        self.__fit_speed_status = FIT_SPEED_STATUS.FITTING
-                        # self.big_start_time = time.time()
-                        # self.fit_data = []
-                        # self.fit_times = []
-                        # self.last_time_for_fitdata = self.big_start_time
-                        self.last_time_for_fitdata = time.time()
-                        self.last_center_for_fitdata = self.current_center
-                    elif self.__fit_speed_status == FIT_SPEED_STATUS.FITTING:
-                        if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
-                            self.set_fit_data()
+                    if self.__target_status == STATUS.NOT_FOUND or self.r_center is None:
+                        self.__fit_status = FIT_STATUS.FAILED
+                    elif self.__fan_change == 1:
+                        # 需要调整上一个点的位置
 
-                            if len(self.fit_data) > FIT_MIN_LEN:
+                        self.last_time_for_speed = time.time()
+                        self.last_center_for_speed = self.current_center
+                        self.__fan_change = 0
+                    elif self.__fit_status == FIT_STATUS.FAILED:
+                        self.__fit_status = FIT_STATUS.FITTING
+
+                        self.last_time_for_speed = time.time()
+                        self.last_center_for_speed = self.current_center
+                    elif self.__fit_status == FIT_STATUS.FITTING:
+                        if time.time() - self.last_time_for_speed > FIT_INTERVAL:
+                            self.set_fit_speeds()
+
+                            if len(self.fit_speeds) > FIT_MIN_LEN:
                                 speed_params, speed_cov = self.fit_speed_params()
                                 speed_err = np.sqrt(np.diag(speed_cov))
                                 print("error: ", speed_err)
-                                if np.all(speed_err < self.speed_param_maxerror) and len(self.fit_data) > 5 * FIT_MIN_LEN:
-                                    self.__fit_speed_status = FIT_SPEED_STATUS.SUCCESS
-                                    self.last_time_for_predict = time.time()
-                                self.fit_params = speed_params
+                                if np.all(speed_err < self.speed_params_maxerror) and len(
+                                        self.fit_speeds) > 5 * FIT_MIN_LEN:
+                                    self.__fit_status = FIT_STATUS.SUCCESS
+                                    self.last_time_for_fit = time.time()
+                                self.speed_params = speed_params
 
-                    elif self.__fit_speed_status == FIT_SPEED_STATUS.SUCCESS:
-                        if time.time() - self.last_time_for_predict > SPEED_REFIT_INTERVAL:
-                            self.__fit_speed_status = FIT_SPEED_STATUS.FITTING
-                        if time.time() - self.last_time_for_fitdata > FIT_INTERVAL:
-                            self.set_fit_data()
+                    elif self.__fit_status == FIT_STATUS.SUCCESS:
+                        if time.time() - self.last_time_for_fit > SPEED_REFIT_INTERVAL:
+                            self.__fit_status = FIT_STATUS.FITTING
+                        if time.time() - self.last_time_for_speed > FIT_INTERVAL:
+                            self.set_fit_speeds()
 
                     # if self.fit_params is not None:
                     #     self.rot_speed = speed_func(time.time() - self.big_start_time, self.fit_params[0],
@@ -328,7 +343,7 @@ class NahsorMarker(object):
                 else:
                     self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
-                if self.__r_change == 0 and len(self.target_centers) > FIT_MIN_LEN:
+                if self.__R_status == 0 and len(self.target_centers) > FIT_MIN_LEN:
                     clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
                                                self.target_centers[-1])
                     if self.rot_direction is None or self.rot_direction != clockwise1:
@@ -362,12 +377,12 @@ class NahsorMarker(object):
             for p in self.target_centers:
                 orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
 
-        if self.__target_status == TARGET_STATUS.FOUND:
+        if self.__target_status == STATUS.FOUND:
             s = 'found'
         else:
             s = 'not found'
-        orig = cv2.putText(orig, self.color.name + ' ' + s, (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                           (0, 255, 0), 2)
+        orig = cv2.putText(orig, self.color.name + ' ' + s, (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.3,
+                           (0, 255, 0), 4)
 
         return orig
 
@@ -382,8 +397,8 @@ class NahsorMarker(object):
         返回下一个点与当前点的角度
         """
         if self.energy_mode == ENERGY_MODE.BIG:
-            if self.fit_params is not None:
-                fit_param_args = tuple(self.fit_params[0:4])
+            if self.speed_params is not None:
+                fit_param_args = tuple(self.speed_params[0:4])
 
                 # angle = self.get_predict_time() * speed_func(
                 #     time.time() - self.big_start_time + self.get_predict_time(),
@@ -422,29 +437,22 @@ class NahsorMarker(object):
         counter = Counter(rot_directions)
         return counter.most_common(1)[0][0]
 
-
-# 拆出计算速度的部分，如果误差过大重新预测
-    def set_fit_data(self):
+    # 拆出计算速度的部分，如果误差过大重新预测
+    def set_fit_speeds(self):
         current_time = time.time()
-        interval = current_time - self.last_time_for_fitdata
+        interval = current_time - self.last_time_for_speed
         rot_angle = angle_between_points(self.r_center, self.current_center,
-                                         self.last_center_for_fitdata)
+                                         self.last_center_for_speed)
         self.rot_speed = rot_angle / interval
-        if self.fit_speed_mode == FIT_SPEED_MODE.BY_SPEED:
-            data = self.rot_speed
-        else:
-            if len(self.fit_data) > 0:
-                data = self.fit_data[-1] + rot_angle
-            else:
-                data = rot_angle
-        self.fit_data.append(data)
+
+        self.fit_speeds.append(self.rot_speed)
         self.fit_times.append(current_time - self.big_start_time)
-        if len(self.fit_data) > FIT_MAX_LEN:
-            self.fit_data.pop(0)
+        if len(self.fit_speeds) > FIT_MAX_LEN:
+            self.fit_speeds.pop(0)
             self.fit_times.pop(0)
 
-        self.last_time_for_fitdata = current_time
-        self.last_center_for_fitdata = self.current_center
+        self.last_time_for_speed = current_time
+        self.last_center_for_speed = self.current_center
 
     def set_target_centers(self):
         self.target_centers.append(self.current_center)
@@ -452,18 +460,16 @@ class NahsorMarker(object):
             self.target_centers.pop(0)
 
     def fit_speed_params(self):
-        # add_times = add_list(np.array(times))
-        add_times = np.array(self.fit_times)
-        smooth_data = gaussian_filter1d(self.fit_data, sigma=1)
-        smooth_data = gaussian_filter1d(smooth_data, sigma=1)
-        # smooth_angles = 10 * smooth_angles
-        # angles = add_list(np.array(angles))
-        # angles = smooth_data(angles)
-        # angles = wavelet_noising(angles)
+        # fit_times = add_list(np.array(times))
+        fit_times = np.array(self.fit_times)
 
-        # bounds = (self.speed_params_min, self.speed_params_max)
+        # smooth_data = gaussian_filter1d(self.fit_speeds, sigma=1)
+        smooth_data = medfilt(self.fit_speeds)
+        # smooth_data = medfilt(smooth_data)
+        smooth_data = gaussian_filter1d(smooth_data, sigma=1)
+
         bounds = self.speed_param_bounds
-        if self.fit_params is None:
+        if self.speed_params is None:
             p0 = []
             for i in range(len(bounds[0])):
                 if not np.isinf(bounds[0][i]) and not np.isinf(bounds[1][i]):
@@ -471,29 +477,30 @@ class NahsorMarker(object):
                 else:
                     p0.append(1)
         else:
-            p0 = self.fit_params
+            p0 = self.speed_params
 
-        speed_params, speed_cov = curve_fit(self.fit_func, add_times, smooth_data, maxfev=10000,
-                                                     bounds=bounds, p0=p0)
+        try:
+            speed_params, speed_cov = curve_fit(self.speed_func, fit_times, smooth_data, maxfev=1000,
+                                                bounds=bounds, p0=p0)
+        except Exception as e:
+            speed_params, speed_cov = None, None
 
         # 最小二乘法拟合
         # def residual(params, t, target_speed):
         #     a, w, b, c = params
         #     return speed_func(t, a, w, b, c) - target_speed
         #
-        # speed_params, cov = leastsq(residual, [1, 1, 1, 1], args=(add_times, smooth_angles))
+        # speed_params, cov = leastsq(residual, [1, 1, 1, 1], args=(fit_times, smooth_angles))
 
         if self.fit_debug == 1:
-            # self.visualizer.plot(())
             plt.figure(figsize=(30, 10), dpi=100, num=1)
             plt.clf()
-            plt.plot(add_times, self.fit_data, alpha=0.8, linewidth=1)
-            plt.plot(add_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
+            plt.plot(fit_times, self.fit_speeds, alpha=0.8, linewidth=1)
+            plt.plot(fit_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
             predict_args = tuple(speed_params)
-            predict_data = [self.fit_func(add_time, *predict_args)
-                            for add_time in add_times]
-            plt.plot(add_times, predict_data, alpha=0.8, linewidth=1)
-            # plt.plot(np.arange(1, 13, 0.1), func(np.arange(1, 13, 0.1)), alpha=0.8, linewidth=2, marker='o')
+            predict_data = [self.speed_func(add_time, *predict_args)
+                            for add_time in fit_times]
+            plt.plot(fit_times, predict_data, alpha=0.8, linewidth=1)
             plt.pause(0.00001)
             print("Speed paras:", speed_params)
             print('speed cov:', speed_cov)
@@ -502,15 +509,15 @@ class NahsorMarker(object):
     def show_fit_result(self):
         if self.fit_debug == 1:
             add_times = np.array(self.fit_times)
-            smooth_data = gaussian_filter1d(self.fit_data, sigma=1)
+            smooth_data = gaussian_filter1d(self.fit_speeds, sigma=1)
             smooth_data = gaussian_filter1d(smooth_data, sigma=1)
 
             plt.figure(figsize=(30, 10), dpi=100, num=1)
             plt.clf()
-            plt.plot(add_times, self.fit_data, alpha=0.8, linewidth=1)
+            plt.plot(add_times, self.fit_speeds, alpha=0.8, linewidth=1)
             plt.plot(add_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
-            predict_args = tuple(self.fit_params)
-            predict_data = [self.fit_func(add_time, *predict_args)
+            predict_args = tuple(self.speed_params)
+            predict_data = [self.speed_func(add_time, *predict_args)
                             for add_time in add_times]
             plt.plot(add_times, predict_data, alpha=0.8, linewidth=1)
             # plt.plot(np.arange(1, 13, 0.1), func(np.arange(1, 13, 0.1)), alpha=0.8, linewidth=2, marker='o')
