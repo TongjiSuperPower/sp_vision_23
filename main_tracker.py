@@ -58,7 +58,7 @@ if __name__ == '__main__':
             recorder.record(img, (robot.camera_stamp_ms, robot.yaw, robot.pitch))
             
             twoTimeStampMs.append(robot.camera_stamp_ms)
-            dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 5 # (ms)
+            dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 8 # (ms)
             dt = dtMs/1000
             
             armors = armor_detector.detect(img, robot.yaw, robot.pitch)
@@ -81,10 +81,6 @@ if __name__ == '__main__':
             visualizer.show(drawing)
 
             if tracker.tracker_state == TrackerState.LOST:
-                # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
-                if len(armors) == 0:
-                    print('lost.')
-                    continue
 
                 tracker.init(armors)
 
@@ -95,7 +91,7 @@ if __name__ == '__main__':
 
                 target_state = tracker.target_state # after filter            
                 
-                predictedPtsInWorld = Shot.get_predicted_shot_point(target_state, tracker, 0.05, robot.bullet_speed, 1)
+                predictedPtsInWorld = Shot.get_predicted_shot_point(target_state, tracker, 0.05, robot.bullet_speed, 0)
                  
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
                 
