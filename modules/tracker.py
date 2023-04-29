@@ -161,6 +161,9 @@ class Tracker:
         if self.target_state[8] < 0.2:
             self.target_state[8] = 0.2
             self.ekf.setState(self.target_state)
+        elif self.target_state[8] > 0.4:
+            self.target_state[8] = 0.4
+            self.ekf.setState(self.target_state)
 
         # Tracking state machine
         if self.tracker_state == TrackerState.DETECTING:
@@ -235,6 +238,7 @@ class Tracker:
             self.target_state[0] = current_p[0] + r * math.sin(yaw)
             self.target_state[2] = current_p[2] + r * math.cos(yaw)
             self.target_state[4] = 0
+            self.target_state[5] = 0
             self.target_state[6] = 0
 
         self.ekf.setState(self.target_state)
