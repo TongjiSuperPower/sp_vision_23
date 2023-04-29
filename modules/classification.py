@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 
+# big_one:英雄;
+# small_two:工程;
+# small_three, small_four, small_five:步兵;
+# big_three, big_four, big_five:平衡步兵
 class_names = ('big_one', 'big_three', 'big_four', 'big_five', 'big_base',
                'small_two', 'small_three', 'small_four', 'small_five',
                'small_base', 'small_santry', 'small_outpost',

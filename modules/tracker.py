@@ -85,19 +85,11 @@ class Tracker:
         q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2, 1e-3]
         Q = np.diag(q_v)
         # R
+        # r_v = [1e-1, 1e-1, 1e-1, 2e-1]
         r_v = [1e-1, 1e-1, 1e-1, 6e-1]
         R = np.diag(r_v)
         # P - error estimate covariance matrix
         P0 = np.eye(9)
-
-        # # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
-        # q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
-        # Q = np.diag(q_v)
-        # # R
-        # r_v = [1e-1, 1e-1, 1e-1, 2e-1]
-        # R = np.diag(r_v)
-        # # P - error estimate covariance matrix
-        # P0 = np.eye(9)
 
         # EKF
         # xa = x_armor, xc = x_robot_center
