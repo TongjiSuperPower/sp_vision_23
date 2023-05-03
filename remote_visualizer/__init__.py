@@ -7,7 +7,7 @@ from multiprocessing import Process, Queue
 def clear_queue(q: Queue) -> None:
     try:
         while True:
-            q.get_nowait()
+            q.get(timeout=0.1)
     except queue.Empty:
         return
 
@@ -123,10 +123,11 @@ class Visualizer:
             return ignore_error
 
         self.visualizing.terminate()
-        self.visualizing.join()
 
         clear_queue(self._plot_queue)
         clear_queue(self._show_queue)
+
+        self.visualizing.join()
 
         print('Visualizer closed.')
 

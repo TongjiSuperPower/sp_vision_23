@@ -103,6 +103,6 @@ def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
 def clear_queue(q: Queue) -> None:
     try:
         while True:
-            q.get(timeout=1)
+            q.get(timeout=0.1)
     except Empty:
         return
