@@ -27,10 +27,14 @@ def get_local_ip():
 
 
 def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
+    import os
+    import sys
     import json
     import logging
     from flask import Flask, Response, render_template, make_response
 
+    f = open(os.devnull, 'w')
+    sys.stdout = f
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
 
@@ -82,7 +86,7 @@ class Visualizer:
 
         self.visualizing.start()
         host_ip = get_local_ip()
-        print(f'\n * Visualizer will be running on http://{host_ip}:{port}')
+        print(f'Visualizer will be running on http://{host_ip}:{port}')
 
         self.fps = fps
         self.last_put_time = 0
