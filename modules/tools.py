@@ -41,6 +41,7 @@ def getParaTime(pos, bulletSpeed):
     用抛物线求子弹到目标位置的时间.
     pos:目标的坐标(mm);
     bulletSpeed:子弹速度(m/s);
+    return: (ms).
     '''
     pos = np.reshape(pos, (3,))
     x = pos[0]
@@ -106,3 +107,25 @@ def clear_queue(q: Queue) -> None:
             q.get_nowait()
     except Empty:
         return
+    
+def normalize_angle_positive(self,angle):
+    """ Normalizes the angle to be 0 to 2*pi
+        It takes and returns radians. """
+    return math.fmod(math.fmod(angle, 2.0*math.pi) + 2.0*math.pi, 2.0*math.pi)
+
+def normalize_angle(self,angle):
+    """ Normalizes the angle to be -pi to +pi
+        It takes and returns radians."""
+    a = self.normalize_angle_positive(angle)
+    if a > math.pi:
+        a -= 2.0 * math.pi
+    return a
+
+def shortest_angular_distance(self,from_angle, to_angle):
+    """ Given 2 angles, this returns the shortest angular
+        difference.  The inputs and ouputs are of course radians.
+
+        The result would always be -pi <= result <= pi. Adding the result
+        to "from" will always get you an equivalent angle to "to".
+    """
+    return self.normalize_angle(to_angle - from_angle)

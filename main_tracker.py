@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
                 target_state = tracker.target_state # after filter            
                 
-                predictedPtsInWorld = Shot.get_predicted_shot_point(target_state, tracker, 0.05, robot.bullet_speed, 0)
+                predictedPtsInWorld = Shot.get_predicted_shot_point(target_state, tracker, 0.05, robot.bullet_speed)
                  
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
                 
