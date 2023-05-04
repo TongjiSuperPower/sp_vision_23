@@ -1,3 +1,4 @@
+import parent_folder
 from modules.io.communication import Communicator
 
 with Communicator('/dev/ttyUSB0') as communicator:
