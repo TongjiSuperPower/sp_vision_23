@@ -11,7 +11,7 @@ from modules.io.communication import Communicator
 
 from modules.armor_detection import ArmorDetector
 import modules.tools as tools
-from modules.tracker import Tracker, TrackerState
+from modules.new_tracker import Tracker, TrackerState
 from modules.shot_point import Shot_Point
 
 from remote_visualizer import Visualizer
@@ -85,13 +85,9 @@ if __name__ == '__main__':
                 tracker.init(armors)
 
             else:    
-                tracker.update(armors, dt)
-
-                Shot = Shot_Point() 
-
-                target_state = tracker.target_state # after filter            
+                tracker.update(armors, dt)                          
                 
-                predictedPtsInWorld = Shot.get_predicted_shot_point(target_state, tracker, 0.05, robot.bullet_speed)
+                predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot.yaw, robot.pitch)
                  
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
                 

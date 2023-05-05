@@ -27,9 +27,6 @@ class Tracker:
         self.lost_count = 0
         self.detect_count = 0
 
-        self.arrmor_jump = 0
-        self.state_error = 0
-
     def init(self, armors: list[Armor]):
         # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
         if len(armors) == 0:
@@ -54,13 +51,13 @@ class Tracker:
 
         self.tracker_state = TrackerState.DETECTING
 
-    def update(self, armors: list[Armor], dt):
-        self.arrmor_jump *= 0
-        self.state_error *= 0
-        # predict
-        prediction = self.tracking_target.forwardPredict(dt)
-        # print("EKF predict")
+    def update(self, armors: list[Armor], dt):  
+        self.tracking_target.arrmor_jump = 0
+        self.tracking_target.state_error = 0
 
+        # predict
+        prediction = self.tracking_target.forwardPredict(dt)      
+        
         matched = False
 
         # Use KF prediction as default target state if no matched armor is found
@@ -94,9 +91,11 @@ class Tracker:
                         matched = True
                         matched_armor = armor
 
-                        self.tracking_target.handleArmorJump(matched_armor)
+                        self.tracking_target.handleArmorJump(matched_armor, self.max_match_distance)
 
                         break
+        
+        self.tracking_target.limitStateValue()
 
         # Tracking state machine
         if self.tracker_state == TrackerState.DETECTING:
@@ -124,8 +123,9 @@ class Tracker:
                 self.tracker_state = TrackerState.TRACKING
                 self.lost_count = 0
     
-    def getShotPoint(self, yaw, pitch):
-        return self.tracking_target.getPreShotPtsInImu()
+    def getShotPoint(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0):
+        '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
+        return self.tracking_target.getPreShotPtsInImu(deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0)
 
 
 

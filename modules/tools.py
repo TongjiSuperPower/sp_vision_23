@@ -129,3 +129,23 @@ def shortest_angular_distance(self,from_angle, to_angle):
         to "from" will always get you an equivalent angle to "to".
     """
     return self.normalize_angle(to_angle - from_angle)
+
+def is_triangle(self, a, b, c):
+    """
+    Args:
+        xo 自己车中心
+        xa 敌方装甲板中心
+        xc 敌方车中心
+        a (xo 2 xa): 
+        b (xo 2 xc): 
+        c (xa 2 xc): 
+    """
+    if a + b > c and a + c > b and b + c > a:
+        return True
+    else:
+        return False
+
+def triangle_angles(self, a, b, c):
+    # 使用余弦定理计算角度
+    angle_B = math.degrees(math.acos((a**2 + c**2 - b**2) / (2 * a * c)))
+    return (180 - angle_B)
