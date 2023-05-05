@@ -4,7 +4,7 @@ from enum import IntEnum
 from modules.NewEKF import ExtendedKalmanFilter
 from modules.armor_detection import Armor
 from modules.tools import shortest_angular_distance
-from modules.target import Target, NormalRobot, BalanceInfantry, Outpost, Base
+from modules.target import NormalRobot, BalanceInfantry, Outpost, Base
 
 class TrackerState(IntEnum):
     LOST = 0
