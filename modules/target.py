@@ -246,18 +246,108 @@ class NormalRobot():
 class BalanceInfantry(NormalRobot):
     '''平衡步兵(2装甲板)'''
     def __init__(self) -> None:
+        super().__init__() 
+
         self.target_type = "BalanceInfantry"
+
+        # EKF      
+        self.q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2, 1e-3]
+        self.Q = np.diag(self.q_v)
+
+        self.r_v = [1e-1, 1e-1, 1e-1, 6e-1]
+        self.R = np.diag(self.r_v)
+        
+        self.P0 = np.eye(9)
+
+        self.armors_in_pixel = deque(maxlen=2)
+    
+    def getPreShotPtsInImu(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0) -> np.ndarray(shape=(3,)):
+        '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
+        state = self.target_state
+
+        flyTime = tools.getParaTime(state[:3] * 1000, bulletSpeed) / 1000      
+        
+        state = self.f(state, deltatime+flyTime) # predicted
+        
+        pre_armor_0 = np.array(self.getArmorPositionFromState(state)).reshape(3, 1) * 1000# x y z
+        
+        _state = state.copy()
+        _state[1] = self.last_y
+        _state[3] = state[3]+ math.pi
+        _state[8] = self.last_r
+        pre_armor_1 = np.array(self.getArmorPositionFromState(_state)).reshape(3, 1) * 1000
+        
+        two_predict_points = [pre_armor_0, pre_armor_1]
+        # print("aaaa{}".format(self.four_predict_points))        
+                    
+        # 重投影
+        R_imu2gimbal = tools.R_gimbal2imu(yaw, pitch).T
+        R_gimbal2camera = R_camera2gimbal.T
+        
+        # 得到2个可疑点的重投影点 armors_in_pixel 
+        # 与枪管的夹角
+        min_angle = 180
+        
+        for armor_state in two_predict_points:
+
+            # 调试用
+            armor2_in_imu = armor_state
+            armor2_in_gimbal = R_imu2gimbal @ armor2_in_imu
+            armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor2_in_pixel, _ = cv2.projectPoints(armor2_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor2_in_pixel = armor2_in_pixel[0][0]
+            self.armors_in_pixel.append(armor2_in_pixel)
+            
+            # 注意单位，单位为mm
+            a = (armor_state[0]**2 + armor_state[2]**2) 
+            a = a[0]
+            a = math.sqrt(a)
+            b = math.sqrt((state[0]*1000)**2 + (state[2]*1000)**2)
+            c = self.last_r * 1000
+            
+            if tools.is_triangle(a,b,c):
+                angle = tools.triangle_angles(a , b, c)                        
+                
+                if angle < min_angle:
+                    min_angle = angle
+                    self.shot_point_in_pixel = armor2_in_pixel
+                    self.shot_point_in_imu = armor_state                    
+
+            else:
+                min_angle = 0
+                self.shot_point_in_pixel = armor2_in_pixel
+                self.shot_point_in_imu = armor_state
+                
+        return self.shot_point_in_imu
 
 class Outpost(NormalRobot):
     '''前哨站(3装甲板)'''
     def __init__(self) -> None:
+        super().__init__() 
+
         self.target_type = "Outpost"
         self.initial_r = 0.553/2 # (m)
+        self.min_r = 0.553/2 # (m)
+        self.max_r = 0.553/2 # (m)
+        self.max_y_diff = 0.005
+
+        self.target_state = np.zeros((8,))
+
+        # EKF        
+        self.q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2]
+        self.Q = np.diag(self.q_v)
+
+        self.r_v = [1e-1, 1e-1, 1e-1, 6e-1]
+        self.R = np.diag(self.r_v)
+        
+        self.P0 = np.eye(9)
 
 
 class Base(NormalRobot):
     '''基地(单个静止装甲板)'''
     def __init__(self) -> None:
+        super().__init__() 
+        
         self.target_type = "Base"
 
-    
+
