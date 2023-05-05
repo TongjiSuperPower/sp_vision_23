@@ -5,9 +5,8 @@ from modules.tools import shortest_angular_distance
 from modules.armor_detection import Armor
 
 
-class Target:
-    '''击打目标的父类'''
-
+class NormalRobot():
+    '''步兵、英雄、工程、哨兵(4装甲板)'''
     def __init__(self) -> None:
         self.target_type = "NormalRobot"
         self.armor = None
@@ -15,7 +14,7 @@ class Target:
         self.initial_r = 0.2 # (m)
         self.min_r = 0.2 # (m)
         self.max_r = 0.4 # (m)
-        self.max_y_diff = 0.1 # 根据官方机器人制作规范，装甲板真实y坐标的最大可能差值(m)
+        self.max_y_diff = 0.1 * 1.2 # 根据官方机器人制作规范，装甲板真实y坐标的最大可能差值(m)
         
         self.target_state = np.zeros((9,))
 
@@ -71,8 +70,11 @@ class Target:
     def setTargetState(self, state):
         self.target_state = state
 
-    def update(self) -> None:
-        pass
+    def update(self, matched_armor: Armor) -> None:
+        p = np.reshape(matched_armor.in_imuM, (3,))
+        measured_yaw = self.get_continous_yaw(matched_armor.yawR_in_imu)
+        z = np.array([p[0], p[1], p[2], measured_yaw])
+        self.target_state = self.ekfilter.update(z)
 
     def getPreShotPtsInImu() -> np.ndarray(shape=(3,)):
         '''获取预测时间后待击打点的位置(无重力补偿)'''
@@ -90,7 +92,6 @@ class Target:
         x_new[3] += x[7] * dt
         return x_new
 
-
     def j_f(x, dt):
         # J_f - Jacobian of process function
         dfdx = np.eye(9, 9)
@@ -99,7 +100,6 @@ class Target:
         dfdx[2, 6] = dt
         dfdx[3, 7] = dt
         return dfdx
-
 
     def h(x):
         # h - Observation function
@@ -110,7 +110,6 @@ class Target:
         z[2] = zc - r * math.cos(yaw)  # za
         z[3] = yaw                     # yaw
         return z
-
 
     def j_h(x):
         # J_h - Jacobian of observation function
@@ -127,17 +126,53 @@ class Target:
         yaw = self.last_yaw + shortest_angular_distance(self.last_yaw, yaw)
         self.last_yaw = yaw
         return yaw
-    
-class NormalRobot(Target):
-    '''步兵、英雄、工程、哨兵(4装甲板)'''
 
-class BalanceInfantry(Target):
+    def handleArmorJump(self, a: Armor):
+        last_yaw = self.target_state[3]
+        yaw = self.get_continous_yaw(a.yawR_in_imu)
+
+        if abs(yaw - last_yaw) > 0.4:
+            print("Armor jump!")
+            self.arrmor_jump = 1
+            self.last_y = self.target_state[1]
+            self.target_state[1] = np.reshape(a.in_imuM, (3,))[1]
+            self.target_state[3] = yaw
+            self.target_state[8], self.last_r = self.last_r, self.target_state[8]
+
+        current_p = np.reshape(a.in_imuM, (3,))
+        infer_p = self.getArmorPositionFromState(self.target_state)
+
+        if np.linalg.norm(current_p - infer_p) > self.max_match_distance:
+            print("State wrong!")
+            self.state_error = 1
+            r = self.target_state[8]
+            self.target_state[0] = current_p[0] + r * math.sin(yaw)
+            self.target_state[2] = current_p[2] + r * math.cos(yaw)
+            self.target_state[4] = 0
+            self.target_state[5] = 0
+            self.target_state[6] = 0
+
+        self.ekfilter.setState(self.target_state)
+
+    def limitStateValue(self):
+         # Suppress R from converging to zero
+        if self.target_state[8] < self.min_r:
+            self.target_state[8] = self.min_r
+            self.ekfilter.setState(self.target_state)
+        elif self.target_state[8] > self.max_r:
+            self.target_state[8] = self.max_r
+            self.ekfilter.setState(self.target_state)
+
+        if (self.last_y - self.target_state[1]) > self.max_y_diff:
+            print("y - error!!")
+
+class BalanceInfantry(NormalRobot):
     '''平衡步兵(2装甲板)'''
 
-class Outpost(Target):
+class Outpost(NormalRobot):
     '''前哨站(3装甲板)'''
 
-class Base(Target):
+class Base(NormalRobot):
     '''基地(单个静止装甲板)'''
 
     

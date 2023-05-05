@@ -97,6 +97,7 @@ if __name__ == '__main__':
                 
                 x, y, z = predictedPtsInWorld.T[0]
 
+                # 重力补偿
                 pitch = tools.shoot_pitch(x, y, z, robot.bullet_speed) + pitch_offset
                 armor_in_gun = np.array([x, y, z]).reshape(3, 1)
                 armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))
