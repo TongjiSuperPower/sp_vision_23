@@ -160,7 +160,7 @@ class NormalRobot():
     def getArmorPositionFromState(self, x):
         return self.h(x)[:3]
     
-    def f(x, dt):
+    def f(self, x, dt):
         # f - Process function
         x_new = x.copy()
         x_new[0] += x[4] * dt
@@ -169,7 +169,7 @@ class NormalRobot():
         x_new[3] += x[7] * dt
         return x_new
 
-    def j_f(x, dt):
+    def j_f(self, x, dt):
         # J_f - Jacobian of process function
         dfdx = np.eye(9, 9)
         dfdx[0, 4] = dt
@@ -178,7 +178,7 @@ class NormalRobot():
         dfdx[3, 7] = dt
         return dfdx
 
-    def h(x):
+    def h(self, x):
         # h - Observation function
         z = np.zeros(4)
         xc, yc, zc, yaw, r = x[0], x[1], x[2], x[3], x[8]
@@ -188,7 +188,7 @@ class NormalRobot():
         z[3] = yaw                     # yaw
         return z
 
-    def j_h(x):
+    def j_h(self, x):
         # J_h - Jacobian of observation function
         dhdx = np.zeros((4, 9))
         yaw, r = x[3], x[8]
@@ -367,7 +367,7 @@ class Outpost(NormalRobot):
 
         print(self.target_type + " --- Init EKF!")
 
-    def j_f(x, dt):
+    def j_f(self, x, dt):
         # J_f - Jacobian of process function
         dfdx = np.eye(8, 8)
         dfdx[0, 4] = dt
@@ -541,8 +541,7 @@ class Base(NormalRobot):
         return self.armor.in_imu
     
     def getArmorPositionFromState(self, x):
-        return self.armor.in_imu
-    
+        return self.armor.in_imuM
     
     def get_continous_yaw(self, yaw):
         return 0
