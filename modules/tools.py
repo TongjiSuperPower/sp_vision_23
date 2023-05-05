@@ -108,29 +108,29 @@ def clear_queue(q: Queue) -> None:
     except Empty:
         return
     
-def normalize_angle_positive(self,angle):
+def normalize_angle_positive(angle):
     """ Normalizes the angle to be 0 to 2*pi
         It takes and returns radians. """
     return math.fmod(math.fmod(angle, 2.0*math.pi) + 2.0*math.pi, 2.0*math.pi)
 
-def normalize_angle(self,angle):
+def normalize_angle(angle):
     """ Normalizes the angle to be -pi to +pi
         It takes and returns radians."""
-    a = self.normalize_angle_positive(angle)
+    a = normalize_angle_positive(angle)
     if a > math.pi:
         a -= 2.0 * math.pi
     return a
 
-def shortest_angular_distance(self,from_angle, to_angle):
+def shortest_angular_distance(from_angle, to_angle):
     """ Given 2 angles, this returns the shortest angular
         difference.  The inputs and ouputs are of course radians.
 
         The result would always be -pi <= result <= pi. Adding the result
         to "from" will always get you an equivalent angle to "to".
     """
-    return self.normalize_angle(to_angle - from_angle)
+    return normalize_angle(to_angle - from_angle)
 
-def is_triangle(self, a, b, c):
+def is_triangle(a, b, c):
     """
     Args:
         xo 自己车中心
@@ -145,7 +145,7 @@ def is_triangle(self, a, b, c):
     else:
         return False
 
-def triangle_angles(self, a, b, c):
+def triangle_angles(a, b, c):
     # 使用余弦定理计算角度
     angle_B = math.degrees(math.acos((a**2 + c**2 - b**2) / (2 * a * c)))
     return (180 - angle_B)
