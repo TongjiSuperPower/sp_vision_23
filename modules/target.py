@@ -327,8 +327,6 @@ class Outpost(NormalRobot):
 
         self.target_type = "Outpost"
         self.initial_r = 0.553/2 # (m)
-        self.min_r = 0.553/2 # (m)
-        self.max_r = 0.553/2 # (m)
         self.max_y_diff = 0.005
 
         self.target_state = np.zeros((8,))
@@ -342,12 +340,216 @@ class Outpost(NormalRobot):
         
         self.P0 = np.eye(9)
 
+        self.armors_in_pixel = deque(maxlen=3)
+
+    def init(self, a: Armor) -> None:
+        self.armor = a
+        self.armor_id = a.name
+        xa, ya, za = np.reshape(a.in_imuM, (3,))
+        yaw = self.get_continous_yaw(a.yawR_in_imu)
+
+        # Set initial position at r behind the target
+        r = self.initial_r
+        xc = xa + r * math.sin(yaw)
+        yc = ya
+        zc = za + r * math.cos(yaw)
+
+        self.target_state = np.zeros((8,))
+        self.target_state[0] = xc
+        self.target_state[1] = yc
+        self.target_state[2] = zc
+        self.target_state[3] = yaw
+
+        self.last_y = yc
+        self.last_yaw = 0
+
+        self.ekfilter.setState(self.target_state)
+
+        print(self.target_type + " --- Init EKF!")
+
+    def j_f(x, dt):
+        # J_f - Jacobian of process function
+        dfdx = np.eye(8, 8)
+        dfdx[0, 4] = dt
+        dfdx[1, 5] = dt
+        dfdx[2, 6] = dt
+        dfdx[3, 7] = dt
+        return dfdx
+    
+    def h(self, x):
+        # h - Observation function
+        z = np.zeros(4)
+        xc, yc, zc, yaw, r = x[0], x[1], x[2], x[3], self.initial_r
+        z[0] = xc - r * math.sin(yaw)  # xa
+        z[1] = yc                      # ya
+        z[2] = zc - r * math.cos(yaw)  # za
+        z[3] = yaw                     # yaw
+        return z
+    
+    def j_h(self, x):
+        # J_h - Jacobian of observation function
+        dhdx = np.zeros((4, 8))
+        yaw, r = x[3], self.initial_r
+        dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
+        dhdx[0, 3] = -r * math.cos(yaw)
+        dhdx[2, 3] = r * math.sin(yaw)
+        return dhdx
+
+    def getPreShotPtsInImu(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0) -> np.ndarray(shape=(3,)):
+        '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
+        state = self.target_state
+
+        flyTime = tools.getParaTime(state[:3] * 1000, bulletSpeed) / 1000      
+        
+        state = self.f(state, deltatime+flyTime) # predicted
+        
+        pre_armor_0 = np.array(self.getArmorPositionFromState(state)).reshape(3, 1) * 1000# x y z
+        
+        _state = state.copy()
+        _state[1] = self.last_y
+        _state[3] = state[3]+ math.pi/3*2
+        pre_armor_1 = np.array(self.getArmorPositionFromState(_state)).reshape(3, 1) * 1000
+        
+        _state = state.copy()
+        _state[1] = self.last_y
+        _state[3] = state[3] - math.pi/3*2     
+        pre_armor_2 = np.array(self.getArmorPositionFromState(_state)).reshape(3, 1) * 1000                      
+        
+        three_predict_points = [pre_armor_0, pre_armor_1, pre_armor_2]
+        # print("aaaa{}".format(self.four_predict_points))
+        
+                    
+        # 重投影
+        R_imu2gimbal = tools.R_gimbal2imu(yaw, pitch).T
+        R_gimbal2camera = R_camera2gimbal.T
+        
+        # 得到三个可疑点的重投影点 armors_in_pixel 
+        # 与枪管的夹角
+        min_angle = 180
+        
+        for armor_state in three_predict_points:
+
+            # 调试用
+            armor2_in_imu = armor_state
+            armor2_in_gimbal = R_imu2gimbal @ armor2_in_imu
+            armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor2_in_pixel, _ = cv2.projectPoints(armor2_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor2_in_pixel = armor2_in_pixel[0][0]
+            self.armors_in_pixel.append(armor2_in_pixel)
+            
+            # 注意单位，单位为mm
+            a = (armor_state[0]**2 + armor_state[2]**2) 
+            a = a[0]
+            a = math.sqrt(a)
+            b = math.sqrt((state[0]*1000)**2 + (state[2]*1000)**2)
+            c = self.initial_r * 1000
+            
+            if tools.is_triangle(a,b,c):
+                angle = tools.triangle_angles(a , b, c)                        
+                
+                if angle < min_angle:
+                    min_angle = angle
+                    self.shot_point_in_pixel = armor2_in_pixel
+                    self.shot_point_in_imu = armor_state                    
+
+            else:
+                min_angle = 0
+                self.shot_point_in_pixel = armor2_in_pixel
+                self.shot_point_in_imu = armor_state
+                
+        return self.shot_point_in_imu
+
+    def handleArmorJump(self, a: Armor, max_match_distance):
+        last_yaw = self.target_state[3]
+        yaw = self.get_continous_yaw(a.yawR_in_imu)
+
+        if abs(yaw - last_yaw) > 0.4:
+            print("Armor jump!")
+            self.arrmor_jump = 1
+            self.last_y = self.target_state[1]
+            self.target_state[1] = np.reshape(a.in_imuM, (3,))[1]
+            self.target_state[3] = yaw
+
+        current_p = np.reshape(a.in_imuM, (3,))
+        infer_p = self.getArmorPositionFromState(self.target_state)
+
+        if np.linalg.norm(current_p - infer_p) > max_match_distance:
+            print("State wrong!")
+            self.state_error = 1
+            r = self.initial_r
+            self.target_state[0] = current_p[0] + r * math.sin(yaw)
+            self.target_state[2] = current_p[2] + r * math.cos(yaw)
+            self.target_state[4] = 0
+            self.target_state[5] = 0
+            self.target_state[6] = 0
+
+        self.ekfilter.setState(self.target_state)
+
+    def limitStateValue(self):  
+        if (self.last_y - self.target_state[1]) > self.max_y_diff:
+            print("y - error!!")
 
 class Base(NormalRobot):
     '''基地(单个静止装甲板)'''
     def __init__(self) -> None:
         super().__init__() 
-        
-        self.target_type = "Base"
 
+        self.target_type = "Base"
+    
+    def init(self, a: Armor) -> None:
+        self.armor = a
+        self.armor_id = a.name
+
+        self.armors_in_pixel = deque(maxlen=1)
+
+        print(self.target_type + " --- Init EKF!")
+
+    def forwardPredict(self, dt):
+        return None
+    
+    def setTargetState(self, state):
+        pass
+
+    def update(self, matched_armor: Armor) -> None:
+        self.armor = matched_armor
+
+    def getPreShotPtsInImu(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0) -> np.ndarray(shape=(3,)):
+        '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
+        state = self.armor.in_imuM
+
+        four_predict_points = [self.armor.in_imu]
+        # print("aaaa{}".format(self.four_predict_points))        
+                    
+        # 重投影
+        R_imu2gimbal = tools.R_gimbal2imu(yaw, pitch).T
+        R_gimbal2camera = R_camera2gimbal.T
+        
+        # 得到1个可疑点的重投影点 armors_in_pixel 
+        # 与枪管的夹角
+        min_angle = 180
+        
+        for armor_state in four_predict_points:
+
+            # 调试用
+            armor2_in_imu = armor_state
+            armor2_in_gimbal = R_imu2gimbal @ armor2_in_imu
+            armor2_in_camera = R_gimbal2camera @ armor2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
+            armor2_in_pixel, _ = cv2.projectPoints(armor2_in_camera, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+            armor2_in_pixel = armor2_in_pixel[0][0]
+            self.armors_in_pixel.append(armor2_in_pixel)
+                
+        return self.armor.in_imu
+    
+    def getArmorPositionFromState(self, x):
+        return self.armor.in_imu
+    
+    
+    def get_continous_yaw(self, yaw):
+        return 0
+
+    def handleArmorJump(self, a: Armor, max_match_distance):
+        self.armor = a
+
+    def limitStateValue(self):
+        pass
 
