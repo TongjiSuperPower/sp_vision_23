@@ -98,6 +98,10 @@ class Tracker:
         self.ekf = ExtendedKalmanFilter(f, h, j_f, j_h, Q, R, P0)
 
     def init(self, armors: list[Armor]):
+        # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
+        if len(armors) == 0:
+            print('lost.')
+            return
         # Simply choose the armor that is closest to image center
         self.tracked_armor = armors[0]  # armors之前已经根据距离进行了排序，所以[0]就是最近的
 

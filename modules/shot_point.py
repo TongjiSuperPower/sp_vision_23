@@ -35,7 +35,7 @@ class Shot_Point:
         self.shot_point_in_pixel = None
           
     
-    def get_predicted_shot_point(self, state, tracker: Tracker, deltatime, bulletSpeed, enableGravity = 1):
+    def get_predicted_shot_point(self, state, tracker: Tracker, deltatime, bulletSpeed):
         '''
         deltaTime: system delta time(s)
         '''    
@@ -105,10 +105,6 @@ class Shot_Point:
                 min_angle = 0
                 self.shot_point_in_pixel = armor2_in_pixel
                 self.shot_point_in_imu = armor_state
-            
-        # if enableGravity:
-        #     dropDistance = 0.5 * 9.7940 * flyTime**2
-        #     self.shot_point_in_imu[1] -= dropDistance # 因为y轴方向向下，所以是减法 gravity
                 
         return self.shot_point_in_imu
 

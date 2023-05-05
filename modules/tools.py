@@ -41,6 +41,7 @@ def getParaTime(pos, bulletSpeed):
     用抛物线求子弹到目标位置的时间.
     pos:目标的坐标(mm);
     bulletSpeed:子弹速度(m/s);
+    return: (ms).
     '''
     pos = np.reshape(pos, (3,))
     x = pos[0]
@@ -106,3 +107,45 @@ def clear_queue(q: Queue) -> None:
             q.get(timeout=0.1)
     except Empty:
         return
+    
+def normalize_angle_positive(self,angle):
+    """ Normalizes the angle to be 0 to 2*pi
+        It takes and returns radians. """
+    return math.fmod(math.fmod(angle, 2.0*math.pi) + 2.0*math.pi, 2.0*math.pi)
+
+def normalize_angle(self,angle):
+    """ Normalizes the angle to be -pi to +pi
+        It takes and returns radians."""
+    a = self.normalize_angle_positive(angle)
+    if a > math.pi:
+        a -= 2.0 * math.pi
+    return a
+
+def shortest_angular_distance(self,from_angle, to_angle):
+    """ Given 2 angles, this returns the shortest angular
+        difference.  The inputs and ouputs are of course radians.
+
+        The result would always be -pi <= result <= pi. Adding the result
+        to "from" will always get you an equivalent angle to "to".
+    """
+    return self.normalize_angle(to_angle - from_angle)
+
+def is_triangle(self, a, b, c):
+    """
+    Args:
+        xo 自己车中心
+        xa 敌方装甲板中心
+        xc 敌方车中心
+        a (xo 2 xa): 
+        b (xo 2 xc): 
+        c (xa 2 xc): 
+    """
+    if a + b > c and a + c > b and b + c > a:
+        return True
+    else:
+        return False
+
+def triangle_angles(self, a, b, c):
+    # 使用余弦定理计算角度
+    angle_B = math.degrees(math.acos((a**2 + c**2 - b**2) / (2 * a * c)))
+    return (180 - angle_B)
