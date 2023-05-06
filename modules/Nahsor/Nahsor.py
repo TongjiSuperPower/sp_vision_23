@@ -139,23 +139,13 @@ class NahsorMarker(object):
         # kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 方形
         # cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 椭圆
         # cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))  # 十字形
-        # 旧版，抠出中间部分
-        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
 
-
-        # mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        # mask = cv2.medianBlur(mask, 3)
+        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
         # mask = cv2.medianBlur(mask, 3)
 
-        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         return mask
 
     # def __find_target1(self, mask):
@@ -247,14 +237,22 @@ class NahsorMarker(object):
         contours, hierarchy = cv2.findContours(mask_cp, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         parent_contours = get_parent_contours(contours, hierarchy)
-        target = get_target(contours, parent_contours)
+        target_contour = get_target_fan(contours, parent_contours)
 
-        if target is not None:
-            target_center, target_size, target_angle = target
+        if target_contour is not None:
+
+            # 找到棒棒糖上半部分的中心点
+            M = cv2.moments(target_contour)
+            cx, cy = int(M['m10'] / M['m00']), int(M['m01'] / M['m00'])
+            fan_rect = cv2.minAreaRect(target_contour)
+            fan_height = min(fan_rect[1][0], fan_rect[1][1])
+            # 将中心点坐标四舍五入为整数
+            target_center = (int(cx), int(cy))
+
             self.last_center_for_r = self.current_center
             self.current_center = target_center
 
-            self.target_radius = (target_size[0] + target_size[1]) / 2
+            self.target_radius = fan_height/2
             self.__target_status = STATUS.FOUND
         else:
             self.__target_status = STATUS.NOT_FOUND
