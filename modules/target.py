@@ -486,6 +486,9 @@ class Outpost(NormalRobot):
         self.ekfilter.setState(self.target_state)
 
     def limitStateValue(self):  
+        # 前哨站的角速度有三种可能：0\0.2\0.4 rad/s，方向随机
+        self.target_state[7] = tools.find_closest_value(self.target_state[7], (-0.4, -0.2, 0, 0.2, 0.4))
+        
         if (self.last_y - self.target_state[1]) > self.max_y_diff:
             print("y - error!!")
 

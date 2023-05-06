@@ -3,7 +3,7 @@ import math
 import numpy as np
 from queue import Empty
 from multiprocessing import Queue
-
+from typing import Tuple
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     points = np.int32(points)
@@ -149,3 +149,21 @@ def triangle_angles(a, b, c):
     # 使用余弦定理计算角度
     angle_B = math.degrees(math.acos((a**2 + c**2 - b**2) / (2 * a * c)))
     return (180 - angle_B)
+
+def find_closest_value(x: float, value: Tuple[float, ...]) -> float:
+    '''找出x最接近value中的哪个值(限制15%差值)'''
+    closest_val = None
+    min_diff = float('inf')
+    diff = None
+
+    for val in value:
+        diff = abs(x - val)
+        if diff < min_diff:
+            min_diff = diff
+            closest_val = val
+    
+    if diff > (0.4-0.2)*0.15:
+        return x
+            
+    return closest_val
+
