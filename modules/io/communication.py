@@ -1,6 +1,9 @@
 import math
+import time
 import serial
 import struct
+from typing import TypeAlias
+from modules.tools import ContextManager
 
 
 frame_head = 0xf1
@@ -8,6 +11,7 @@ frame_tail = 0xf2
 frame_tx_len = 17
 frame_rx_len = 11
 
+Status: TypeAlias = tuple[int, float, float, float, int]
 
 crc8Table = [
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
@@ -58,7 +62,7 @@ def pack_frame(
     return frame
 
 
-def unpack_frame(frame: bytes) -> tuple[bool, None | tuple[int, float, float, float, int]]:
+def unpack_frame(frame: bytes) -> tuple[bool, None | Status]:
     head, stamp, yaw, pitch, bullet_speed, flag, crc, tail = struct.unpack('=BBhhhBBB', frame)
 
     if head != frame_head or tail != frame_tail or crc != calculateCrc8(frame[:-2]):
@@ -80,11 +84,38 @@ def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
     return x, y, z
 
 
-class Communicator:
+class Communicator(ContextManager):
     def __init__(self, port: str) -> None:
-        self.serial = serial.Serial(port, 115200)
-        self.serial.reset_input_buffer()
-        self.serial.reset_output_buffer()
+        self._port = port
+        self.read_time_s: float = None
+        self._open()
+
+    def _open(self) -> None:
+        self._serial = serial.Serial(self._port, 115200)
+        self._serial.reset_input_buffer()
+        self._serial.reset_output_buffer()
+        print('Communicator opened.')
+
+    def _close(self) -> None:
+        self._serial.close()
+        print('Communicator closed.')
+
+    def reopen(self) -> None:
+        '''注意阻塞'''
+        self._close()
+
+        last_error = None
+        while True:
+            try:
+                self._open()
+                break
+            except Exception as error:
+                if type(last_error) == type(error):
+                    continue
+                print(f'{error}')
+                last_error = error
+
+        print('Communicator reopened.')
 
     def send(
         self,
@@ -95,7 +126,7 @@ class Communicator:
     ) -> None:
 
         frame = pack_frame(stamp, x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, flag)
-        self.serial.write(frame)
+        self._serial.write(frame)
 
         if debug:
             print(f'sent {stamp=} x={x_in_imu} y={y_in_imu} z={z_in_imu} vx={vx_in_imu} vy={vy_in_imu} vz={vz_in_imu} {flag=} {frame.hex()}')
@@ -105,40 +136,33 @@ class Communicator:
         x, y, z = yaw_pitch_to_xyz(yaw, pitch)
         self.send(x*1e3, y*1e3, z*1e3, debug)
 
-    def receive_no_wait(self, debug: bool = False) -> tuple[bool, None | tuple[int, float, float, float, int]]:
-        frame = self.serial.read_all()
+    def read_no_wait(self, debug: bool = False) -> tuple[bool, None | Status]:
+        frame = self._serial.read_all()
+        read_time_s = time.time()
+
         if len(frame) != frame_rx_len:
             if len(frame) != 0:
-                print(f'failed to receive {frame.hex()}')
+                print(f'failed to read {frame.hex()}')
             return False, None
 
-        success, state = unpack_frame(frame)
+        success, status = unpack_frame(frame)
         if not success:
             print(f'failed to unpack {frame.hex()}')
             return False, None
 
+        self.read_time_s = read_time_s
+
         if debug:
-            stamp, yaw, pitch, bullet_speed, flag = state
-            print(f'received {stamp=} yaw={yaw:.2f} pitch={pitch:.2f} bullet_speed={bullet_speed:.2f} {flag=} {frame.hex()}')
+            stamp, yaw, pitch, bullet_speed, flag = status
+            print(f'read {stamp=} yaw={yaw:.2f} pitch={pitch:.2f} bullet_speed={bullet_speed:.2f} {flag=} {frame.hex()}')
 
-        return True, state
+        return True, status
 
-    def receive(self, debug: bool = False) -> tuple[int, float, float, float, int]:
+    def read(self, debug: bool = False) -> Status:
+        '''注意阻塞'''
         while True:
-            success, state = self.receive_no_wait(debug)
+            success, status = self.read_no_wait(debug)
             if not success:
                 continue
 
-            return state
-
-    def __enter__(self) -> 'Communicator':
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
-        # 按ctrl+c所引发的KeyboardInterrupt，判断为手动退出，不打印报错信息
-        ignore_error = (exc_type == KeyboardInterrupt)
-
-        self.serial.close()
-        print('Communicator closed.')
-
-        return ignore_error
+            return status
