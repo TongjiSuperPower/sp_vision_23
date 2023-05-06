@@ -6,7 +6,7 @@ from modules.Nahsor.Nahsor import *
 import cv2 as cv
 
 def recognise():
-    filename = "../assets/new_mid_3.MP4"
+    filename = "../assets/new_mid_1.MP4"
     cap = cv.VideoCapture(filename)
 
     if not cap.isOpened():
@@ -14,7 +14,7 @@ def recognise():
         exit()
     color = COLOR.RED
     # 新建能量机关对象
-    w = NahsorMarker(color=color, fit_debug=1, target_debug=0,
+    w = NahsorMarker(color=color, fit_debug=0, target_debug=1,
                      fit_speed_mode=FIT_SPEED_MODE.CURVE_FIT)
 
     # 帧率计算
@@ -47,6 +47,7 @@ def recognise():
 
         cv2.namedWindow("Press q to end", cv2.WINDOW_NORMAL)
         cv2.imshow("Press q to end", img)
+        # cv2.waitKey()
     cap.release()
     cv.destroyAllWindows()
 

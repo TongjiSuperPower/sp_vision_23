@@ -298,9 +298,8 @@ def get_r_by_centers(target_centers):
 
 
 def get_parent_contours(contours, hierarchy):
-    # ----------- 按约束条件筛选轮廓 start -----------
     parent_contours = {}
-    # 寻找有方形子轮廓的轮廓
+    # 寻找父轮廓
     for i, contour in enumerate(contours):
         if cv2.contourArea(contour) < CONTOUR_MIN_AREA:
             continue
@@ -315,6 +314,35 @@ def get_parent_contours(contours, hierarchy):
     return parent_contours
 
 
+# def get_target(contours, parent_contours):
+#     # 统计子轮廓数量，并记录面积最大的子轮廓为方型的最大的轮廓
+#     max_area = float('-inf')
+#     target_contour = None
+#     for parent_contour_number, child_contours in parent_contours.items():
+#         if len(child_contours) > 0:
+#             parent_contour = contours[parent_contour_number]
+#             child_max_area = float('-inf')
+#             # 找出最大的子轮廓
+#             for child_contour_number in child_contours:
+#                 child_contour = contours[child_contour_number]
+#                 if cv2.contourArea(child_contour) > child_max_area:
+#                     child_max_area = cv2.contourArea(child_contour)
+#                     max_child_contour = child_contour
+#             max_child_rect = cv2.minAreaRect(max_child_contour)
+#             max_child_width = max(max_child_rect[1][0], max_child_rect[1][1])
+#             max_child_height = min(max_child_rect[1][0], max_child_rect[1][1])
+#             # 找最大的子轮廓是方形的轮廓中最大的轮廓
+#             if SQUARE_WH_RATIO[0] < max_child_width / max_child_height < SQUARE_WH_RATIO[1] and cv2.contourArea(
+#                     parent_contour) > max_area:
+#                 max_area = cv2.contourArea(parent_contour)
+#                 target_contour = max_child_contour
+#
+#     if target_contour is not None:
+#         print(max_area)
+#         return cv2.minAreaRect(target_contour)
+#
+#     else:
+#         return None
 def get_target(contours, parent_contours):
     # 统计子轮廓数量，并记录面积最大的子轮廓为方型的最大的轮廓
     max_area = float('-inf')
@@ -332,13 +360,36 @@ def get_target(contours, parent_contours):
             max_child_rect = cv2.minAreaRect(max_child_contour)
             max_child_width = max(max_child_rect[1][0], max_child_rect[1][1])
             max_child_height = min(max_child_rect[1][0], max_child_rect[1][1])
-            # 找最大的子轮廓是方形的轮廓中最大的轮廓
-            if SQUARE_WH_RATIO[0] < max_child_width / max_child_height < SQUARE_WH_RATIO[1] and cv2.contourArea(
-                    parent_contour) > max_area:
+            # 最大的子轮廓是方形的且与父轮廓的面积比合适
+            if SQUARE_WH_RATIO[0] < max_child_width / max_child_height < SQUARE_WH_RATIO[1] and ARMOR_AREA_RATIO[0] \
+                    < cv2.contourArea(max_child_contour) / cv2.contourArea(parent_contour) < ARMOR_AREA_RATIO[1] \
+                    and cv2.contourArea(parent_contour) > max_area:
                 max_area = cv2.contourArea(parent_contour)
                 target_contour = max_child_contour
 
     if target_contour is not None:
         return cv2.minAreaRect(target_contour)
     else:
+        max_area = float('-inf')
+        target_contour = None
+        for parent_contour_number, child_contours in parent_contours.items():
+            if len(child_contours) > 0:
+                parent_contour = contours[parent_contour_number]
+                child_max_area = float('-inf')
+                # 找出最大的子轮廓
+                for child_contour_number in child_contours:
+                    child_contour = contours[child_contour_number]
+                    if cv2.contourArea(child_contour) > child_max_area:
+                        child_max_area = cv2.contourArea(child_contour)
+                        max_child_contour = child_contour
+                max_child_rect = cv2.minAreaRect(max_child_contour)
+                max_child_width = max(max_child_rect[1][0], max_child_rect[1][1])
+                max_child_height = min(max_child_rect[1][0], max_child_rect[1][1])
+                # 最大的子轮廓是方形的且与父轮廓的面积比合适
+                if SQUARE_WH_RATIO[0] < max_child_width / max_child_height < SQUARE_WH_RATIO[1] and ARMOR_AREA_RATIO[0] \
+                        < cv2.contourArea(max_child_contour) / cv2.contourArea(parent_contour) < ARMOR_AREA_RATIO[1] \
+                        and cv2.contourArea(parent_contour) > max_area:
+                    # 若出现扇叶反复切换或莫名其妙NOT_FOUND的情况，检查ARMOR_AREA_RATIO
+                    max_area = cv2.contourArea(parent_contour)
+                    target_contour = max_child_contour
         return None

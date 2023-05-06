@@ -24,9 +24,9 @@ class NahsorMarker(object):
     fit_speeds = []  # 前100次测得的角度或速度
     fit_times = []  # 取得数据的时间
 
-    r_center, radius = None, 0  # 拟合圆圆心和半径
-    rot_direction = 1  # 能量机关转动方向，1为顺时针，-1为逆时针；
-    rot_speed = 0  # 能量机关转速，单位rad/s
+    r_center, radius = None, None  # 拟合圆圆心和半径
+    rot_direction = None  # 能量机关转动方向，1为顺时针，-1为逆时针；
+    rot_speed = None  # 能量机关转速，单位rad/s
 
     last_center_for_r = None  # 上一次的装甲板中心
     last_time_for_R = None  # 上次拟合时间
@@ -139,12 +139,23 @@ class NahsorMarker(object):
         # kernel1 = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 方形
         # cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 椭圆
         # cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))  # 十字形
+        # 旧版，抠出中间部分
         mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4)))
+        mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        # return cvt_img
+
+
+        # mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        # mask = cv2.medianBlur(mask, 3)
+
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         return mask
 
     # def __find_target1(self, mask):
@@ -222,8 +233,8 @@ class NahsorMarker(object):
         self.__target_status = STATUS.NOT_FOUND  # 状态指示--> found(1) and not_found(0)
 
         # ----------- 图像预处理 start -----------
-
-        mask = self.binaryzate(frame)
+        mask = cv2.blur(frame, (3, 3))
+        mask = self.binaryzate(mask)
         mask = self.morphological_operation(mask)
         if self.target_debug:
             cv2.namedWindow('mask', 0)
@@ -271,6 +282,7 @@ class NahsorMarker(object):
             if get_distance(self.current_center, self.last_center_for_r) > CENTER_MAX_DISTANCE:
                 self.__R_status = STATUS.NOT_FOUND
                 self.__fan_change = 1
+                print('fan error')
 
             if self.__R_status:
                 R_by_contours = get_r_by_contours(contours, parent_contours, self.current_center,
@@ -496,7 +508,7 @@ class NahsorMarker(object):
             plt.figure(figsize=(30, 10), dpi=100, num=1)
             plt.clf()
             plt.plot(fit_times, self.fit_speeds, alpha=0.8, linewidth=1)
-            plt.plot(fit_times, smooth_data, alpha=0.8, linewidth=10, marker='x')
+            plt.plot(fit_times, smooth_data, alpha=0.8, linewidth=1)
             predict_args = tuple(speed_params)
             predict_data = [self.speed_func(add_time, *predict_args)
                             for add_time in fit_times]

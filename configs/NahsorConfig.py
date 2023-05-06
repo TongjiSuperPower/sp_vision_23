@@ -52,7 +52,7 @@ OPEN_PARA = 1
 CLOS_PARA = 1
 
 # 使用预测
-USE_PREDICT = True
+USE_PREDICT = False
 
 # 目标颜色设置合集
 HSV_RED_UPPER_1 = (180, 255, 255)
@@ -92,7 +92,7 @@ SIMU_BLACK_RED_LOWER = (0, 0, 230)
 # AREA_LW_RATIO_1 = (0.5, 1)
 
 # 目标装甲板占外接矩形的比例
-# ARMOR_AREA_RATIO = (0.03, 0.25)
+ARMOR_AREA_RATIO = (0.15, 0.29)
 # ARMOR_AREA_RATIO_1 = (0.25, 0.7)
 
 # 目标装甲板长宽比
@@ -113,7 +113,7 @@ FOCAL_LENGTH = 1200
 
 # 轮廓面积最小值，用于筛除过小的轮廓，单位px
 # 注意过小时可能会把r标滤掉
-CONTOUR_MIN_AREA = 50
+CONTOUR_MIN_AREA = 100
 
 # 最小误差
 DBL_EPSILON = 2.2204e-016
