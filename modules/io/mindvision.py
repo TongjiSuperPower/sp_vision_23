@@ -1,114 +1,76 @@
 import cv2
 import time
-import queue
-import ctypes
 import numpy as np
-from multiprocessing import Queue, RawArray
 import modules.io.mvsdk as mvsdk
+from modules.tools import ContextManager
 
 
-class Camera:
-    def __init__(self, exposure_ms: float = None, has_trigger: bool = False) -> None:
-        # 枚举相机
+class Camera(ContextManager):
+    def __init__(self, exposure_ms: float) -> None:
+        self._exposure_ms = exposure_ms
+        self.read_time_s: float = None
+        self._open()
+
+    def _open(self) -> None:
         devices = mvsdk.CameraEnumerateDevice()
         if len(devices) < 1:
             raise RuntimeError("找不到相机设备")
 
-        # 打开相机
-        self.camera = mvsdk.CameraInit(devices[0])
+        self._handle = mvsdk.CameraInit(devices[0])
 
-        # 获取相机特性描述
-        capability = mvsdk.CameraGetCapability(self.camera)
-        self.isMono = capability.sIspCapacity.bMonoSensor == mvsdk.TRUE
-        self.width = capability.sResolutionRange.iWidthMax
-        self.height = capability.sResolutionRange.iHeightMax
+        mvsdk.CameraSetAeState(self._handle, mvsdk.FALSE)  # 手动曝光
+        mvsdk.CameraSetExposureTime(self._handle, self._exposure_ms * 1000)
+        mvsdk.CameraSetFrameSpeed(self._handle, mvsdk.FRAME_SPEED_NORMAL)
+        mvsdk.CameraSetIspOutFormat(self._handle, mvsdk.CAMERA_MEDIA_TYPE_BGR8)
 
-        # 黑白相机让ISP直接输出MONO数据，而不是扩展成R=G=B的24位灰度
-        if self.isMono:
-            mvsdk.CameraSetIspOutFormat(self.camera, mvsdk.CAMERA_MEDIA_TYPE_MONO8)
-        else:
-            mvsdk.CameraSetIspOutFormat(self.camera, mvsdk.CAMERA_MEDIA_TYPE_BGR8)
+        buffer_size = 1024 * 1280 * 3
+        self._buffer = mvsdk.CameraAlignMalloc(buffer_size)
 
-        # 相机参数设置
-        mvsdk.CameraSetTriggerMode(self.camera, 2 if has_trigger else 0)  # 0:连续采集 1:软触发 2:硬触发
-        mvsdk.CameraSetFrameSpeed(self.camera, mvsdk.FRAME_SPEED_NORMAL)  # NORMAL帧率可以达到200fps
-        if exposure_ms != None:
-            mvsdk.CameraSetAeState(self.camera, mvsdk.FALSE)  # 手动曝光
-            mvsdk.CameraSetExposureTime(self.camera, exposure_ms * 1000)  # 曝光时间ms
+        mvsdk.CameraPlay(self._handle)
+        print('Camera opened.')
 
-        # 让SDK内部取图线程开始工作
-        mvsdk.CameraPlay(self.camera)
+    def _close(self) -> None:
+        mvsdk.CameraUnInit(self._handle)
+        mvsdk.CameraAlignFree(self._buffer)
+        print('Camera closed.')
 
-        # 分配buffer，用来存放ISP输出的图像
-        bufferSize = self.width * self.height * (1 if self.isMono else 3)
-        self.buffer = mvsdk.CameraAlignMalloc(bufferSize, 16)
-
-    def read(self) -> tuple[bool, cv2.Mat | None]:
+    def read(self, buffer_address=None) -> tuple[bool, cv2.Mat | None]:
         try:
-            rawData, head = mvsdk.CameraGetImageBuffer(self.camera, 200)
-            mvsdk.CameraImageProcess(self.camera, rawData, self.buffer, head)
-            mvsdk.CameraReleaseImageBuffer(self.camera, rawData)
+            raw, head = mvsdk.CameraGetImageBuffer(self._handle, 200)
+            self.read_time_s = time.time()
 
-            frameData = (mvsdk.c_ubyte * head.uBytes).from_address(self.buffer)
-            frame = np.frombuffer(frameData, dtype=np.uint8)
-            frame = frame.reshape((head.iHeight, head.iWidth, 1 if self.isMono else 3))
-            return True, frame
+            if buffer_address != None:
+                mvsdk.CameraImageProcess(self._handle, raw, buffer_address, head)
+                mvsdk.CameraReleaseImageBuffer(self._handle, raw)
+                return True, None
+
+            else:
+                mvsdk.CameraImageProcess(self._handle, raw, self._buffer, head)
+                mvsdk.CameraReleaseImageBuffer(self._handle, raw)
+                img = (mvsdk.c_ubyte * head.uBytes).from_address(self._buffer)
+                img = np.frombuffer(img, dtype=np.uint8)
+                img = img.reshape((head.iHeight, head.iWidth, 3))
+                return True, img
+
         except mvsdk.CameraException:
             return False, None
 
-    def get_stamp_ms(self) -> int:
-        return mvsdk.CameraGetFrameTimeStamp(self.camera) / 1e3
-
     def release(self) -> None:
-        # 关闭相机
-        mvsdk.CameraUnInit(self.camera)
-        # 释放帧缓存
-        mvsdk.CameraAlignFree(self.buffer)
+        self._close()
 
-    def __enter__(self) -> 'Camera':
-        return self
+    def reopen(self) -> None:
+        '''注意阻塞'''
+        self._close()
 
-    def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
-        # 按ctrl+c所引发的KeyboardInterrupt，判断为手动退出，不打印报错信息
-        ignore_error = (exc_type == KeyboardInterrupt)
-
-        self.release()
-        print('Camera closed.')
-
-        return ignore_error
-
-
-class CallbackCamera(Camera):
-    def __init__(self, exposure_ms: float, tx: Queue, buffer: RawArray):
-        Camera.__init__(self, exposure_ms, True)
-
-        self.tx = tx
-        self.buffer_address = ctypes.addressof(buffer)
-        self.success_count = 0
-        mvsdk.CameraSetCallbackFunction(self.camera, self.callback)
-
-    @mvsdk.method(mvsdk.CAMERA_SNAP_PROC)
-    def callback(self, hCamera, pRawData, pFrameHead, pContext):
-        callback_time_s = time.time()
-
-        head = pFrameHead[0]
-        camera_stamp_ms = head.uiTimeStamp / 10
-
-        mvsdk.CameraImageProcess(hCamera, pRawData, self.buffer_address, head)
-        mvsdk.CameraReleaseImageBuffer(hCamera, pRawData)
-
-        try:
-            self.tx.put_nowait((callback_time_s, camera_stamp_ms))
-        except queue.Full:
+        last_error = None
+        while True:
             try:
-                self.tx.get_nowait()
-            except queue.Empty:
-                pass
-            finally:
-                try:
-                    self.tx.put_nowait((callback_time_s, camera_stamp_ms))
-                except queue.Full:
-                    print(f'Camera Queue Full! Successed Count: {self.success_count}')
-                    self.success_count = -1
+                self._open()
+                break
+            except Exception as error:
+                if type(last_error) == type(error):
+                    continue
+                print(f'{error}')
+                last_error = error
 
-        self.success_count += 1
+        print('Camera reopened.')
