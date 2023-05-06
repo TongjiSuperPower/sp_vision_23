@@ -11,8 +11,7 @@ from modules.io.communication import Communicator
 
 from modules.armor_detection import ArmorDetector
 import modules.tools as tools
-from modules.new_tracker import Tracker, TrackerState
-from modules.shot_point import Shot_Point
+from modules.tracker import Tracker, TrackerState
 
 from remote_visualizer import Visualizer
 

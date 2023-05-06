@@ -3,50 +3,8 @@ import numpy as np
 from enum import IntEnum
 from modules.NewEKF import ExtendedKalmanFilter
 from modules.armor_detection import Armor
-
-
-def f(x, dt):
-    # f - Process function
-    x_new = x.copy()
-    x_new[0] += x[4] * dt
-    x_new[1] += x[5] * dt
-    x_new[2] += x[6] * dt
-    x_new[3] += x[7] * dt
-    return x_new
-
-
-def j_f(x, dt):
-    # J_f - Jacobian of process function
-    dfdx = np.eye(9, 9)
-    dfdx[0, 4] = dt
-    dfdx[1, 5] = dt
-    dfdx[2, 6] = dt
-    dfdx[3, 7] = dt
-    return dfdx
-
-
-def h(x):
-    # h - Observation function
-    z = np.zeros(4)
-    xc, yc, zc, yaw, r = x[0], x[1], x[2], x[3], x[8]
-    z[0] = xc - r * math.sin(yaw)  # xa
-    z[1] = yc                      # ya
-    z[2] = zc - r * math.cos(yaw)  # za
-    z[3] = yaw                     # yaw
-    return z
-
-
-def j_h(x):
-    # J_h - Jacobian of observation function
-    dhdx = np.zeros((4, 9))
-    yaw, r = x[3], x[8]
-    dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
-    dhdx[0, 3] = -r * math.cos(yaw)
-    dhdx[2, 3] = r * math.sin(yaw)
-    dhdx[0, 8] = -math.sin(yaw)
-    dhdx[2, 8] = -math.cos(yaw)
-    return dhdx
-
+from modules.tools import shortest_angular_distance
+from modules.target import NormalRobot, BalanceInfantry, Outpost, Base
 
 class TrackerState(IntEnum):
     LOST = 0
@@ -59,72 +17,57 @@ class Tracker:
     '''单位采用m、s，弧度'''
 
     def __init__(self, max_match_distance, tracking_threshold, lost_threshold):
+        self.tracking_target = None
         self.max_match_distance = max_match_distance
         self.tracking_threshold = tracking_threshold
         self.lost_threshold = lost_threshold
 
-        self.tracker_state = TrackerState.LOST
-
-        self.tracked_armor: Armor = None
-        self.tracked_id = ""
-        self.target_state = np.zeros((9,))
+        self.tracker_state = TrackerState.LOST           
 
         self.lost_count = 0
         self.detect_count = 0
-
-        self.last_yaw = 0
-        self.last_y = 0
-        self.last_r = 0
-
-        self.arrmor_jump = 0
-        self.state_error = 0
-
-        # EKF参数:
-        # Q - process noise covariance matrix x y z yaw vx vy vz vyaw r
-        # q_v = [1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3]
-        q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2, 1e-3]
-        Q = np.diag(q_v)
-        # R
-        # r_v = [1e-1, 1e-1, 1e-1, 2e-1]
-        r_v = [1e-1, 1e-1, 1e-1, 6e-1]
-        R = np.diag(r_v)
-        # P - error estimate covariance matrix
-        P0 = np.eye(9)
-
-        # EKF
-        # xa = x_armor, xc = x_robot_center
-        # state: xc, yc, zc, yaw, v_xc, v_yc, v_zc, v_yaw, r
-        # measurement: xa, ya, za, yaw
-        self.ekf = ExtendedKalmanFilter(f, h, j_f, j_h, Q, R, P0)
 
     def init(self, armors: list[Armor]):
         # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
         if len(armors) == 0:
             print('lost.')
             return
-        # Simply choose the armor that is closest to image center
-        self.tracked_armor = armors[0]  # armors之前已经根据距离进行了排序，所以[0]就是最近的
+        
+        # 选择最近的装甲板作为目标        
+        armor = armors[0]
 
-        self.initEKF(self.tracked_armor)
-        self.tracked_id = self.tracked_armor.name
+        # 根据装甲板id调用相应的目标模型
+        if(armor.name in ("big_three", "big_four", "big_five")):
+            self.tracking_target = BalanceInfantry()
+        elif(armor.name == "small_outpost"):
+            self.tracking_target = Outpost()
+        elif(armor.name == "small_base"):
+            self.tracking_target = Base()
+        else:
+            self.tracking_target = NormalRobot()
+
+        # 初始化目标模型
+        self.tracking_target.init(armor)
+
         self.tracker_state = TrackerState.DETECTING
 
-    def update(self, armors: list[Armor], dt):
-        self.arrmor_jump *= 0
-        self.state_error *= 0
-        # KF predict
-        ekf_prediction = self.ekf.predict(dt)
-        # print("EKF predict")
+    def update(self, armors: list[Armor], dt):  
+        self.tracking_target.arrmor_jump = 0
+        self.tracking_target.state_error = 0
 
+        # predict
+        prediction = self.tracking_target.forwardPredict(dt)      
+        
         matched = False
 
         # Use KF prediction as default target state if no matched armor is found
-        self.target_state = ekf_prediction
+        self.tracking_target.setTargetState(prediction)
 
         if len(armors) > 0:
             min_position_diff = float('inf')
-            predicted_position = self.getArmorPositionFromState(ekf_prediction)
+            predicted_position = self.tracking_target.getArmorPositionFromState(prediction)
 
+            matched_armor = None
             for armor in armors:
                 position_vec = np.reshape(armor.in_imuM, (3,))
 
@@ -132,34 +75,27 @@ class Tracker:
 
                 if position_diff < min_position_diff:
                     min_position_diff = position_diff
-                    self.tracked_armor = armor
+                    matched_armor = armor
 
             if min_position_diff < self.max_match_distance:
                 matched = True
 
-                # Update EKF
-                p = np.reshape(self.tracked_armor.in_imuM, (3,))
-                measured_yaw = self.get_continous_yaw(self.tracked_armor.yawR_in_imu)
-                z = np.array([p[0], p[1], p[2], measured_yaw])
-                self.target_state = self.ekf.update(z)
-                # print("EKF update")
+                # Update 
+                self.tracking_target.update(matched_armor)                
+                
             else:
                 # Check if there is same id armor in current frame
                 for armor in armors:
-                    if armor.name == self.tracked_id:
+                    if armor.name == self.tracking_target.armor_id:
                         # Armor jump happens
                         matched = True
-                        self.tracked_armor = armor
-                        self.handleArmorJump(self.tracked_armor)
-                        break
+                        matched_armor = armor
 
-        # Suppress R from converging to zero
-        if self.target_state[8] < 0.2:
-            self.target_state[8] = 0.2
-            self.ekf.setState(self.target_state)
-        elif self.target_state[8] > 0.4:
-            self.target_state[8] = 0.4
-            self.ekf.setState(self.target_state)
+                        self.tracking_target.handleArmorJump(matched_armor, self.max_match_distance)
+
+                        break
+        
+        self.tracking_target.limitStateValue()
 
         # Tracking state machine
         if self.tracker_state == TrackerState.DETECTING:
@@ -186,87 +122,13 @@ class Tracker:
             else:
                 self.tracker_state = TrackerState.TRACKING
                 self.lost_count = 0
-
-    def initEKF(self, a: Armor):
-        xa, ya, za = np.reshape(a.in_imuM, (3,))
-        yaw = self.get_continous_yaw(a.yawR_in_imu)
-
-        # Set initial position at 0.2m behind the target
-        r = 0.2
-        xc = xa + r * math.sin(yaw)
-        yc = ya
-        zc = za + r * math.cos(yaw)
-
-        self.target_state = np.zeros((9,))
-        self.target_state[0] = xc
-        self.target_state[1] = yc
-        self.target_state[2] = zc
-        self.target_state[3] = yaw
-        self.target_state[8] = r
-
-        self.last_y = yc
-        self.last_r = r
-        self.last_yaw = 0
-
-        self.ekf.setState(self.target_state)
-
-        print("Init EKF!")
-
-    def handleArmorJump(self, a: Armor):
-        last_yaw = self.target_state[3]
-        yaw = self.get_continous_yaw(a.yawR_in_imu)
-
-        if abs(yaw - last_yaw) > 0.4:
-            print("Armor jump!")
-            self.arrmor_jump = 1
-            self.last_y = self.target_state[1]
-            self.target_state[1] = np.reshape(a.in_imuM, (3,))[1]
-            self.target_state[3] = yaw
-            self.target_state[8], self.last_r = self.last_r, self.target_state[8]
-
-        current_p = np.reshape(a.in_imuM, (3,))
-        infer_p = self.getArmorPositionFromState(self.target_state)
-
-        if np.linalg.norm(current_p - infer_p) > self.max_match_distance:
-            print("State wrong!")
-            self.state_error = 1
-            r = self.target_state[8]
-            self.target_state[0] = current_p[0] + r * math.sin(yaw)
-            self.target_state[2] = current_p[2] + r * math.cos(yaw)
-            self.target_state[4] = 0
-            self.target_state[5] = 0
-            self.target_state[6] = 0
-
-        self.ekf.setState(self.target_state)
-
-    def getArmorPositionFromState(self, x):
-        return h(x)[:3]
     
+    def getShotPoint(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0):
+        '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
+        return self.tracking_target.getPreShotPtsInImu(deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw=0, pitch=0)
 
-    def get_continous_yaw(self, yaw):
-        yaw = self.last_yaw + self.shortest_angular_distance(self.last_yaw, yaw)
-        self.last_yaw = yaw
-        return yaw
 
-    def normalize_angle_positive(self,angle):
-        """ Normalizes the angle to be 0 to 2*pi
-            It takes and returns radians. """
-        return math.fmod(math.fmod(angle, 2.0*math.pi) + 2.0*math.pi, 2.0*math.pi)
 
-    def normalize_angle(self,angle):
-        """ Normalizes the angle to be -pi to +pi
-            It takes and returns radians."""
-        a = self.normalize_angle_positive(angle)
-        if a > math.pi:
-            a -= 2.0 * math.pi
-        return a
 
-    def shortest_angular_distance(self,from_angle, to_angle):
-        """ Given 2 angles, this returns the shortest angular
-            difference.  The inputs and ouputs are of course radians.
 
-            The result would always be -pi <= result <= pi. Adding the result
-            to "from" will always get you an equivalent angle to "to".
-        """
-        return self.normalize_angle(to_angle - from_angle)
     
