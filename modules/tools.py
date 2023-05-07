@@ -186,7 +186,7 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
     if enableAirRes==1:
         try:
             # Drag coefficient, projectile radius (m), area (m2) and mass (kg).
-            c = 0.47
+            c = 0.2
             r = 21/1000 if robot.id=='big_one' else 8.5/1000
             A = np.pi * r**2
             m = 0.04 if robot.id=='big_one' else 0.0032
