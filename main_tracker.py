@@ -28,7 +28,7 @@ class Target_msg:
 if __name__ == '__main__':
     port = '/dev/ttyUSB0'
     with Communicator(port) as communicator:
-        communicator.receive_no_wait(True)
+        communicator.read_no_wait(True)
 
     with Robot(3, port) as robot, Visualizer(enable=True) as visualizer, Recorder() as recorder:
         
