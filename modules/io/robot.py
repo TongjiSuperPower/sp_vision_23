@@ -1,171 +1,77 @@
 import cv2
-import time
-import queue
-import ctypes
-import numpy as np
-from multiprocessing import Process, Queue, RawArray
-from modules.io.mindvision import CallbackCamera
-from modules.io.communication import Communicator
-from modules.tools import clear_queue
+from modules.io.parallel_camera import ParallelCamera
+from modules.io.parallel_communicator import ParallelCommunicator
+from modules.io.context_manager import ContextManager
 
 
-def communicating(port: str, tx: Queue, rx: Queue, quit_queue: Queue) -> None:
-    with Communicator(port) as communicator:
-        success_count = 0
-
-        while True:
-            time.sleep(0.001)
-
-            # 判断是否退出
-            try:
-                quit = quit_queue.get_nowait()
-                if quit:
-                    break
-            except queue.Empty:
-                pass
-
-            # 发送命令
-            try:
-                command = rx.get_nowait()
-                assert type(command) == tuple
-                communicator.send(*command)
-            except queue.Empty:
-                pass
-
-            # 接收机器人的状态
-            success, state = communicator.receive_no_wait(False)
-            if not success:
-                continue
-
-            try:
-                tx.put_nowait(state)
-            except queue.Full:
-                try:
-                    tx.get_nowait()
-                except queue.Empty:
-                    pass
-                finally:
-                    try:
-                        tx.put_nowait(state)
-                    except queue.Full:
-                        print(f'State Queue Full! Successed Count: {success_count}')
-                        success_count = -1
-
-            success_count += 1
+def limit_degree(angle_degree: float) -> float:
+    '''(-180,180]'''
+    while angle_degree <= -180:
+        angle_degree += 360
+    while angle_degree > 180:
+        angle_degree -= 360
+    return angle_degree
 
 
-def capturing(exposure_ms: float, tx: Queue, buffer: RawArray, quit_queue: Queue) -> None:
-    with CallbackCamera(exposure_ms, tx, buffer) as camera:
-        while True:
-            time.sleep(10)
-
-            # 判断是否退出
-            try:
-                quit = quit_queue.get_nowait()
-                if quit:
-                    break
-            except queue.Empty:
-                pass
+def interpolate_degree(from_degree: float, to_degree: float, k: float) -> float:
+    delta_degree = limit_degree(to_degree - from_degree)
+    result_degree = limit_degree(k * delta_degree + from_degree)
+    return result_degree
 
 
-class Robot:
+class Robot(ContextManager):
     def __init__(self, exposure_ms: float, port: str) -> None:
-        self.buffer = RawArray(ctypes.c_uint8, 3932160)
-        self.camera_rx = Queue(maxsize=1)
-        self.camera_quit = Queue()
-        self.capturing = Process(
-            target=capturing,
-            args=(exposure_ms, self.camera_rx, self.buffer, self.camera_quit)
-        )
+        self._camera = ParallelCamera(exposure_ms)
+        self._communicator = ParallelCommunicator(port)
 
-        self.communicator_rx = Queue(maxsize=1)
-        self.communicator_tx = Queue(maxsize=1)
-        self.communicator_quit = Queue()
-        self.communicating = Process(
-            target=communicating,
-            args=(port, self.communicator_rx, self.communicator_tx, self.communicator_quit)
-        )
+        self.send = self._communicator.send
 
-        self.capturing.start()
-        self.camera_rx.get()
-        self.communicating.start()
-
-        self.callback_time_s: float = None
-        self.camera_stamp_ms: int = None
         self.img: cv2.Mat = None
-
-        self.state_stamp: int = None
-        self.yaw: float = None
-        self.pitch: float = None
+        self.img_time_s: float = None
         self.bullet_speed: float = None
         self.flag: int = None
         self.color: str = None
         self.id: int = None
 
-    def update(self) -> None:
-        callback_time_s, camera_stamp_ms = self.camera_rx.get()
-        img = np.frombuffer(self.buffer, dtype=np.uint8)
-        img = img.reshape((1024, 1280, 3))
+    def _close(self) -> None:
+        self._camera._close()
+        self._communicator._close()
+        print('Robot closed.')
 
-        state = self.communicator_rx.get()
+    def update(self):
+        '''注意阻塞'''
+        self._camera.update()
+        self.img = self._camera.img
+        self.img_time_s = self._camera.read_time_s
 
-        self.callback_time_s = callback_time_s
-        self.camera_stamp_ms = camera_stamp_ms
-        self.img = img
-
-        state_stamp, yaw, pitch, bullet_speed, flag = state
-        self.state_stamp = state_stamp
-        self.yaw = yaw
-        self.pitch = pitch
+        self._communicator.update()
+        _, _, _, bullet_speed, flag = self._communicator.latest_status
         self.bullet_speed = bullet_speed if bullet_speed > 5 else 15
-        self.flag = flag
 
-        # 机器人ID:
-        # 1:红方英雄机器人 2:红方工程机器人 3/4/5:红方步兵机器人 6:红方空中机器人
-        # 7:红方哨兵机器人 8:红方飞镖机器人 9:红方雷达站
-        # 101:蓝方英雄机器人 102:蓝方工程机器人 103/104/105:蓝方步兵机器人
-        # 106:蓝方空中机器人 107:蓝方哨兵机器人 108:蓝方飞镖机器人 109:蓝方雷达站。
+        # flag:
+        # 个位: 1:英雄 2:工程 3/4/5:步兵 6:无人机 7:哨兵 8:飞镖 9:雷达站
+        # 十位: TODO 用来切换自瞄/能量机关
+        # 百位: 0:我方为红方 1:我方为蓝方
+        self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
         self.id = self.flag % 100
 
-    def send(
-        self,
-        x_in_imu: float = 0, y_in_imu: float = 0, z_in_imu: float = 0,
-        vx_in_imu: float = 0, vy_in_imu: float = 0, vz_in_imu: float = 0,
-        stamp: int = 0, flag: int = 0,
-    ) -> None:
-        command = (x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, stamp, flag)
-        try:
-            self.communicator_tx.put_nowait(command)
-        except queue.Full:
-            try:
-                self.communicator_tx.get_nowait()
-            except queue.Empty:
-                pass
-            finally:
-                try:
-                    self.communicator_tx.put_nowait(command)
-                except queue.Full:
-                    print(f'Command Queue Full!')
+    def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
+        '''注意阻塞'''
+        while self._communicator.latest_read_time_s < time_s:
+            self._communicator.update()
 
-    def __enter__(self) -> 'Robot':
-        return self
+        for read_time_s, status in reversed(self._communicator.history):
+            if read_time_s < time_s:
+                time_s_before, status_before = read_time_s, status
+                break
+            time_s_after, status_after = read_time_s, status
 
-    def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
-        # 按ctrl+c所引发的KeyboardInterrupt，判断为手动退出，不打印报错信息
-        ignore_error = (exc_type == KeyboardInterrupt)
+        _, yaw_degree_after, pitch_degree_after, _, _, = status_after
+        _, yaw_degree_before, pitch_degree_before, _, _, = status_before
 
-        self.communicator_quit.put(True)
-        self.communicating.join()
-        self.camera_quit.put(True)
-        self.capturing.join()
+        k = (time_s - time_s_before) / (time_s_after - time_s_before)
+        yaw_degree = interpolate_degree(yaw_degree_before, yaw_degree_after, k)
+        pitch_degree = interpolate_degree(pitch_degree_before, pitch_degree_after, k)
 
-        clear_queue(self.communicator_quit)
-        clear_queue(self.camera_quit)
-        clear_queue(self.camera_rx)
-        clear_queue(self.communicator_rx)
-        clear_queue(self.communicator_tx)
-
-        print('Robot closed.')
-
-        return ignore_error
+        return yaw_degree, pitch_degree

@@ -1,7 +1,8 @@
+import datetime
 import parent_folder
 from modules.io.communication import Communicator
 
-with Communicator('/dev/ttyUSB0') as communicator:
+with Communicator('/dev/tty.usbserial-140') as communicator:
     test: str = None
 
     while True:
@@ -22,5 +23,8 @@ with Communicator('/dev/ttyUSB0') as communicator:
             print('请重新输入')
 
     # 测试接收
+    last_read_time_s = 0
     while test == 'rx':
-        communicator.receive(debug=True)
+        communicator.read(debug=True)
+        print(f'{datetime.datetime.now()} {(communicator.read_time_s - last_read_time_s)*1e3:.2f}ms')
+        last_read_time_s = communicator.read_time_s
