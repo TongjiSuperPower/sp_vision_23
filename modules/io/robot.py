@@ -86,9 +86,9 @@ class Robot:
             args=(port, self.communicator_rx, self.communicator_tx, self.communicator_quit)
         )
 
-        self.capturing.start()
-        self.camera_rx.get()
-        self.communicating.start()
+        # self.capturing.start()
+        # self.camera_rx.get()
+        # self.communicating.start()
 
         self.callback_time_s: float = None
         self.camera_stamp_ms: int = None

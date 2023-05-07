@@ -89,13 +89,10 @@ if __name__ == '__main__':
                 predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot.yaw, robot.pitch)
                  
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
-                
-                x, y, z = predictedPtsInWorld.T[0]
 
-                # 重力补偿
-                pitch = tools.shoot_pitch(x, y, z, robot.bullet_speed) + pitch_offset
-                armor_in_gun = np.array([x, y, z]).reshape(3, 1)
-                armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))
+                # 重力补偿                
+                armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot.bullet_speed
+                                                      , enableAirRes=1)
                 
                 fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
                 robot.send(*armor_in_gun.T[0], flag=fire)
