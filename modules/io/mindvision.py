@@ -2,7 +2,7 @@ import cv2
 import time
 import numpy as np
 import modules.io.mvsdk as mvsdk
-from modules.tools import ContextManager
+from modules.io.context_manager import ContextManager
 
 
 class Camera(ContextManager):

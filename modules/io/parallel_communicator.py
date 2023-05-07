@@ -2,7 +2,8 @@ import queue
 from collections import deque
 from multiprocessing import Process, Queue
 from modules.io.communication import Communicator, Status
-from modules.tools import clear_queue, ContextManager
+from modules.io.context_manager import ContextManager
+from modules.tools import clear_queue
 
 
 def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) -> None:

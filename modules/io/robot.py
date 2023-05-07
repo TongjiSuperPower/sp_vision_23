@@ -1,7 +1,7 @@
 import cv2
 from modules.io.parallel_camera import ParallelCamera
 from modules.io.parallel_communicator import ParallelCommunicator
-from modules.tools import ContextManager
+from modules.io.context_manager import ContextManager
 
 
 def limit_degree(angle_degree: float) -> float:

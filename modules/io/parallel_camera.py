@@ -4,7 +4,8 @@ import ctypes
 import numpy as np
 from multiprocessing import Process, Queue, RawArray
 from modules.io.mindvision import Camera
-from modules.tools import clear_queue, ContextManager
+from modules.io.context_manager import ContextManager
+from modules.tools import clear_queue
 
 
 def capture(exposure_ms: float, buffers: list[RawArray], tx_queue: Queue, quit_queue: Queue) -> None:
