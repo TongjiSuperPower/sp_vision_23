@@ -191,8 +191,8 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
             A = np.pi * r**2
             m = 0.04 if robot.id=='big_one' else 0.0032
             # Air density (kg.m-3), acceleration due to gravity (m.s-2).
-            rho_air = 1.28
-            g = 9.81
+            rho_air = 1.17
+            g = 9.794
             # For convenience, define  this constant.
             k = 0.5 * c * rho_air * A
             pitch = findPitch(robot.bullet_speed, k, m, g, math.sqrt(x**2+z**2), y, pitch-5, pitch+10)
@@ -242,12 +242,13 @@ def calculateDrop(bulletSpeed, k, m, g, pitch, distance):
 
     return y
 
-def findPitch(bulletSpeed, k, m, g, distance, y, x0, x1, tol=1e-6, maxiter=100):
+def findPitch(bulletSpeed, k, m, g, distance, y, x0, x1, tol=1, maxiter=100):
     '''割线法求解'''
     f0, f1 = y - calculateDrop(bulletSpeed, k, m, g, x0, distance), y - calculateDrop(bulletSpeed, k, m, g, x1, distance)
 
     for i in range(maxiter):
         if abs(f1) < tol:
+            print("迭代次数:"+str(i))
             return x1
         dfdx = (f1 - f0) / (x1 - x0)
         x2 = x1 - f1 / dfdx
