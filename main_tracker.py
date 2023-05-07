@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
 
                 # 重力补偿                
-                armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot.bullet_speed
+                armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot
                                                       , enableAirRes=1)
                 
                 fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
