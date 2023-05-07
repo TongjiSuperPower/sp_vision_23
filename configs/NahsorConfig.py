@@ -99,7 +99,8 @@ ARMOR_AREA_RATIO = (0.15, 0.29)
 ARMOR_WH_RATIO = (0.8, 2.5)
 # 正方形长宽比
 SQUARE_WH_RATIO = (0.9, 1.1)
-
+# 装甲板上半部分长宽比
+UPPER_WH_RATIO = (0.9, 1.2)
 # 能量机关中心与目标中心距离和目标半径的比值
 CENTER_DISTANCE_RATIO = (3.8, 4.2)
 

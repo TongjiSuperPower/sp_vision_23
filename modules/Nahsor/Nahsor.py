@@ -140,10 +140,12 @@ class NahsorMarker(object):
         # cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 椭圆
         # cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))  # 十字形
 
-        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        # mask = cv2.medianBlur(mask, 3)
-        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+        mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
+        mask = cv2.medianBlur(mask, 5)
+        # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
         # mask = cv2.medianBlur(mask, 3)
 
         return mask
@@ -245,14 +247,13 @@ class NahsorMarker(object):
             M = cv2.moments(target_contour)
             cx, cy = int(M['m10'] / M['m00']), int(M['m01'] / M['m00'])
             fan_rect = cv2.minAreaRect(target_contour)
-            fan_height = min(fan_rect[1][0], fan_rect[1][1])
             # 将中心点坐标四舍五入为整数
             target_center = (int(cx), int(cy))
 
             self.last_center_for_r = self.current_center
             self.current_center = target_center
 
-            self.target_radius = fan_height/2
+            self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2*2)
             self.__target_status = STATUS.FOUND
         else:
             self.__target_status = STATUS.NOT_FOUND

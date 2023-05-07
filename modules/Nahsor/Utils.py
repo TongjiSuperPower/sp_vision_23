@@ -36,7 +36,7 @@ def get_distance(p1, p2):
     :return: 距离: float
     """
     if p1 is None or p2 is None:
-        return np.inf
+        return 0
     dis_sq = (p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1])
     return np.sqrt(dis_sq)
 
@@ -319,18 +319,22 @@ def get_target_fan(contours, parent_contours):
     max_area = float('-inf')
     target_contour = None
     for parent_contour_number, child_contours in parent_contours.items():
-        if len(child_contours) == 0:
-            parent_contour = contours[parent_contour_number]
-            parent_rect = cv2.minAreaRect(parent_contour)
-            parent_width = max(parent_rect[1][0], parent_rect[1][1])
-            parent_height = min(parent_rect[1][0], parent_rect[1][1])
-            # 找最大的子轮廓是方形的轮廓中最大的轮廓
-            if ARMOR_WH_RATIO[0] < parent_width / parent_height < ARMOR_WH_RATIO[1] and cv2.contourArea(
-                    parent_contour) > max_area:
-                max_area = cv2.contourArea(parent_contour)
-                target_contour = parent_contour
+        parent_contour = contours[parent_contour_number]
+        parent_rect = cv2.minAreaRect(parent_contour)
+        parent_width = max(parent_rect[1][0], parent_rect[1][1])
+        parent_height = min(parent_rect[1][0], parent_rect[1][1])
+        # 找最大的子轮廓是方形的轮廓中最大的轮廓
+        if UPPER_WH_RATIO[0] < parent_width / parent_height < UPPER_WH_RATIO[1] and cv2.contourArea(
+                parent_contour) > max_area:
+            max_area = cv2.contourArea(parent_contour)
+            target_contour = parent_contour
 
     if target_contour is not None:
+        parent_rect = cv2.minAreaRect(target_contour)
+        parent_width = max(parent_rect[1][0], parent_rect[1][1])
+        parent_height = min(parent_rect[1][0], parent_rect[1][1])
+        if parent_width / parent_height > 1.2:
+            print(parent_width / parent_height)
         return target_contour
     else:
         return None
