@@ -1,4 +1,5 @@
 import queue
+from collections import deque
 from multiprocessing import Process, Queue
 from modules.io.communication import Communicator, Status
 from modules.tools import clear_queue, ContextManager
@@ -59,7 +60,7 @@ class ParallelCommunicator(ContextManager):
 
         self._process.start()
 
-        self.history: list[tuple[float, Status]] = []
+        self.history: deque[tuple[float, Status]] = deque(maxlen=1000)
         self.latest_read_time_s: float = None
         self.latest_status: Status = None
 
@@ -71,7 +72,8 @@ class ParallelCommunicator(ContextManager):
 
     def update(self) -> None:
         '''注意阻塞'''
-        self.history += self._rx_queue.get()
+        buffer = self._rx_queue.get()
+        self.history.extend(buffer)
         self.latest_read_time_s, self.latest_status = self.history[-1]
 
     def send(
