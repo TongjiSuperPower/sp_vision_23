@@ -54,13 +54,15 @@ if __name__ == '__main__':
         while True:
             robot.update()
             img = robot.img
-            recorder.record(img, (robot.camera_stamp_ms, robot.yaw, robot.pitch))
+            robot_yaw, robot_pitch = robot.yaw_pitch_degree_at(robot.img_time_s)
+            robot_stamp_ms = robot.img_time_s * 1e3
+            recorder.record(img, (robot_stamp_ms, robot_yaw, robot_pitch))
             
-            twoTimeStampMs.append(robot.camera_stamp_ms)
+            twoTimeStampMs.append(robot_stamp_ms)
             dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 8 # (ms)
             dt = dtMs/1000
             
-            armors = armor_detector.detect(img, robot.yaw, robot.pitch)
+            armors = armor_detector.detect(img, robot_yaw, robot_pitch)
             armors = list(filter(lambda a: a.color != robot.color, armors))
             armors.sort(key=lambda a: a.observation[0]) # 优先击打最近的
             
@@ -86,7 +88,7 @@ if __name__ == '__main__':
             else:    
                 tracker.update(armors, dt)                          
                 
-                predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot.yaw, robot.pitch)
+                predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot_yaw, robot_pitch)
                  
                 # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
 
@@ -98,8 +100,8 @@ if __name__ == '__main__':
                 robot.send(*armor_in_gun.T[0], flag=fire)
            
                 # 调试用
-                # visualizer.plot((cy, y, robot.yaw*10, robot.pitch*10), ('cy', 'y', 'yaw', 'pitch'))
-                # visualizer.plot((x, y, z, robot.yaw*10, robot.pitch*10), ('x', 'y', 'z', 'yaw', 'pitch'))
+                # visualizer.plot((cy, y, robot_yaw*10, robot_pitch*10), ('cy', 'y', 'yaw', 'pitch'))
+                # visualizer.plot((x, y, z, robot_yaw*10, robot_pitch*10), ('x', 'y', 'z', 'yaw', 'pitch'))
                 # visualizer.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
                 # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz'))
                 # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz,vx*10,vy*10,vz*10), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz','vx','vy','vz'))
