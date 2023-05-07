@@ -186,15 +186,9 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
     if enableAirRes==1:
         try:
             # Drag coefficient, projectile radius (m), area (m2) and mass (kg).
-            c = 0.2
-            r = 21/1000 if robot.id=='big_one' else 8.5/1000
-            A = np.pi * r**2
-            m = 0.04 if robot.id=='big_one' else 0.0032
-            # Air density (kg.m-3), acceleration due to gravity (m.s-2).
-            rho_air = 1.17
+            m = 41/1000 if robot.id==1 else 0.0032
             g = 9.794
-            # For convenience, define  this constant.
-            k = 0.5 * c * rho_air * A
+            k = 0.00022802630547843214 if robot.id==1 else 6.0896287678629725e-05
             pitch = findPitch(robot.bullet_speed, k, m, g, math.sqrt(x**2+z**2), y, pitch-5, pitch+10)
             pitch += pitch_offset
         except:
@@ -248,7 +242,7 @@ def findPitch(bulletSpeed, k, m, g, distance, y, x0, x1, tol=1, maxiter=100):
 
     for i in range(maxiter):
         if abs(f1) < tol:
-            print("迭代次数:"+str(i))
+            # print("迭代次数:"+str(i))
             return x1
         dfdx = (f1 - f0) / (x1 - x0)
         x2 = x1 - f1 / dfdx
