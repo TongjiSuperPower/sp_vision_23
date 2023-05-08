@@ -7,7 +7,7 @@ import math
 import modules.tools as tools
 from modules.io.robot import Robot
 from modules.ExtendKF import EKF
-from modules.armor_detection import ArmorDetector
+from modules.autoaim.armor_detector import ArmorDetector
 from modules.tracker import Tracker,TrackerState
 from modules.NewEKF import ExtendedKalmanFilter
 

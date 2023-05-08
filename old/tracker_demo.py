@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 import modules.tools as tools
-from modules.armor_detection import ArmorDetector
+from modules.autoaim.armor_detector import ArmorDetector
 from modules.tracker import Tracker, TrackerState
 from modules.NewEKF import ExtendedKalmanFilter
 from modules.shot_point import Shot_Point
