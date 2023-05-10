@@ -20,7 +20,7 @@ if __name__ == '__main__':
             print('请重新输入')
     enable = True if enable == 'y' else False
 
-    with Robot(5, '/dev/ttyUSB0') as robot, Visualizer(enable) as visualizer:
+    with Robot(5, '/dev/ttyUSB0') as robot, Visualizer(enable=enable) as visualizer:
         robot.update()
 
         if robot.id == 1:
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             drawing = img.copy()
             for i, l in enumerate(armor_detector._raw_lightbars):
                 tools.drawContour(drawing, l.points, (0, 255, 255), 10)
-            for i, lp in enumerate(armor_detector._raw_lightbar_pairs):
+            for i, lp in enumerate(armor_detector._raw_armors):
                 tools.drawContour(drawing, lp.points)
             for i, a in enumerate(armors):
                 cx, cy, cz = a.in_camera_mm.T[0]
