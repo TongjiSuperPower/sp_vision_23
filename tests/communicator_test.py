@@ -2,7 +2,7 @@ import datetime
 import parent_folder
 from modules.io.communication import Communicator
 
-with Communicator('/dev/tty.usbserial-140') as communicator:
+with Communicator('/dev/ttyUSB0') as communicator:
     test: str = None
 
     while True:

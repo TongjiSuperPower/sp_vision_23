@@ -14,7 +14,7 @@ fps = 60  #自定义
 useAppro = True  #是否用近似，用弦长比边长近似转过的角度；不用的话，就用余弦定理求
 center_radius = 0.26  #装甲板中心距离装甲板的距离，大的27小的25，取个平均吧
 
-from modules.armor_detection import *
+from modules.autoaim.armor_detector import *
 from collections import deque
 
 #TODO 

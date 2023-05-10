@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision.io import read_image
 from torchvision.transforms import Resize
 from torch.utils.data import Dataset, DataLoader
-from modules.classification import class_names
+from modules.autoaim.classifier import class_names
 import matplotlib.pyplot as plt
 
 
