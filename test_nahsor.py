@@ -2,11 +2,12 @@
 # coding:utf-8
 import time
 
-from modules.Nahsor.Nahsor import *
+from modules.Nahsor.nahsor_marker import *
 import cv2 as cv
 
+
 def recognise():
-    filename = "../assets/new_mid_1.MP4"
+    filename = "assets/new_mid_1.MP4"
     cap = cv.VideoCapture(filename)
 
     if not cap.isOpened():
@@ -36,14 +37,12 @@ def recognise():
         if not ret:
             break
 
-
         # 使用mark()方法，传入一帧图像
         w.mark(img)
         # 使用markFrame()获得标记好的输出图像
         img = w.markFrame()
         # 显示帧率
-        img = cv2.putText(img, 'fps:'+str(pfps), (0, 80), cv2.FONT_HERSHEY_COMPLEX, 1.5, (100, 200, 200), 5)
-
+        img = cv2.putText(img, 'fps:' + str(pfps), (0, 80), cv2.FONT_HERSHEY_COMPLEX, 1.5, (100, 200, 200), 5)
 
         cv2.namedWindow("Press q to end", cv2.WINDOW_NORMAL)
         cv2.imshow("Press q to end", img)

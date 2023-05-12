@@ -9,7 +9,10 @@ from collections import Counter
 from scipy.optimize import curve_fit
 
 import time
-from modules.Nahsor.Utils import *
+
+from modules import tools
+from modules.Nahsor.nahsor_utils import *
+from modules.autoaim.transformation import LazyTransformation
 
 
 # 每局比赛旋转方向固定
@@ -86,6 +89,7 @@ class NahsorMarker(object):
 
         self.current_center = None  # 目标实际点
         self.target_radius = 0  # 击打半径
+        self.target_points = None  # pnp解算用点
         self.predict_center = None  # 预测的击打位置
 
         self.__target_status = STATUS.NOT_FOUND  # 状态指示--> not_found(0), found(1)
@@ -144,8 +148,8 @@ class NahsorMarker(object):
         mask = cv2.medianBlur(mask, 5)
         # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
-        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
         # mask = cv2.medianBlur(mask, 3)
 
         return mask
@@ -253,7 +257,8 @@ class NahsorMarker(object):
             self.last_center_for_r = self.current_center
             self.current_center = target_center
 
-            self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2*2)
+            self.target_points = get_rect_corners(target_contour)
+            self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2 * 2)
             self.__target_status = STATUS.FOUND
         else:
             self.__target_status = STATUS.NOT_FOUND
@@ -268,8 +273,23 @@ class NahsorMarker(object):
                     box = cv2.boxPoints(rect)
                     box = np.int0(box)
                     orig1 = cv2.drawContours(orig1, [box], 0, (0, 255, 0), 3)
-                    orig1 = cv2.putText(orig1, str(i), tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                    orig1 = cv2.putText(orig1, str(cv2.contourArea(contour)), tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX,
+                                        1, (0, 255, 0), 2)
 
+            # 绘制多边形
+            if self.r_center is not None:
+
+                ordered = order_points(self.target_points, self.r_center)
+
+                for i, p in enumerate(ordered):
+                    dx = p[0] - self.r_center[0]
+                    dy = p[1] - self.r_center[1]
+                    angle = np.arctan2(dy, dx) * 180 / np.pi
+                    # orig1 = cv2.putText(orig1, f'{angle:.0f}', (p[0] - 20, p[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                    #                     (0, 255, 255), 5)
+                    orig1 = cv2.putText(orig1, f'{i}', tuple(p), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 5)
+
+                    orig1 = cv2.circle(orig1, tuple(p), 1, (0, 255, 255), 10)
             cv2.namedWindow('contours', 0)
             cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
             cv2.imshow('contours', orig1)
@@ -284,12 +304,12 @@ class NahsorMarker(object):
                 print('fan error')
 
             if self.__R_status:
-                R_by_contours = get_r_by_contours(contours, parent_contours, self.current_center,
+                R_by_contours = get_r_by_contours(contours, hierarchy, self.current_center,
                                                   self.target_radius)
                 self.set_target_centers()
                 R_by_centers = get_r_by_centers(self.target_centers)
 
-                if get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
+                if 0 <= get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
                     self.r_center = R_by_contours
                     self.__R_status = STATUS.FOUND
                 else:
@@ -361,7 +381,7 @@ class NahsorMarker(object):
                         self.rot_direction = self.get_rot_direction()
 
                 if self.rot_direction is not None:
-                    self.predict_center = self.get_predict_center()
+                    self.predict_center = self.get_2d_predict_center()
 
     def markFrame(self):
         """
@@ -384,9 +404,9 @@ class NahsorMarker(object):
 
         if self.r_center is not None:
             orig = cv2.circle(orig, (int(self.r_center[0]), int(self.r_center[1])), 5, (0, 255, 0), 3)
-        if self.target_centers is not None:
-            for p in self.target_centers:
-                orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
+        # if self.target_centers is not None:
+        #     for p in self.target_centers:
+        #         orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
 
         if self.__target_status == STATUS.FOUND:
             s = 'found'
@@ -427,7 +447,7 @@ class NahsorMarker(object):
             angle = self.get_predict_time() * self.rot_speed
         return angle * 180 / np.pi
 
-    def get_predict_center(self):
+    def get_2d_predict_center(self):
         theta = self.rot_direction * self.get_theta()
         rot_mat = cv2.getRotationMatrix2D(self.r_center, theta, 1)
         sinA = rot_mat[0][1]
@@ -439,6 +459,21 @@ class NahsorMarker(object):
         return (
             int(self.r_center[0] + cosA * xx - sinA * yy),
             int(self.r_center[1] + sinA * xx + cosA * yy))
+
+    def get_3d_predict_center(self):
+        r_center = [0, -501, 0]
+        # 中心位置
+        current_center = [0, 194.5, 0]
+        # 获得旋转的角度
+        theta = self.rot_direction * self.get_theta()
+        rot_mat = cv2.getRotationMatrix2D(r_center, theta, 1)
+        sinA = rot_mat[0][1]
+        cosA = rot_mat[0][0]
+        # nahsor.current_center实际不准
+        xx = -(r_center[0] - current_center[0])
+        yy = -(r_center[1] - current_center[1])
+        return (int(r_center[0] + cosA * xx - sinA * yy),
+                int(r_center[1] + sinA * xx + cosA * yy), 0)
 
     def get_rot_direction(self):
         rot_directions = []

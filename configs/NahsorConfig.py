@@ -102,7 +102,7 @@ SQUARE_WH_RATIO = (0.9, 1.1)
 # 装甲板上半部分长宽比
 UPPER_WH_RATIO = (0.9, 1.2)
 # 能量机关中心与目标中心距离和目标半径的比值
-CENTER_DISTANCE_RATIO = (3.8, 4.2)
+CENTER_DISTANCE_RATIO = (2.5, 4.2)
 
 # 装甲版的实际长和宽(单位:cm)
 TARGET_WIDTH = 25.
@@ -115,6 +115,8 @@ FOCAL_LENGTH = 1200
 # 轮廓面积最小值，用于筛除过小的轮廓，单位px
 # 注意过小时可能会把r标滤掉
 CONTOUR_MIN_AREA = 100
+# R标大小范围
+R_AREA_RANGE = (100, 150)
 
 # 最小误差
 DBL_EPSILON = 2.2204e-016

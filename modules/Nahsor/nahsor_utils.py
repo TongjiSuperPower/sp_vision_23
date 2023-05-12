@@ -36,7 +36,7 @@ def get_distance(p1, p2):
     :return: 距离: float
     """
     if p1 is None or p2 is None:
-        return 0
+        return -1
     dis_sq = (p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1])
     return np.sqrt(dis_sq)
 
@@ -208,23 +208,22 @@ def angle_func(t, a, w, b, t0, c=0.0):
     # c=-a/w*cos(w*t)
 
 
-def get_r_by_contours(contours, parent_contours, target_center, target_radius):
+def get_r_by_contours(contours, hierarchy, target_center, target_radius):
     max_area = float('-inf')
     r_contour = None
-    for parent_contour_number, child_contours in parent_contours.items():
-        num_sub_contours = len(child_contours)
-        # 没有子轮廓
-        if num_sub_contours == 0:
-            parent_contour = contours[parent_contour_number]
-            parent_rect = cv2.minAreaRect(parent_contour)
-            parent_width = max(parent_rect[1][0], parent_rect[1][1])
-            parent_height = min(parent_rect[1][0], parent_rect[1][1])
-            # 方形且距离在一定范围
-            if SQUARE_WH_RATIO[0] < parent_width / parent_height < SQUARE_WH_RATIO[1] and CENTER_DISTANCE_RATIO[
-                0] < get_distance(target_center, parent_rect[0]) / target_radius < CENTER_DISTANCE_RATIO[1]:
-                if cv2.contourArea(parent_contour) > max_area:
-                    max_area = cv2.contourArea(parent_contour)
-                    r_contour = parent_contour
+    for i in range(len(contours)):
+        if hierarchy[0][i][2] == -1 and hierarchy[0][i][3] == -1:
+            contour = contours[i]
+            if R_AREA_RANGE[0] < cv2.contourArea(contour) < R_AREA_RANGE[1]:
+                rect = cv2.minAreaRect(contour)
+                width = max(rect[1][0], rect[1][1])
+                height = min(rect[1][0], rect[1][1])
+                # 方形且距离在一定范围
+                if SQUARE_WH_RATIO[0] < width / height < SQUARE_WH_RATIO[1] and CENTER_DISTANCE_RATIO[
+                    0] < get_distance(target_center, rect[0]) / target_radius < CENTER_DISTANCE_RATIO[1]:
+                    if cv2.contourArea(contour) > max_area:
+                        max_area = cv2.contourArea(contour)
+                        r_contour = contour
 
     if r_contour is not None:
         return cv2.minAreaRect(r_contour)[0]
@@ -330,11 +329,11 @@ def get_target_fan(contours, parent_contours):
             target_contour = parent_contour
 
     if target_contour is not None:
-        parent_rect = cv2.minAreaRect(target_contour)
-        parent_width = max(parent_rect[1][0], parent_rect[1][1])
-        parent_height = min(parent_rect[1][0], parent_rect[1][1])
-        if parent_width / parent_height > 1.2:
-            print(parent_width / parent_height)
+        # parent_rect = cv2.minAreaRect(target_contour)
+        # parent_width = max(parent_rect[1][0], parent_rect[1][1])
+        # parent_height = min(parent_rect[1][0], parent_rect[1][1])
+        # if parent_width / parent_height > 1.2:
+        #     print(parent_width / parent_height)
         return target_contour
     else:
         return None
@@ -392,3 +391,61 @@ def get_target_fan(contours, parent_contours):
                     max_area = cv2.contourArea(parent_contour)
                     target_contour = max_child_contour
         return None
+
+
+def order_points(pts, r_center):
+    rect = np.zeros((4, 2), dtype=np.float32)
+
+    angles = []
+    for pt in pts:
+        dx = pt[0] - r_center[0]
+        dy = pt[1] - r_center[1]
+        angle = np.arctan2(dy, dx) * 180 / np.pi
+        angles.append(angle)
+    angles = np.array(angles)
+    pts_angles = list(zip(pts, angles))
+    if np.min(np.abs(angles)) > 140:
+        # 将所有点分成x轴正方向和x轴负方向两组
+        pos_pts = [(pt, angle) for pt, angle in pts_angles if angle >= 0]
+        neg_pts = [(pt, angle) for pt, angle in pts_angles if angle < 0]
+        # 分别按照夹角大小排序
+        pos_pts.sort(key=lambda x: x[1])
+        neg_pts.sort(key=lambda x: x[1])
+        pts_angles = pos_pts + neg_pts
+    else:
+        pts_angles.sort(key=lambda x: x[1])
+    sorted_pts = [pt for pt, _ in pts_angles]
+    rect[0] = sorted_pts[0]
+    rect[1] = sorted_pts[1]
+    rect[2] = sorted_pts[2]
+    rect[3] = sorted_pts[3]
+    return np.int0(rect)
+
+
+def get_rect_corners(contour):
+    # 找到凸包
+    hull = cv2.convexHull(contour)
+    # 计算轮廓的周长
+    perimeter = cv2.arcLength(contour, True)
+    # 进行多边形逼近，得到近似多边形
+    points = cv2.approxPolyDP(hull, 0.1 * perimeter, True)
+    approx = np.int0(points)
+    # 计算轮廓的最小外接矩形
+    rect = cv2.minAreaRect(contour)
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)
+
+    # 找到近似多边形中最接近矩形的四个顶点
+    rect_corners = []
+    for i in range(4):
+        pt = box[i]
+        min_dist = float('inf')
+        closest_corner = None
+        for j in range(len(approx)):
+            dist = get_distance(pt, approx[j][0])
+            if dist < min_dist:
+                min_dist = dist
+                closest_corner = approx[j][0]
+        rect_corners.append(closest_corner)
+
+    return np.array(rect_corners)
