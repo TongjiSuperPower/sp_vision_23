@@ -11,6 +11,8 @@ from modules.autoaim.armor_detector import ArmorDetector
 from modules.autoaim.armor_solver import ArmorSolver
 import modules.tools as tools
 from modules.tracker import Tracker, TrackerState
+from modules.Nahsor.nahsor_marker import NahsorMarker
+from configs.NahsorConfig import COLOR, FIT_SPEED_MODE
 
 from remote_visualizer import Visualizer
 
@@ -60,6 +62,11 @@ if __name__ == '__main__':
         tracking_threshold = 5  # 从检测到->跟踪的帧数
         lost_threshold = 10  # 从暂时丢失->丢失的帧数
         tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
+        
+        # 反能量机关:
+        nahsor_color = COLOR.RED if robot.color == 'blue' else COLOR.BLUE
+        nahsor_tracker = NahsorMarker(color=nahsor_color, fit_debug=0, target_debug=1,
+                     fit_speed_mode=FIT_SPEED_MODE.CURVE_FIT)
 
         while True:
             robot.update()
@@ -80,29 +87,39 @@ if __name__ == '__main__':
             dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 8  # (ms)
             dt = dtMs/1000
 
-            if tracker.tracker_state == TrackerState.LOST:
+            if robot.work_mode == 1:
+                # 自瞄
+                if tracker.tracker_state == TrackerState.LOST:
 
-                tracker.init(armors)
+                    tracker.init(armors)
 
+                else:
+                    tracker.update(armors, dt)
+
+                    predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot_yaw_degree, robot_pitch_degree)
+
+                    # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
+
+                    # 重力补偿
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
+
+                    fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
+                    robot.send(*armor_in_gun.T[0], flag=fire)
+
+                    # 调试用
+                    # visualizer.plot((cy, y, robot_yaw_degree*10, robot_pitch_degree*10), ('cy', 'y', 'yaw', 'pitch'))
+                    # visualizer.plot((x, y, z, robot_yaw_degree*10, robot_pitch_degree*10), ('x', 'y', 'z', 'yaw', 'pitch'))
+                    # visualizer.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
+                    # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz'))
+                    # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz,vx*10,vy*10,vz*10), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz','vx','vy','vz'))
+            
             else:
-                tracker.update(armors, dt)
+                # 能量机关
+                nahsor_tracker.mark(img)
 
-                predictedPtsInWorld = tracker.getShotPoint(0.05, robot.bullet_speed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, robot_yaw_degree, robot_pitch_degree)
 
-                # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
 
-                # 重力补偿
-                armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
-
-                fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
-                robot.send(*armor_in_gun.T[0], flag=fire)
-
-                # 调试用
-                # visualizer.plot((cy, y, robot_yaw_degree*10, robot_pitch_degree*10), ('cy', 'y', 'yaw', 'pitch'))
-                # visualizer.plot((x, y, z, robot_yaw_degree*10, robot_pitch_degree*10), ('x', 'y', 'z', 'yaw', 'pitch'))
-                # visualizer.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
-                # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz'))
-                # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz,vx*10,vy*10,vz*10), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz','vx','vy','vz'))
+                
 
             # 调试用
             if not visualizer.enable:
