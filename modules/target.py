@@ -337,13 +337,15 @@ class Outpost(NormalRobot):
         self.target_state = np.zeros((8,))
 
         # EKF
+        #            x      y     z    yaw  vx  vy    vz    vyaw
         self.q_v = [1e-2, 1e-2, 1e-2, 2e-2, 1, 5e-1, 7e-1, 4e-2]
         self.Q = np.diag(self.q_v)
 
+        #            x     y     z    yaw
         self.r_v = [1e-1, 1e-1, 1e-1, 6e-1]
         self.R = np.diag(self.r_v)
 
-        self.P0 = np.eye(9)
+        self.P0 = np.eye(8)
 
         self.armors_in_pixel = deque(maxlen=3)
 
