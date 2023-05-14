@@ -1,8 +1,12 @@
 import cv2
+from enum import IntEnum
 from modules.io.parallel_camera import ParallelCamera
 from modules.io.parallel_communicator import ParallelCommunicator
 from modules.io.context_manager import ContextManager
 
+class WorkMode(IntEnum):
+    AUTOAIM = 0
+    NASHOR = 1
 
 def limit_degree(angle_degree: float) -> float:
     '''(-180,180]'''
@@ -32,6 +36,7 @@ class Robot(ContextManager):
         self.flag: int = None
         self.color: str = None
         self.id: int = None
+        self.work_mode = WorkMode.AUTOAIM
 
     def _close(self) -> None:
         self._camera._close()
@@ -50,11 +55,12 @@ class Robot(ContextManager):
 
         # flag:
         # 个位: 1:英雄 2:工程 3/4/5:步兵 6:无人机 7:哨兵 8:飞镖 9:雷达站
-        # 十位: TODO 用来切换自瞄/能量机关
+        # 十位: TODO 用来切换自瞄/能量机关 1:自瞄 2:能量机关
         # 百位: 0:我方为红方 1:我方为蓝方
         self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
         self.id = self.flag % 100
+        self.work_mode = WorkMode.AUTOAIM if (self.flag/10)%10 == 1 else WorkMode.NASHOR
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''
