@@ -5,8 +5,8 @@ from modules.io.parallel_communicator import ParallelCommunicator
 from modules.io.context_manager import ContextManager
 
 class WorkMode(IntEnum):
-    AUTOAIM = 0
-    NASHOR = 1
+    AUTOAIM = 1
+    NASHOR = 2
 
 def limit_degree(angle_degree: float) -> float:
     '''(-180,180]'''
