@@ -111,7 +111,13 @@ if __name__ == '__main__':
                     # visualizer.plot((x, y, z, robot_yaw_degree*10, robot_pitch_degree*10), ('x', 'y', 'z', 'yaw', 'pitch'))
                     # visualizer.plot((x, y, z, px, py, pz), ('x', 'y', 'z', 'px', 'py', 'pz'))
                     # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz'))
-                    # visualizer.plot((x, y, z, px, py, pz, ppx, ppy, ppz,vx*10,vy*10,vz*10), ('x', 'y', 'z', 'px', 'py', 'pz','ppx','ppy','ppz','vx','vy','vz'))
+                    visualizer.plot(
+                        (tracker.tracking_target.target_state[0],tracker.tracking_target.target_state[1],tracker.tracking_target.target_state[2],
+                         tracker.tracking_target.target_state[3],
+                         tracker.tracking_target.target_state[4],tracker.tracking_target.target_state[5],tracker.tracking_target.target_state[6],
+                         tracker.tracking_target.target_state[7],tracker.tracking_target.target_state[8]),
+                         ('x','y','z','yaw','vx','vy','vz','vyaw','r')
+                    )
             
             else:
                 # 能量机关

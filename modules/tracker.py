@@ -40,8 +40,8 @@ class Tracker:
         # 根据装甲板id调用相应的目标模型
         if (armor.name in ("big_three", "big_four", "big_five")):
             self.tracking_target = BalanceInfantry()
-        elif (armor.name == "small_outpost"):
-            self.tracking_target = Outpost()
+        # elif (armor.name == "small_outpost"):
+        #     self.tracking_target = Outpost()
         elif (armor.name == "small_base"):
             self.tracking_target = Base()
         else:
