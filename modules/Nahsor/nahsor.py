@@ -159,14 +159,14 @@ class Nahsor:
         return self.h(x)[:3]
 
 
-    def j_f(self, x, dt):
-        # J_f - Jacobian of process function
-        dfdx = np.eye(9, 9)
-        dfdx[0, 4] = dt
-        dfdx[1, 5] = dt
-        dfdx[2, 6] = dt
-        dfdx[3, 7] = dt
-        return dfdx
+    # def j_f(self, x, dt):
+    #     # J_f - Jacobian of process function
+    #     dfdx = np.eye(9, 9)
+    #     dfdx[0, 4] = dt
+    #     dfdx[1, 5] = dt
+    #     dfdx[2, 6] = dt
+    #     dfdx[3, 7] = dt
+    #     return dfdx
 
     def h(self, x):
         # h - Observation function
@@ -178,16 +178,16 @@ class Nahsor:
         z[3] = yaw  # yaw
         return z
 
-    def j_h(self, x):
-        # J_h - Jacobian of observation function
-        dhdx = np.zeros((4, 9))
-        yaw, r = x[3], x[8]
-        dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
-        dhdx[0, 3] = -r * math.cos(yaw)
-        dhdx[2, 3] = r * math.sin(yaw)
-        dhdx[0, 8] = -math.sin(yaw)
-        dhdx[2, 8] = -math.cos(yaw)
-        return dhdx
+    # def j_h(self, x):
+    #     # J_h - Jacobian of observation function
+    #     dhdx = np.zeros((4, 9))
+    #     yaw, r = x[3], x[8]
+    #     dhdx[0, 0] = dhdx[1, 1] = dhdx[2, 2] = dhdx[3, 3] = 1
+    #     dhdx[0, 3] = -r * math.cos(yaw)
+    #     dhdx[2, 3] = r * math.sin(yaw)
+    #     dhdx[0, 8] = -math.sin(yaw)
+    #     dhdx[2, 8] = -math.cos(yaw)
+    #     return dhdx
 
     def get_continous_yaw(self, yaw):
         yaw = self.last_yaw + shortest_angular_distance(self.last_yaw, yaw)
