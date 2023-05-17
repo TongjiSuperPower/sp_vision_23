@@ -38,7 +38,7 @@ class NahsorMarker(object):
     last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
     def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.HSV, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
@@ -89,7 +89,7 @@ class NahsorMarker(object):
 
         self.current_center = None  # 目标实际点
         self.target_radius = 0  # 击打半径
-        self.target_points = None  # pnp解算用点
+        self.target_corners = None  # pnp解算用点
         self.predict_center = None  # 预测的击打位置
 
         self.__target_status = STATUS.NOT_FOUND  # 状态指示--> not_found(0), found(1)
@@ -154,72 +154,6 @@ class NahsorMarker(object):
 
         return mask
 
-    # def __find_target1(self, mask):
-    #     # 获取轮廓
-    #     mask_cp = mask.copy()
-    #     contours, hierarchy = cv2.findContours(mask_cp, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    #     # ----------- 按约束条件筛选轮廓 start -----------
-    #
-    #     parent_contours = {}
-    #     # 寻找有方形子轮廓的轮廓
-    #     for i, contour in enumerate(contours):
-    #         rect = cv2.minAreaRect(contour)
-    #         w_armor = max(rect[1][0], rect[1][1])
-    #         h_armor = min(rect[1][0], rect[1][1])
-    #         if cv2.contourArea(contour) < MIN_AREA:
-    #             continue
-    #         if hierarchy[0][i][3] != -1 and SQUARE_WH_RATIO[0] < w_armor / h_armor < SQUARE_WH_RATIO[1]:
-    #             try:
-    #                 parent_contours[hierarchy[0][i][3]].append(i)
-    #             except KeyError:
-    #                 pass
-    #         else:
-    #             parent_contours[i] = []
-    #
-    #     # 统计子轮廓数量，并记录子轮廓数量为1且面积最大的轮廓
-    #     max_area = float('-inf')
-    #     target_contour = None
-    #     for father_contour_number, child_contours in parent_contours.items():
-    #         num_sub_contours = len(child_contours)
-    #         if num_sub_contours == 1 and cv2.contourArea(contours[father_contour_number]) > max_area:
-    #             max_area = cv2.contourArea(contours[father_contour_number])
-    #             target_contour = contours[parent_contours[father_contour_number][0]]
-    #
-    #     return target_contour, contours
-
-    # def __find_hit_rect(self, armor_contour):
-    #     if self.r_center is None:
-    #         return (None, None), (None, None), None
-    #     # 计算中心点
-    #     armor_center, armor_size, armor_angle = cv2.minAreaRect(armor_contour)
-    #
-    #     # 计算平移距离，由装甲板中心点与圆心距离确定
-    #     MOVE_RATIO = 0.2  # 比例由图纸尺寸决定
-    #     delta_x = armor_center[0] - self.r_center[0]
-    #     delta_y = armor_center[1] - self.r_center[1]
-    #     radius = math.sqrt(delta_x * delta_x + delta_y * delta_y)
-    #     dx, dy = MOVE_RATIO * delta_x, MOVE_RATIO * delta_y
-    #     # 计算出击打点的中心点坐标
-    #     hit_center_x, hit_center_y = armor_center[0] + dx, armor_center[1] + dy
-    #
-    #     # 计算直线斜率
-    #     armor_slope = (armor_center[1] - self.r_center[1]) / (armor_center[0] - self.r_center[0])
-    #
-    #     # 计算角度
-    #     hit_rect_angle = math.atan(armor_slope) * 180 / math.pi
-    #
-    #     # 将角度转换为顺时针方向的角度
-    #     if hit_rect_angle > 0:
-    #         hit_rect_angle -= 90
-    #     else:
-    #         hit_rect_angle += 270
-    #
-    #     # 计算装甲板长宽，由上半灯条确定
-    #     W_RATIO, H_RATIO = 0.5, 1
-    #     hit_rect_size = (int(W_RATIO * radius), int(H_RATIO * radius))
-    #     # RotateRect格式
-    #     return (hit_center_x, hit_center_y), hit_rect_size, hit_rect_angle
-
     def mark(self, frame):
         # mark之前先初始化
         self.origin_frame = frame
@@ -257,7 +191,7 @@ class NahsorMarker(object):
             self.last_center_for_r = self.current_center
             self.current_center = target_center
 
-            self.target_points = get_rect_corners(target_contour)
+            self.target_corners = get_rect_corners(target_contour)
             self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2 * 2)
             self.__target_status = STATUS.FOUND
         else:
@@ -279,7 +213,7 @@ class NahsorMarker(object):
             # 绘制多边形
             if self.r_center is not None:
 
-                ordered = order_points(self.target_points, self.r_center)
+                ordered = order_points(self.target_corners, self.r_center)
 
                 for i, p in enumerate(ordered):
                     dx = p[0] - self.r_center[0]
@@ -329,9 +263,7 @@ class NahsorMarker(object):
             # ----------- 寻找圆心的位置 end -----------
 
             # ----------- 预测 start -----------------
-            if USE_PREDICT == 0:
-                self.predict_center = self.current_center
-            else:
+            if USE_PREDICT == 1:
                 if self.energy_mode == ENERGY_MODE.BIG:
                     # if self.__r_change == 0 and self.last_center is not None:
                     if self.__target_status == STATUS.NOT_FOUND or self.r_center is None:
@@ -380,9 +312,6 @@ class NahsorMarker(object):
                     if self.rot_direction is None or self.rot_direction != clockwise1:
                         self.rot_direction = self.get_rot_direction()
 
-                if self.rot_direction is not None:
-                    self.predict_center = self.get_2d_predict_center()
-
     def markFrame(self):
         """
         画图函数
@@ -417,13 +346,7 @@ class NahsorMarker(object):
 
         return orig
 
-    def get_predict_time(self):
-        """
-        返回向后预测的时间
-        """
-        return DELAY_TIME
-
-    def get_theta(self):
+    def get_theta(self, predict_time):
         """
         返回下一个点与当前点的角度
         """
@@ -437,43 +360,49 @@ class NahsorMarker(object):
                 # angle = self.get_predict_time() * self.rot_speed
                 # angle, _ = quad(speed_func, time.time() - self.big_start_time,
                 #                 time.time() + self.get_predict_time() - self.big_start_time, args=fit_param_args)
-                angle = angle_func(time.time() + self.get_predict_time() - self.big_start_time,
+                angle = angle_func(time.time() + predict_time - self.big_start_time,
                                    *fit_param_args) - angle_func(time.time() - self.big_start_time,
                                                                  *fit_param_args)
             else:
-                angle = self.get_predict_time() * self.rot_speed
+                angle = predict_time * self.rot_speed
                 # angle = 0
         else:
-            angle = self.get_predict_time() * self.rot_speed
+            angle = predict_time * self.rot_speed
         return angle * 180 / np.pi
 
-    def get_2d_predict_center(self):
-        theta = self.rot_direction * self.get_theta()
-        rot_mat = cv2.getRotationMatrix2D(self.r_center, theta, 1)
-        sinA = rot_mat[0][1]
-        cosA = rot_mat[0][0]
+    def set_2d_predict_center(self, predict_time):
+        if USE_PREDICT == 0:
+            self.predict_center = self.current_center
+        else:
+            if self.rot_direction is not None:
+                theta = self.rot_direction * self.get_theta(predict_time)
+                rot_mat = cv2.getRotationMatrix2D(self.r_center, theta, 1)
+                sinA = rot_mat[0][1]
+                cosA = rot_mat[0][0]
 
-        xx = -(self.r_center[0] - self.current_center[0])
-        yy = -(self.r_center[1] - self.current_center[1])
+                xx = -(self.r_center[0] - self.current_center[0])
+                yy = -(self.r_center[1] - self.current_center[1])
 
-        return (
-            int(self.r_center[0] + cosA * xx - sinA * yy),
-            int(self.r_center[1] + sinA * xx + cosA * yy))
+                self.predict_center = (
+                    int(self.r_center[0] + cosA * xx - sinA * yy), int(self.r_center[1] + sinA * xx + cosA * yy))
 
-    def get_3d_predict_center(self):
-        r_center = [0, -501, 0]
-        # 中心位置
-        current_center = [0, 194.5, 0]
-        # 获得旋转的角度
-        theta = self.rot_direction * self.get_theta()
-        rot_mat = cv2.getRotationMatrix2D(r_center, theta, 1)
-        sinA = rot_mat[0][1]
-        cosA = rot_mat[0][0]
-        # nahsor.current_center实际不准
-        xx = -(r_center[0] - current_center[0])
-        yy = -(r_center[1] - current_center[1])
-        return (int(r_center[0] + cosA * xx - sinA * yy),
-                int(r_center[1] + sinA * xx + cosA * yy), 0)
+    def get_2d_predict_corners(self, predict_time):
+        if USE_PREDICT == 0:
+            return self.target_corners
+        else:
+            if self.rot_direction is not None:
+                theta = self.rot_direction * self.get_theta(predict_time)
+                rot_mat = cv2.getRotationMatrix2D(self.r_center, theta, 1)
+                def rotate(rot_mat, r_center, point):
+                    sinA = rot_mat[0][1]
+                    cosA = rot_mat[0][0]
+                    xx = -(r_center[0] - point[0])
+                    yy = -(r_center[1] - point[1])
+                    return (int(r_center[0] + cosA * xx - sinA * yy), int(r_center[1] + sinA * xx + cosA * yy))
+
+                return [rotate(rot_mat, self.r_center, point) for point in self.target_corners]
+            else:
+                return self.target_corners
 
     def get_rot_direction(self):
         rot_directions = []
