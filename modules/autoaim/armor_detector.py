@@ -15,6 +15,7 @@ threshold_value = 100  # 二值化阈值
 min_contour_area = 10  # 保证6m以内灯条面积大于该值
 max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
+min_color_difference = 50  # 最小颜色差
 
 # lightbarPair
 max_angle = 45  # 装甲板左右灯条中点连线与水平线最大夹角
@@ -90,8 +91,8 @@ class ArmorDetector:
             roi_x, roi_y, roi_w, roi_h = cv2.boundingRect(contour)  # (左上x, 左上y, w, h)
             roi_blue = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 0]
             roi_red = img[roi_y:roi_y+roi_h, roi_x:roi_x+roi_w, 2]
-            blue_sum = np.count_nonzero(cv2.subtract(roi_blue, roi_red) > 10)
-            red_sum = np.count_nonzero(cv2.subtract(roi_red, roi_blue) > 10)
+            blue_sum = np.count_nonzero(cv2.subtract(roi_blue, roi_red) > min_color_difference)
+            red_sum = np.count_nonzero(cv2.subtract(roi_red, roi_blue) > min_color_difference)
             color = 'blue' if blue_sum > red_sum else 'red'
             if color != self._enemy_color:
                 continue
