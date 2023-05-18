@@ -102,12 +102,37 @@ def R_gimbal2imu(yaw: float, pitch: float) -> np.ndarray:
     return R_y @ R_x
 
 
+def project_imu2pixel(
+        point_in_imu_mm: np.ndarray,
+        yaw_degree: float, pitch_degree: float,
+        cameraMatrix: np.ndarray, distCoeffs: np.ndarray,
+        R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray
+) -> np.ndarray:
+    R_imu2gimbal = R_gimbal2imu(yaw_degree, pitch_degree).T
+    R_gimbal2camera = R_camera2gimbal.T
+    point_in_gimbal_mm = R_imu2gimbal @ point_in_imu_mm
+    point_in_camera_mm = R_gimbal2camera @ point_in_gimbal_mm - R_gimbal2camera @ t_camera2gimbal
+    point_in_pixel, _ = cv2.projectPoints(point_in_camera_mm, np.zeros((3,1)), np.zeros((3,1)), cameraMatrix, distCoeffs)
+    point_in_pixel = point_in_pixel[0][0]
+    return point_in_pixel
+
+
 def clear_queue(q: Queue) -> None:
     try:
         while True:
             q.get(timeout=0.1)
     except Empty:
         return
+    
+    
+def limit_rad(angle_rad: float) -> float:
+    '''(-pi,pi]'''
+    while angle_rad <= -math.pi:
+        angle_rad += 2 * math.pi
+    while angle_rad > math.pi:
+        angle_rad -= 2 * math.pi
+    return angle_rad
+
     
 def normalize_angle_positive(angle):
     """ Normalizes the angle to be 0 to 2*pi

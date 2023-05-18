@@ -20,25 +20,24 @@ class Tracker:
         if len(armors) == 0:
             return
 
-        self.state = 'DETECTING'
-        self._lost_count = 0
-        self._detect_count = 1
         # 优先打最近的
         armor = armors[0]
 
-        if armor.name == 'small_outpost':
-            self.target = Outpost()
+        self.state = 'DETECTING'
+        self._lost_count = 0
+        self._detect_count = 1
 
-        self.target.init(armor, img_time_s)
+        if armor.name == 'small_outpost':
+            self.target = Outpost(armor, img_time_s)
 
     def update(self, armors: Iterable[Armor], img_time_s: float) -> None:
         self.target.predict_to(img_time_s)
-        predicted_armor_in_imu_m = self.target.get_armor_in_imu_m()
+        predicted_armor_position_m = self.target.get_armor_position_m()
 
         min_distance_m = np.inf
         min_distance_armor: Armor = None
         for armor in filter(lambda a: a.name == self.target.name, armors):
-            distance_m = np.linalg.norm(predicted_armor_in_imu_m - armor.in_imu_m)
+            distance_m = np.linalg.norm(predicted_armor_position_m - armor.in_imu_m)
             if distance_m < min_distance_m:
                 min_distance_m = distance_m
                 min_distance_armor = armor
