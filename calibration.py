@@ -57,7 +57,8 @@ def calibrate_camera():
         while True:
             robot.update()
 
-            img, yaw, pitch = robot.img, robot.yaw, robot.pitch
+            img, img_time_s = robot.img, robot.img_time_s
+            yaw, pitch = robot.yaw_pitch_degree_at(img_time_s)
 
             if img_shape is None:
                 img_shape = img.shape
