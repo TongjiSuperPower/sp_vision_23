@@ -14,11 +14,10 @@ inital_speed_rad_per_s = 0.2 * 2 * math.pi
 
 P0 = np.diag([1e-2, 1e-2, 1e-2, 4e-2, 2])
 Q = np.diag([1e-6, 1e-6, 1e-6, 1e-6, 1e-6])
-R = np.diag([1e-2, 1e-2, 1e-2, 4e-2])
-
+R = np.diag([8e-4, 5e-4, 8e-4, 4e-4])
 
 def jacobian_f(x: ColumnVector, dt_s: float) -> Matrix:
-    F = np.float32([[1, 0, 0, 0, 0],
+    F = np.float64([[1, 0, 0, 0, 0],
                     [0, 1, 0, 0, 0],
                     [0, 0, 1, 0, 0],
                     [0, 0, 0, 1, dt_s],
@@ -35,13 +34,13 @@ def h(x: ColumnVector) -> ColumnVector:
     armor_x_m = center_x_m - radius_m * math.sin(yaw_rad)
     armor_y_m = center_y_m
     armor_z_m = center_z_m - radius_m * math.cos(yaw_rad)
-    z = np.float32([[armor_x_m, armor_y_m, armor_z_m, yaw_rad]]).T
+    z = np.float64([[armor_x_m, armor_y_m, armor_z_m, yaw_rad]]).T
     return z
 
 
 def jacobian_h(x: ColumnVector) -> Matrix:
     yaw_rad = x[3, 0]
-    H = np.float32([[1, 0, 0, -radius_m * math.cos(yaw_rad), 0],
+    H = np.float64([[1, 0, 0, -radius_m * math.cos(yaw_rad), 0],
                     [0, 1, 0,                             0, 0],
                     [0, 0, 1,  radius_m * math.sin(yaw_rad), 0],
                     [0, 0, 0,                             1, 0]])
@@ -65,13 +64,13 @@ def h_inv(z: ColumnVector, speed_rad_per_s: float) -> ColumnVector:
     center_x_m = armor_x_m + radius_m * math.sin(yaw_rad)
     center_y_m = armor_y_m
     center_z_m = armor_z_m + radius_m * math.cos(yaw_rad)
-    x = np.float32([[center_x_m, center_y_m, center_z_m, yaw_rad, speed_rad_per_s]]).T
+    x = np.float64([[center_x_m, center_y_m, center_z_m, yaw_rad, speed_rad_per_s]]).T
     return x
 
 
 def get_z_from_armor(armor: Armor) -> ColumnVector:
     armor_x_m, armor_y_m, armor_z_m = armor.in_imu_m.T[0]
-    z = np.float32([[armor_x_m, armor_y_m, armor_z_m, armor.yaw_in_imu_rad]]).T
+    z = np.float64([[armor_x_m, armor_y_m, armor_z_m, armor.yaw_in_imu_rad]]).T
     return z
 
 
