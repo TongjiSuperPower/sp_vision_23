@@ -17,11 +17,11 @@ max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
 min_color_difference = 50  # 最小颜色差
 
-# lightbarPair
-max_angle = 45  # 装甲板左右灯条中点连线与水平线最大夹角
+# LightbarPair
+max_angle = 10  # 装甲板左右灯条中点连线与水平线最大夹角
 max_side_ratio = 2  # 装甲板左右灯条长度最大比值，max/min
 min_ratio = 1  # 最小装甲板长宽比
-max_ratio = 6  # 最大装甲板长宽比
+max_ratio = 5  # 最大装甲板长宽比
 
 # Armor
 pattern_h_coefficient = 0.9  # 获得装甲板图案的上下边界的系数
