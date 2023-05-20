@@ -15,9 +15,6 @@ from remote_visualizer import Visualizer
 
 exposure_ms = 5
 port = '/dev/ttyUSB0'
-max_match_distance_m = 0.1
-max_lost_count = 100
-min_detect_count = 3
 
 if __name__ == '__main__':
     enable: str = None
@@ -51,7 +48,7 @@ if __name__ == '__main__':
 
         armor_solver = ArmorSolver(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
-        tracker = Tracker(max_match_distance_m, max_lost_count, min_detect_count)
+        tracker = Tracker()
 
         while True:
             robot.update()

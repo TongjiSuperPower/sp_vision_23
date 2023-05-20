@@ -5,11 +5,13 @@ from modules.autoaim.targets.target import Target
 from modules.autoaim.targets.outpost import Outpost
 
 
+max_match_distance_m = 0.1
+max_lost_count = 100
+min_detect_count = 3
+
+
 class Tracker:
-    def __init__(self, max_match_distance_m: float, max_lost_count: int, min_detect_count: int) -> None:
-        self._max_match_distance_m = max_match_distance_m
-        self._max_lost_count = max_lost_count
-        self._min_detect_count = min_detect_count
+    def __init__(self) -> None:
         self.target: Target = None
         self.state = 'LOST'
 
@@ -44,7 +46,7 @@ class Tracker:
 
         matched = False
 
-        if min_distance_m < self._max_match_distance_m:
+        if min_distance_m < max_match_distance_m:
             matched = True
             self.target.update(min_distance_armor)
 
@@ -58,7 +60,7 @@ class Tracker:
         if self.state == 'DETECTING':
             if matched:
                 self._detect_count += 1
-                if self._detect_count >= self._min_detect_count:
+                if self._detect_count >= min_detect_count:
                     self._detect_count = 0
                     self.state = 'TRACKING'
             else:
@@ -73,7 +75,7 @@ class Tracker:
         elif self.state == 'TEMP_LOST':
             if not matched:
                 self._lost_count += 1
-                if self._lost_count > self._max_lost_count:
+                if self._lost_count > max_lost_count:
                     self._lost_count = 0
                     self.state = 'LOST'
             else:
