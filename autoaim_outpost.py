@@ -13,7 +13,7 @@ from modules.autoaim.tracker import Tracker
 from remote_visualizer import Visualizer
 
 
-exposure_ms = 5
+exposure_ms = 3
 port = '/dev/ttyUSB0'
 
 if __name__ == '__main__':
@@ -68,6 +68,10 @@ if __name__ == '__main__':
             else:
                 tracker.update(armors, img_time_s)
 
+                target = tracker.target
+                center_in_imu_m = target._ekf.x[:3]
+                robot.send(center_in_imu_m)
+
             # 调试分割线
 
             if not visualizer.enable:
@@ -81,19 +85,26 @@ if __name__ == '__main__':
                     continue
                 tools.drawContour(drawing, l.points, (0, 255, 255), 10)
 
+            # for i, lp in enumerate(armor_detector._raw_lightbar_pairs):
+            #     if not is_lightbar_pair(lp):
+            #         continue
+            #     tools.drawContour(drawing, lp.points, (0, 255, 255), 1)
+            #     tools.putText(drawing, f'{lp.angle:.2f}', lp.left.top, (255, 255, 255))
+
             for i, a in enumerate(armor_detector._raw_armors):
                 if not is_armor(a):
                     continue
-                cx, cy, cz = a.in_camera_mm.T[0]
                 tools.drawContour(drawing, a.points)
                 tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
                 tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
-                tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
+                
+                # cx, cy, cz = a.in_camera_mm.T[0]
+                # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
             if tracker.state != 'LOST':
                 
                 center_in_imu_m = tracker.target._ekf.x[:3]
-                speed_rad_per_s = tracker.target._ekf.x[-1, 0]
+                speed_rad_per_s = tracker.target._ekf.x[4, 0]
                 center_in_imu_mm = center_in_imu_m * 1e3
                 center_in_pixel = tools.project_imu2pixel(
                     center_in_imu_mm,
@@ -103,6 +114,12 @@ if __name__ == '__main__':
                 )
                 tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
                 tools.putText(drawing, f'{speed_rad_per_s:.2f}', center_in_pixel, (255, 255, 255))
+
+                x, y, z = center_in_imu_m.T[0]
+                outpost_yaw_rad = tracker.target._ekf.x[3, 0]
+                outpost_yaw_degree = math.degrees(outpost_yaw_rad)
+                # visualizer.plot((x, y, z, outpost_yaw_degree), ('x', 'y', 'z', 'yaw'))
+                visualizer.plot((speed_rad_per_s,), ('speed',))
 
                 for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
                     armor_in_imu_mm = armor_in_imu_m * 1e3
