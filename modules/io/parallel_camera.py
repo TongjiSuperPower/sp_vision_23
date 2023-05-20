@@ -1,4 +1,5 @@
 import cv2
+import time
 import queue
 import ctypes
 import numpy as np
@@ -16,6 +17,8 @@ def capture(exposure_ms: float, buffers: list[RawArray], tx_queue: Queue, quit_q
         last_buffer_index = -1
 
         while True:
+            time.sleep(1e-4)
+
             # 判断是否退出
             try:
                 quit = quit_queue.get_nowait()

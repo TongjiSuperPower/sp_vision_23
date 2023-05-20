@@ -6,10 +6,14 @@ from typing import TypeAlias
 from modules.io.context_manager import ContextManager
 
 
-frame_head = 0xf1
-frame_tail = 0xf2
-frame_tx_len = 17
-frame_rx_len = 11
+FRAME_HEAD = 0xf1
+FRAME_TAIL = 0xf2
+
+TX_FRAME_LEN = 10
+RX_FRAME_LEN = 11
+
+TX_FLAG_EMPTY = 0
+TX_FLAG_FIRE = 1
 
 Status: TypeAlias = tuple[int, float, float, float, int]
 
@@ -42,30 +46,21 @@ def calculateCrc8(data: bytes) -> int:
     return crc
 
 
-def pack_frame(
-    stamp: int,
-    x_in_imu: float, y_in_imu: float, z_in_imu: float,
-    vx_in_imu: float, vy_in_imu: float, vz_in_imu: float,
-    flag: int
-) -> bytes:
+def pack_frame(x_in_imu_mm: float, y_in_imu_mm: float, z_in_imu_mm: float, flag: int) -> bytes:
+    x_in_imu_mm = int(x_in_imu_mm)
+    y_in_imu_mm = int(y_in_imu_mm)
+    z_in_imu_mm = int(z_in_imu_mm)
 
-    x_in_imu = int(x_in_imu)
-    y_in_imu = int(y_in_imu)
-    z_in_imu = int(z_in_imu)
-    vx_in_imu = int(vx_in_imu * 1e3)
-    vy_in_imu = int(vy_in_imu * 1e3)
-    vz_in_imu = int(vz_in_imu * 1e3)
-
-    crc_part = struct.pack('=BBhhhhhhB', frame_head, stamp, x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, flag)
+    crc_part = struct.pack('=BhhhB', FRAME_HEAD, x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, flag)
     crc = calculateCrc8(crc_part)
-    frame = crc_part + struct.pack('BB', crc, frame_tail)
+    frame = crc_part + struct.pack('BB', crc, FRAME_TAIL)
     return frame
 
 
 def unpack_frame(frame: bytes) -> tuple[bool, None | Status]:
     head, stamp, yaw, pitch, bullet_speed, flag, crc, tail = struct.unpack('=BBhhhBBB', frame)
 
-    if head != frame_head or tail != frame_tail or crc != calculateCrc8(frame[:-2]):
+    if head != FRAME_HEAD or tail != FRAME_TAIL or crc != calculateCrc8(frame[:-2]):
         return False, None
 
     yaw = yaw / 1e2
@@ -81,7 +76,7 @@ def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
     xz = math.cos(pitch)
     x = xz * math.sin(yaw)
     z = xz * math.cos(yaw)
-    return x, y, z
+    return x*1e3, y*1e3, z*1e3
 
 
 class Communicator(ContextManager):
@@ -119,28 +114,21 @@ class Communicator(ContextManager):
 
     def send(
         self,
-        x_in_imu: float = 0, y_in_imu: float = 0, z_in_imu: float = 0,
-        vx_in_imu: float = 0, vy_in_imu: float = 0, vz_in_imu: float = 0,
-        stamp: int = 0, flag: int = 0,
+        x_in_imu_mm: float, y_in_imu_mm: float, z_in_imu_mm: float, flag: int = TX_FLAG_EMPTY,
         debug: bool = False
     ) -> None:
 
-        frame = pack_frame(stamp, x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, flag)
+        frame = pack_frame(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, flag)
         self._serial.write(frame)
 
         if debug:
-            print(f'sent {stamp=} x={x_in_imu} y={y_in_imu} z={z_in_imu} vx={vx_in_imu} vy={vy_in_imu} vz={vz_in_imu} {flag=} {frame.hex()}')
-
-    def send_yaw_pitch(self, yaw: float, pitch: float, debug: bool = False) -> None:
-        '''旋转正方向符合对应坐标轴右手螺旋'''
-        x, y, z = yaw_pitch_to_xyz(yaw, pitch)
-        self.send(x*1e3, y*1e3, z*1e3, debug)
+            print(f'sent x={x_in_imu_mm} y={y_in_imu_mm} z={z_in_imu_mm} {flag=} {frame.hex()}')
 
     def read_no_wait(self, debug: bool = False) -> tuple[bool, None | Status]:
         frame = self._serial.read_all()
         read_time_s = time.time()
 
-        if len(frame) != frame_rx_len:
+        if len(frame) != RX_FRAME_LEN:
             if len(frame) != 0:
                 print(f'failed to read {frame.hex()}')
             return False, None
