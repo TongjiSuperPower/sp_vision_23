@@ -15,7 +15,7 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
     scheduled_time_s: float = None
     with Communicator(port) as communicator:
         while True:
-            time.sleep(1e-3)
+            time.sleep(1e-4)
 
             try:
                 # 判断是否退出
