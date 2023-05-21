@@ -29,13 +29,12 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
                 # 发送命令
                 try:
                     command, fire_time_s = rx_queue.get_nowait()
+                    communicator.send(*command)
 
                     x, y, z = command
                     scheduled_command = (x, y, z, TX_FLAG_FIRE)                        
 
-                    if fire_time_s is None:
-                        communicator.send(*command)
-                    elif scheduled_time_s is None:
+                    if scheduled_time_s is None:
                         scheduled_time_s = fire_time_s
 
                 except queue.Empty:
