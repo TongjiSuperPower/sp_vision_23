@@ -9,7 +9,7 @@ from modules.autoaim.classifier import Classifier
 
 
 # 预处理
-threshold_value = 100  # 二值化阈值
+threshold_value = 90  # 二值化阈值
 
 # Lightbar
 min_contour_area = 10  # 保证6m以内灯条面积大于该值
