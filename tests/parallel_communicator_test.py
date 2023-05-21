@@ -34,7 +34,7 @@ if __name__ == '__main__':
             fire_time_s = time.time() + 5 if fire == 'y' else None
 
             x, y, z = yaw_pitch_to_xyz(yaw, pitch)
-            communicator.send(fire_time_s, x, y, z)
+            communicator.send(x, y, z, fire_time_s)
 
         # 测试接收
         last_read_time_s = 0
