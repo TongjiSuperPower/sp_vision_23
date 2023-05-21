@@ -22,11 +22,17 @@ class NahsorSolver:
             points_2d.append(nahsor.r_center)
             # 3D坐标由能量机关尺寸图计算出
             # 靶心:[0, 193.5, 0]
-            points_3d = np.float32([[-186, 36-193.5, 0],
-                                    [-160, 353-193.5, 0],
-                                    [160, 353-193.5, 0],
+            # points_3d = np.float32([[-186, 36-193.5, 0],
+            #                         [-160, 353-193.5, 0],
+            #                         [160, 353-193.5, 0],
+            #                         [186, 36-193.5, 0],
+            #                         [0, -501-193.5, 0]])
+            points_3d = np.float32([[0, -330-193.5, 0],
+                                    [-186, 36-193.5, 0],
+                                    [0, 382-193.5, 0],
                                     [186, 36-193.5, 0],
                                     [0, -501-193.5, 0]])
+
             LazyTrans = LazyTransformation()
             LazyTrans.lazy_solve_pnp(points_3d, points_2d, self._cameraMatrix, self._distCoeffs)
             LazyTrans.lazy_transform(self._R_camera2gimbal, self._t_camera2gimbal, R_gimbal2imu)

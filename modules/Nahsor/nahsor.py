@@ -74,7 +74,7 @@ class Nahsor:
 
     def getPredictTime(self, deltatime, bulletSpeed):
         '''获取预测时间'''
-        if self.target_state != np.zeros((9,)):
+        if not np.array_equal(self.target_state, np.zeros((9,))):
             state = self.target_state
             flyTime = tools.getParaTime(state[:3] * 1000, bulletSpeed) / 1000
             return deltatime + flyTime
@@ -129,7 +129,7 @@ class Nahsor:
             target2_in_gimbal = R_imu2gimbal @ target2_in_imu
             target2_in_camera = R_gimbal2camera @ target2_in_gimbal - R_gimbal2camera @ t_camera2gimbal
             target2_in_pixel, _ = cv2.projectPoints(target2_in_camera, np.zeros((3, 1)), np.zeros((3, 1)), cameraMatrix,
-                                                   distCoeffs)
+                                                    distCoeffs)
             target2_in_pixel = target2_in_pixel[0][0]
             self.targets_in_pixel.append(target2_in_pixel)
 
@@ -157,7 +157,6 @@ class Nahsor:
 
     def getArmorPositionFromState(self, x):
         return self.h(x)[:3]
-
 
     # def j_f(self, x, dt):
     #     # J_f - Jacobian of process function

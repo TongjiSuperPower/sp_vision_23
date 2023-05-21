@@ -38,7 +38,7 @@ class NahsorMarker(object):
     last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
     def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.HSV, target_debug=0,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
@@ -88,7 +88,7 @@ class NahsorMarker(object):
         self.color_range = get_color_range(self.color, self.color_space)
 
         self.current_center = None  # 目标实际点
-        self.target_radius = 0  # 击打半径
+        self.target_radius = 0  # 击打半径，已无实际作用
         self.target_corners = None  # pnp解算用点
         self.predict_center = None  # 预测的击打位置
 
@@ -144,11 +144,11 @@ class NahsorMarker(object):
         # cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))  # 椭圆
         # cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))  # 十字形
 
-        mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
-        mask = cv2.medianBlur(mask, 5)
+        # mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
+        # mask = cv2.medianBlur(mask, 5)
         # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
         mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
         # mask = cv2.medianBlur(mask, 3)
 
@@ -190,9 +190,9 @@ class NahsorMarker(object):
 
             self.last_center_for_r = self.current_center
             self.current_center = target_center
-
-            self.target_corners = get_rect_corners(target_contour)
-            self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2 * 2)
+            if self.r_center is not None:
+                self.target_corners = get_pnp_points(target_contour, self.r_center)
+            self.target_radius = (fan_rect[1][0] + fan_rect[1][1]) / (2 * 4)  # 已经无实际作用
             self.__target_status = STATUS.FOUND
         else:
             self.__target_status = STATUS.NOT_FOUND
@@ -212,18 +212,16 @@ class NahsorMarker(object):
 
             # 绘制多边形
             if self.r_center is not None:
-
-                ordered = order_points(self.target_corners, self.r_center)
-
-                for i, p in enumerate(ordered):
-                    dx = p[0] - self.r_center[0]
-                    dy = p[1] - self.r_center[1]
+                for i, p in enumerate(self.target_corners):
+                    point = p
+                    dx = point[0] - self.r_center[0]
+                    dy = point[1] - self.r_center[1]
                     angle = np.arctan2(dy, dx) * 180 / np.pi
                     # orig1 = cv2.putText(orig1, f'{angle:.0f}', (p[0] - 20, p[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 1,
                     #                     (0, 255, 255), 5)
-                    orig1 = cv2.putText(orig1, f'{i}', tuple(p), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 5)
+                    orig1 = cv2.putText(orig1, f'{i}', tuple(point), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 5)
 
-                    orig1 = cv2.circle(orig1, tuple(p), 1, (0, 255, 255), 10)
+                    orig1 = cv2.circle(orig1, tuple(point), 1, (0, 255, 255), 10)
             cv2.namedWindow('contours', 0)
             cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
             cv2.imshow('contours', orig1)
@@ -306,7 +304,7 @@ class NahsorMarker(object):
                 else:
                     self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
-                if self.__R_status == 0 and len(self.target_centers) > FIT_MIN_LEN:
+                if self.__R_status == STATUS.FOUND and len(self.target_centers) > FIT_MIN_LEN:
                     clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
                                                self.target_centers[-1])
                     if self.rot_direction is None or self.rot_direction != clockwise1:
@@ -393,6 +391,7 @@ class NahsorMarker(object):
             if self.rot_direction is not None:
                 theta = self.rot_direction * self.get_theta(predict_time)
                 rot_mat = cv2.getRotationMatrix2D(self.r_center, theta, 1)
+
                 def rotate(rot_mat, r_center, point):
                     sinA = rot_mat[0][1]
                     cosA = rot_mat[0][0]
