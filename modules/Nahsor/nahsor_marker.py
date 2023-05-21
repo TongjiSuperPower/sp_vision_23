@@ -38,7 +38,7 @@ class NahsorMarker(object):
     last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
     def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.Hsv, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
@@ -304,7 +304,8 @@ class NahsorMarker(object):
                 else:
                     self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
-                if self.__R_status == STATUS.FOUND and len(self.target_centers) > FIT_MIN_LEN:
+                # if self.__R_status == STATUS.FOUND and len(self.target_centers) > FIT_MIN_LEN:
+                if self.rot_speed is not None and len(self.target_centers) > FIT_MIN_LEN:
                     clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
                                                self.target_centers[-1])
                     if self.rot_direction is None or self.rot_direction != clockwise1:

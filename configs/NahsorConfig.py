@@ -104,13 +104,13 @@ UPPER_WH_RATIO = (0.9, 1.2)
 # 能量机关中心与目标中心距离和目标半径的比值
 CENTER_DISTANCE_RATIO = (2.5, 4.2)
 
-# 装甲版的实际长和宽(单位:cm)
-TARGET_WIDTH = 25.
-TARGET_HEIGHT = 16.5
-FAN_LEN = 64
+# # 装甲版的实际长和宽(单位:cm)
+# TARGET_WIDTH = 25.
+# TARGET_HEIGHT = 16.5
+# FAN_LEN = 64
 
-# 焦距，单位px
-FOCAL_LENGTH = 1200
+# # 焦距，单位px
+# FOCAL_LENGTH = 1200
 
 # 轮廓面积最小值，用于筛除过小的轮廓，单位px
 # 注意过小时可能会把r标滤掉
@@ -138,8 +138,8 @@ FIND_R_INTERVAL = 5
 SPEED_REFIT_INTERVAL = 2
 # 每个拟合点的采样间隔
 FIT_INTERVAL = 0.2
-# 拟合最大误差
-FIT_MAX_ERROR = 0.1
+# # 拟合最大误差
+# FIT_MAX_ERROR = 0.1
 # 拟合正弦函数的参数上下限
 SPEED_PARAM_BOUNDS = {
     # "a": (0.780, 1.045),
