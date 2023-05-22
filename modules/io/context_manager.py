@@ -16,5 +16,5 @@ class ContextManager:
         self._close()
         return ignore_error
 
-    def _close() -> None:
+    def _close(self) -> None:
         raise NotImplementedError('该函数需子类实现')
