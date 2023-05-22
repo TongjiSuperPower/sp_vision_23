@@ -81,7 +81,7 @@ class Nahsor:
         else:  # 第一帧
             # 6439为高台到能量机关距离，2296为r标高度，945为高台高度，200和150为具体位置的修正
             # 假设正前方为能量机关
-            state = [6439 + 200, 0, 2296 - 945 - 250]  # 假设的r标位置，仅用于第一帧，应该随意定一个位置也行
+            state = [0,-(2296 - 945 - 250),6439 + 200]  # 假设的r标位置，仅用于第一帧，应该随意定一个位置也行
             flyTime = tools.getParaTime(state, bulletSpeed) / 1000
             return deltatime + flyTime
 

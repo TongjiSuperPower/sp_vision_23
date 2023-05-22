@@ -14,12 +14,12 @@ class NahsorSolver:
         self._R_camera2gimbal = R_camera2gimbal
         self._t_camera2gimbal = t_camera2gimbal
 
-    def solve(self, nahsor: NahsorMarker, predict_time: float, yaw_degree: float, pitch_degree: float):
+    def solve(self, points_2d,  yaw_degree: float, pitch_degree: float):
         R_gimbal2imu = tools.R_gimbal2imu(yaw_degree, pitch_degree)
 
-        def lazy_solve(nahsor: NahsorMarker, predict_time: float):
-            points_2d = nahsor.get_2d_predict_corners(predict_time)
-            points_2d.append(nahsor.r_center)
+        def lazy_solve(points_2d):
+            # points_2d = nahsor.get_2d_predict_corners(predict_time)
+            # points_2d.append(nahsor.r_center)
             # 3D坐标由能量机关尺寸图计算出
             # 靶心:[0, 193.5, 0]
             # points_3d = np.float32([[-186, 36-193.5, 0],
@@ -39,4 +39,4 @@ class NahsorSolver:
 
             return LazyTrans
 
-        return lazy_solve(nahsor, predict_time)
+        return lazy_solve(points_2d)
