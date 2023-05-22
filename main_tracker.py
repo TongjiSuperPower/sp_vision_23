@@ -11,8 +11,7 @@ from modules.autoaim.armor_detector import ArmorDetector
 from modules.autoaim.armor_solver import ArmorSolver
 import modules.tools as tools
 from modules.tracker import Tracker, TrackerState
-from modules.Nahsor.nahsor_marker import NahsorMarker
-from configs.NahsorConfig import COLOR, FIT_SPEED_MODE
+from modules.Nahsor.nahsor_tracker import NahsorTracker 
 
 from remote_visualizer import Visualizer
 
@@ -64,14 +63,14 @@ if __name__ == '__main__':
         tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
         
         # 反能量机关:
-        nahsor_color = COLOR.RED if robot.color == 'blue' else COLOR.BLUE
-        nahsor_tracker = NahsorMarker(color=nahsor_color, fit_debug=0, target_debug=1,
-                     fit_speed_mode=FIT_SPEED_MODE.CURVE_FIT)
+        nahsor_tracker = NahsorTracker(robot_color=robot.color)
 
         while True:
             robot.update()
 
             img = robot.img
+            drawing = img.copy()
+
             img_time_s = robot.img_time_s
             robot_stamp_ms = robot.img_time_s * 1e3
 
@@ -118,28 +117,37 @@ if __name__ == '__main__':
                          tracker.tracking_target.target_state[7],tracker.tracking_target.target_state[8]),
                          ('x','y','z','yaw','vx','vy','vz','vyaw','r')
                     )
+
+                for i, l in enumerate(armor_detector._raw_lightbars):
+                    tools.drawContour(drawing, l.points, (0, 255, 255), 10)
+                for i, lp in enumerate(armor_detector._raw_armors):
+                    tools.drawContour(drawing, lp.points)
+                for i, a in enumerate(armors):
+                    cx, cy, cz = a.in_camera_mm.T[0]
+                    tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+                    tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
+                    tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
+
             
             else:
                 # 能量机关
-                nahsor_tracker.mark(img)
+                nahsor_tracker.update(frame=img)
 
+                predictedPtsInWorld = nahsor_tracker.getShotPoint(0.05, robot.bullet_speed, 
+                                                                  R_camera2gimbal, t_camera2gimbal, 
+                                                                  cameraMatrix, distCoeffs, 
+                                                                  robot_yaw_degree, robot_pitch_degree, 
+                                                                  enablePredict=1)
 
+                if predictedPtsInWorld != None:
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
 
-                
+                    robot.send(*armor_in_gun.T[0], flag=1)
+
 
             # 调试用
             if not visualizer.enable:
                 continue
 
-            drawing = img.copy()
-            for i, l in enumerate(armor_detector._raw_lightbars):
-                tools.drawContour(drawing, l.points, (0, 255, 255), 10)
-            for i, lp in enumerate(armor_detector._raw_armors):
-                tools.drawContour(drawing, lp.points)
-            for i, a in enumerate(armors):
-                cx, cy, cz = a.in_camera_mm.T[0]
-                tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
-                tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
-                tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
-
+            
             visualizer.show(drawing)

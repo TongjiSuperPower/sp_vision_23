@@ -52,7 +52,7 @@ OPEN_PARA = 1
 CLOS_PARA = 1
 
 # 使用预测
-USE_PREDICT = False
+USE_PREDICT = True
 
 # 目标颜色设置合集
 HSV_RED_UPPER_1 = (180, 255, 255)
