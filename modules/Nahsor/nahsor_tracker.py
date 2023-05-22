@@ -7,7 +7,8 @@ class NahsorTracker():
     '''能量机关追踪器'''
     def __init__(self,robot_color) -> None:
         self.nahsor:NahsorMarker = None 
-        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.RED       
+        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.RED  
+        self.init()     
 
     def init(self):        
         self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode=NahsorConfig.ENERGY_MODE.BIG,
