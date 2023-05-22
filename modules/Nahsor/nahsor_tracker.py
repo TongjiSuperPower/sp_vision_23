@@ -18,6 +18,8 @@ class NahsorTracker():
 
     def update(self, frame):
         '''用图像帧更新,进行: 风车轮廓识别识别,叶片识别,R标拟合,速度估计'''
+        # TODO: 根据时间进行重新初始化
+        
         self.nahsor.mark(frame)
 
     def getShotPoint(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw_degree=0, pitch_degree=0, enablePredict = 1):
