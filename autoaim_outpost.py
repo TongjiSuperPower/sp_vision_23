@@ -15,13 +15,13 @@ from modules.autoaim.tracker import Tracker
 from remote_visualizer import Visualizer
 
 
-logging.basicConfig(format='[%(asctime)s][%(levelname)s]%(message)s', level=logging.DEBUG)
-
 exposure_ms = 3
 port = '/dev/ttyUSB0'
 
 
 if __name__ == '__main__':
+    tools.config_logging()
+    
     enable = False
     if len(sys.argv) > 1:
         enable = (sys.argv[1] == '-y')
