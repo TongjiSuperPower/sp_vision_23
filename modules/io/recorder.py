@@ -13,6 +13,9 @@ def record(dir: str, fps: int, img_status_queue: Queue, quit_queue: Queue) -> No
     logging.info('Record started.')
 
     try:
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
+
         filename = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         img, status = img_status_queue.get()
         h, w, _ = img.shape
