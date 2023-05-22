@@ -12,8 +12,13 @@ demo.py实现了装甲板的识别、分类、解算
 
 # 部署
 ## 自启
+0. 确保已经安装`screen`，且`RM23_CV_TJU`在桌面文件夹下，否则需改动`RM23_CV_TJU/autostart.sh`
+    ```
+    sudo apt install screen
+    ```
 1. 在`~/.config/autostart/`目录下新建文件`RM23_CV_TJU.desktop`
     ```
+    mkdir ~/.config/autostart/
     touch ~/.config/autostart/RM23_CV_TJU.desktop
     ```
 2. 使用你喜欢的文本编辑器在`RM23_CV_TJU.desktop`中添加如下内容：

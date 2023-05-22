@@ -20,7 +20,7 @@ class Camera(ContextManager):
 
         mvsdk.CameraSetAeState(self._handle, mvsdk.FALSE)  # 手动曝光
         mvsdk.CameraSetExposureTime(self._handle, self._exposure_ms * 1000)
-        mvsdk.CameraSetFrameSpeed(self._handle, mvsdk.FRAME_SPEED_NORMAL)
+        mvsdk.CameraSetFrameSpeed(self._handle, mvsdk.FRAME_SPEED_LOW)
         mvsdk.CameraSetIspOutFormat(self._handle, mvsdk.CAMERA_MEDIA_TYPE_BGR8)
 
         buffer_size = 1024 * 1280 * 3

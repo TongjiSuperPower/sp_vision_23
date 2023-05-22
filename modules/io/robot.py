@@ -1,5 +1,6 @@
 import cv2
 from enum import IntEnum
+from modules.ekf import ColumnVector
 from modules.io.parallel_camera import ParallelCamera
 from modules.io.parallel_communicator import ParallelCommunicator
 from modules.io.context_manager import ContextManager
@@ -27,8 +28,6 @@ class Robot(ContextManager):
     def __init__(self, exposure_ms: float, port: str) -> None:
         self._camera = ParallelCamera(exposure_ms)
         self._communicator = ParallelCommunicator(port)
-
-        self.send = self._communicator.send
 
         self.img: cv2.Mat = None
         self.img_time_s: float = None
@@ -81,3 +80,8 @@ class Robot(ContextManager):
         pitch_degree = interpolate_degree(pitch_degree_before, pitch_degree_after, k)
 
         return yaw_degree, pitch_degree
+
+    def shoot(self, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
+        aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
+        x_in_imu_mm, y_in_imu_mm, z_in_imu_mm = aim_point_in_imu_mm.T[0]
+        self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)

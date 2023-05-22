@@ -1,7 +1,8 @@
+import time
 import queue
 from collections import deque
 from multiprocessing import Process, Queue
-from modules.io.communication import Communicator, Status
+from modules.io.communication import Communicator, Status, TX_FLAG_FIRE
 from modules.io.context_manager import ContextManager
 from modules.tools import clear_queue
 
@@ -10,8 +11,12 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
     print('Communicate started.')
 
     buffer = []
+    scheduled_command: tuple = None
+    scheduled_time_s: float = None
     with Communicator(port) as communicator:
         while True:
+            time.sleep(1e-4)
+
             try:
                 # 判断是否退出
                 try:
@@ -23,10 +28,28 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
 
                 # 发送命令
                 try:
-                    command = rx_queue.get_nowait()
+                    command, fire_time_s = rx_queue.get_nowait()
                     communicator.send(*command)
+
+                    x, y, z = command
+                    scheduled_command = (x, y, z, TX_FLAG_FIRE)                        
+
+                    if scheduled_time_s is None:
+                        scheduled_time_s = fire_time_s
+
                 except queue.Empty:
                     pass
+
+                current_time_s = time.time()
+                if scheduled_time_s is None:
+                    pass
+                elif scheduled_time_s - current_time_s < 0:
+                    scheduled_time_s = None
+                elif scheduled_time_s - current_time_s > 1:
+                    scheduled_time_s = None
+                elif scheduled_time_s - current_time_s < 1e-3:
+                    communicator.send(*scheduled_command)
+                    scheduled_time_s = None
 
                 # 接收机器人状态
                 success, status = communicator.read_no_wait(debug=False)
@@ -77,14 +100,9 @@ class ParallelCommunicator(ContextManager):
         self.history.extend(buffer)
         self.latest_read_time_s, self.latest_status = self.history[-1]
 
-    def send(
-        self,
-        x_in_imu: float = 0, y_in_imu: float = 0, z_in_imu: float = 0,
-        vx_in_imu: float = 0, vy_in_imu: float = 0, vz_in_imu: float = 0,
-        stamp: int = 0, flag: int = 0,
-    ) -> None:
-        command = (x_in_imu, y_in_imu, z_in_imu, vx_in_imu, vy_in_imu, vz_in_imu, stamp, flag)
+    def send(self, x_in_imu_mm: float, y_in_imu_mm: float, z_in_imu_mm: float, fire_time_s: float | None) -> None:
+        command = (x_in_imu_mm, y_in_imu_mm, z_in_imu_mm)
         try:
-            self._tx_queue.put_nowait(command)
+            self._tx_queue.put_nowait((command, fire_time_s))
         except queue.Full:
             print(f'ParallelCommunicator tx_queue full!')
