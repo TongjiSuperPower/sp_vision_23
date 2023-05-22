@@ -10,9 +10,7 @@ from scipy.optimize import curve_fit
 
 import time
 
-from modules import tools
 from modules.Nahsor.nahsor_utils import *
-from modules.autoaim.transformation import LazyTransformation
 
 
 # 每局比赛旋转方向固定
@@ -38,7 +36,7 @@ class NahsorMarker(object):
     last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
     def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.Hsv, target_debug=0,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
@@ -96,6 +94,9 @@ class NahsorMarker(object):
         self.__R_status = STATUS.NOT_FOUND  # 圆心状态
         self.__fit_status = FIT_STATUS.FAILED  # 是否拟合成功
         self.__fan_change = 0
+    
+    def getTargetStatus(self):
+        return self.__target_status
 
     def binaryzate(self, frame):  # 预处理，进行二值化和初步处理
         img = frame.copy()
@@ -283,13 +284,17 @@ class NahsorMarker(object):
 
                             if len(self.fit_speeds) > FIT_MIN_LEN:
                                 speed_params, speed_cov = self.fit_speed_params()
-                                speed_err = np.sqrt(np.diag(speed_cov))
-                                print("error: ", speed_err)
-                                if np.all(speed_err < self.speed_params_maxerror) and len(
-                                        self.fit_speeds) > 5 * FIT_MIN_LEN:
-                                    self.__fit_status = FIT_STATUS.SUCCESS
-                                    self.last_time_for_fit = time.time()
-                                self.speed_params = speed_params
+                                if speed_cov is None:
+                                    print("speed_cov is None")
+                                else:
+                                    diag_of_speed_cov = np.diag(speed_cov)
+                                    speed_err = np.sqrt(diag_of_speed_cov)
+                                    print("error: ", speed_err)
+                                    if np.all(speed_err < self.speed_params_maxerror) and len(
+                                            self.fit_speeds) > 5 * FIT_MIN_LEN:
+                                        self.__fit_status = FIT_STATUS.SUCCESS
+                                        self.last_time_for_fit = time.time()
+                                    self.speed_params = speed_params
 
                     elif self.__fit_status == FIT_STATUS.SUCCESS:
                         if time.time() - self.last_time_for_fit > SPEED_REFIT_INTERVAL:
@@ -400,7 +405,7 @@ class NahsorMarker(object):
                     yy = -(r_center[1] - point[1])
                     return (int(r_center[0] + cosA * xx - sinA * yy), int(r_center[1] + sinA * xx + cosA * yy))
 
-                return [rotate(rot_mat, self.r_center, point) for point in self.target_corners]
+                return np.array([rotate(rot_mat, self.r_center, point) for point in self.target_corners])
             else:
                 return self.target_corners
 

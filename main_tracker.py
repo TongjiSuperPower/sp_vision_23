@@ -137,12 +137,13 @@ if __name__ == '__main__':
                                                                   R_camera2gimbal, t_camera2gimbal, 
                                                                   cameraMatrix, distCoeffs, 
                                                                   robot_yaw_degree, robot_pitch_degree, 
-                                                                  enablePredict=1)
+                                                                  enablePredict=0)
 
-                if predictedPtsInWorld != None:
+                if predictedPtsInWorld is not None:
                     armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
+                    # print(armor_in_gun)
 
-                    robot.send(*armor_in_gun.T[0], flag=1)
+                    robot.shoot(armor_in_gun/1000)
 
 
             # 调试用
