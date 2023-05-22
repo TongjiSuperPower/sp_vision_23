@@ -7,4 +7,4 @@ t_camera2gimbal = np.float32([[3.4159355521751715], [-46.528037941968535], [165.
 # 重投影误差: 0.0114px
 # 相机相对于云台: yaw=0.05 pitch=-4.11 roll=-0.31
 
-pitch_offset = 3
+pitch_offset = 5
