@@ -68,9 +68,17 @@ if __name__ == '__main__':
             else:
                 tracker.update(armors, img_time_s)
 
+            if tracker.state in ('TRACKING', 'TEMP_LOST'):
                 target = tracker.target
-                center_in_imu_m = target._ekf.x[:3]
-                robot.send(center_in_imu_m)
+                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+
+                aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
+                x, y, z = aim_point_in_imu_mm.T[0]
+                send_pitch_degree = tools.shoot_pitch(x, y, z, robot.bullet_speed) + pitch_offset
+                aim_point_in_imu_mm[1, 0] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(send_pitch_degree))
+                aim_point_in_imu_m = aim_point_in_imu_mm / 1e3
+                
+                robot.shoot(aim_point_in_imu_m, fire_time_s)
 
             # 调试分割线
 
@@ -120,7 +128,8 @@ if __name__ == '__main__':
                 messured_yaw_rad = tracker.target.debug_yaw_rad
                 outpost_yaw_degree = math.degrees(outpost_yaw_rad)
                 robot_yaw_rad = math.radians(yaw_degree)
-                # visualizer.plot((x, y, z, outpost_yaw_degree), ('x', 'y', 'z', 'yaw'))
+
+                # visualizer.plot((x, y, z), ('x', 'y', 'z'))
                 visualizer.plot((speed_rad_per_s, outpost_yaw_rad, messured_yaw_rad, robot_yaw_rad), ('speed', 'yaw', 'm_yaw', 'robot_yaw'))
 
                 for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):

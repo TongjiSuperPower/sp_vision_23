@@ -22,30 +22,30 @@ class Tracker:
         # 优先打最近的
         armor = armors[0]
 
+        if armor.name == 'small_outpost':
+            self.target = Outpost()
+        else:
+            return
+
+        self.target.init(armor, img_time_s)
+
         self.state = 'DETECTING'
         self._target_name = armor.name
-        self._last_time_s = img_time_s
         self._lost_count = 0
         self._detect_count = 1
 
-        if self._target_name == 'small_outpost':
-            self.target = Outpost()
-
-        self.target.init(armor)
-
     def update(self, armors: Iterable[Armor], img_time_s: float) -> None:
-        dt_s = img_time_s - self._last_time_s
-        self._last_time_s = img_time_s
-        self.target.predict(dt_s)
+        self.target.predict(img_time_s)
 
         # 按近远排序，同时将armors从Iterable转换为list
         target_armors = filter(lambda a: a.name == self._target_name, armors)
         target_armors = sorted(target_armors, key=lambda a: a.in_camera_mm[2])
 
         matched = False
+        reinit = False
         if len(target_armors) > 0:
             matched = True
-            self.target.update(target_armors[0])
+            reinit = self.target.update(target_armors[0])
 
         # Tracker状态机
         if self.state == 'DETECTING':
@@ -72,3 +72,8 @@ class Tracker:
             else:
                 self.state = 'TRACKING'
                 self._lost_count = 0
+
+        if reinit:
+            self.state = 'DETECTING'
+            self._lost_count = 0
+            self._detect_count = 1

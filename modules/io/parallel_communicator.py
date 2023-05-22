@@ -40,11 +40,14 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
                 except queue.Empty:
                     pass
 
+                current_time_s = time.time()
                 if scheduled_time_s is None:
                     pass
-                elif scheduled_time_s - time.time() < 0:
+                elif scheduled_time_s - current_time_s < 0:
                     scheduled_time_s = None
-                elif scheduled_time_s - time.time() < 1e-3:
+                elif scheduled_time_s - current_time_s > 1:
+                    scheduled_time_s = None
+                elif scheduled_time_s - current_time_s < 1e-3:
                     communicator.send(*scheduled_command)
                     scheduled_time_s = None
 
