@@ -1,6 +1,8 @@
+import sys
 import cv2
 import math
 import time
+import logging
 import numpy as np
 
 import modules.tools as tools
@@ -13,18 +15,16 @@ from modules.autoaim.tracker import Tracker
 from remote_visualizer import Visualizer
 
 
+logging.basicConfig(format='[%(asctime)s][%(levelname)s]%(message)s', level=logging.DEBUG)
+
 exposure_ms = 3
 port = '/dev/ttyUSB0'
 
+
 if __name__ == '__main__':
-    enable: str = None
-    while True:
-        enable = input('开启Visualizer?输入[y/n]\n')
-        if enable == 'y' or enable == 'n':
-            break
-        else:
-            print('请重新输入')
-    enable = True if enable == 'y' else False
+    enable = False
+    if len(sys.argv) > 1:
+        enable = (sys.argv[1] == '-y')
 
     with Communicator(port):
         # 这里的作用是在程序正式运行前，打开串口再关闭。
