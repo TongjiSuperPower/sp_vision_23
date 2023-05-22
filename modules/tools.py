@@ -1,10 +1,30 @@
+import os
 import cv2
 import math
+import logging
+import datetime
 import numpy as np
 from queue import Empty
 from multiprocessing import Queue
 from typing import Tuple
 from scipy.integrate import solve_ivp
+
+
+def config_logging():
+    log_dir = 'logs'
+    log_filename = f'{log_dir}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}.log'
+    log_format = '[%(asctime)s][%(levelname)s]%(message)s'
+
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+    logging.basicConfig(format=log_format, filename=log_filename, level=logging.DEBUG)
+
+    formatter = logging.Formatter(log_format)
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
 
 def drawContour(img: cv2.Mat, points, color=(0, 0, 255), thickness=3) -> None:
     points = np.int32(points)

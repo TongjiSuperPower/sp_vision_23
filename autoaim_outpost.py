@@ -7,6 +7,7 @@ import numpy as np
 
 import modules.tools as tools
 from modules.io.robot import Robot
+from modules.io.recorder import Recorder
 from modules.io.communication import Communicator
 from modules.autoaim.armor_solver import ArmorSolver
 from modules.autoaim.armor_detector import ArmorDetector, is_armor, is_lightbar, is_lightbar_pair
@@ -15,13 +16,13 @@ from modules.autoaim.tracker import Tracker
 from remote_visualizer import Visualizer
 
 
-logging.basicConfig(format='[%(asctime)s][%(levelname)s]%(message)s', level=logging.DEBUG)
-
 exposure_ms = 3
 port = '/dev/ttyUSB0'
 
 
 if __name__ == '__main__':
+    tools.config_logging()
+    
     enable = False
     if len(sys.argv) > 1:
         enable = (sys.argv[1] == '-y')
@@ -31,7 +32,7 @@ if __name__ == '__main__':
         # 因为每次开机后第一次打开串口，其输出全都是0，原因未知。
         pass
 
-    with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer:
+    with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer, Recorder() as recorder:
         robot.update()
 
         if robot.id == 1:
@@ -60,6 +61,8 @@ if __name__ == '__main__':
 
             yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
             armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+
+            recorder.record(img, (yaw_degree, pitch_degree, robot.bullet_speed, robot.id, robot.flag))
 
             # print(f'Tracker state: {tracker.state} ')
 
