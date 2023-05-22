@@ -81,7 +81,7 @@ class Robot(ContextManager):
 
         return yaw_degree, pitch_degree
 
-    def send(self, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
+    def shoot(self, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
         aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
         x_in_imu_mm, y_in_imu_mm, z_in_imu_mm = aim_point_in_imu_mm.T[0]
         self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)
