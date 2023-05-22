@@ -1,5 +1,6 @@
 import time
 import queue
+import logging
 from collections import deque
 from multiprocessing import Process, Queue
 from modules.io.communication import Communicator, Status, TX_FLAG_FIRE
@@ -8,7 +9,7 @@ from modules.tools import clear_queue
 
 
 def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) -> None:
-    print('Communicate started.')
+    logging.info('Communicate started.')
 
     buffer = []
     scheduled_command: tuple = None
@@ -65,14 +66,14 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
                     pass
 
             except OSError:
-                print('Communicator lost.')
+                logging.warning('Communicator lost.')
                 communicator.reopen()
 
     clear_queue(tx_queue)
     clear_queue(rx_queue)
     clear_queue(quit_queue)
 
-    print('Communicate ended.')
+    logging.info('Communicate ended.')
 
 
 class ParallelCommunicator(ContextManager):
@@ -92,7 +93,7 @@ class ParallelCommunicator(ContextManager):
         '''注意阻塞'''
         self._quit_queue.put(True)
         self._process.join()
-        print('ParallelCommunicator closed.')
+        logging.info('ParallelCommunicator closed.')
 
     def update(self) -> None:
         '''注意阻塞'''
@@ -105,4 +106,4 @@ class ParallelCommunicator(ContextManager):
         try:
             self._tx_queue.put_nowait((command, fire_time_s))
         except queue.Full:
-            print(f'ParallelCommunicator tx_queue full!')
+            logging.debug(f'ParallelCommunicator tx_queue full!')

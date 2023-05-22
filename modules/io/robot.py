@@ -1,4 +1,5 @@
 import cv2
+import logging
 from enum import IntEnum
 from modules.ekf import ColumnVector
 from modules.io.parallel_camera import ParallelCamera
@@ -40,7 +41,7 @@ class Robot(ContextManager):
     def _close(self) -> None:
         self._camera._close()
         self._communicator._close()
-        print('Robot closed.')
+        logging.info('Robot closed.')
 
     def update(self):
         '''注意阻塞'''

@@ -1,6 +1,7 @@
 import cv2
 import time
 import queue
+import logging
 from multiprocessing import Process, Queue
 
 
@@ -30,7 +31,6 @@ def visualizing(port: int, show_queue: Queue, plot_queue: Queue):
     import os
     import sys
     import json
-    import logging
     from flask import Flask, Response, render_template, make_response
 
     f = open(os.devnull, 'w')
@@ -86,7 +86,7 @@ class Visualizer:
 
         self.visualizing.start()
         host_ip = get_local_ip()
-        print(f'Visualizer will be running on http://{host_ip}:{port}')
+        logging.info(f'Visualizer will be running on http://{host_ip}:{port}')
 
         self.fps = fps
         self.last_put_time = 0
@@ -133,6 +133,6 @@ class Visualizer:
 
         self.visualizing.join()
 
-        print('Visualizer closed.')
+        logging.info('Visualizer closed.')
 
         return ignore_error

@@ -1,5 +1,6 @@
 import cv2
 import time
+import logging
 import numpy as np
 import modules.io.mvsdk as mvsdk
 from modules.io.context_manager import ContextManager
@@ -27,12 +28,12 @@ class Camera(ContextManager):
         self._buffer = mvsdk.CameraAlignMalloc(buffer_size)
 
         mvsdk.CameraPlay(self._handle)
-        print('Camera opened.')
+        logging.info('Camera opened.')
 
     def _close(self) -> None:
         mvsdk.CameraUnInit(self._handle)
         mvsdk.CameraAlignFree(self._buffer)
-        print('Camera closed.')
+        logging.info('Camera closed.')
 
     def read(self, buffer_address=None) -> tuple[bool, cv2.Mat | None]:
         try:
@@ -70,7 +71,7 @@ class Camera(ContextManager):
             except Exception as error:
                 if type(last_error) == type(error):
                     continue
-                print(f'{error}')
+                logging.error(error)
                 last_error = error
 
-        print('Camera reopened.')
+        logging.info('Camera reopened.')

@@ -2,6 +2,7 @@ import math
 import time
 import serial
 import struct
+import logging
 from typing import TypeAlias
 from modules.io.context_manager import ContextManager
 
@@ -89,11 +90,11 @@ class Communicator(ContextManager):
         self._serial = serial.Serial(self._port, 115200)
         self._serial.reset_input_buffer()
         self._serial.reset_output_buffer()
-        print('Communicator opened.')
+        logging.info('Communicator opened.')
 
     def _close(self) -> None:
         self._serial.close()
-        print('Communicator closed.')
+        logging.info('Communicator closed.')
 
     def reopen(self) -> None:
         '''注意阻塞'''
@@ -107,10 +108,10 @@ class Communicator(ContextManager):
             except Exception as error:
                 if type(last_error) == type(error):
                     continue
-                print(f'{error}')
+                logging.error(error)
                 last_error = error
 
-        print('Communicator reopened.')
+        logging.info('Communicator reopened.')
 
     def send(
         self,
@@ -128,14 +129,18 @@ class Communicator(ContextManager):
         frame = self._serial.read_all()
         read_time_s = time.time()
 
-        if len(frame) != RX_FRAME_LEN:
-            if len(frame) != 0:
-                print(f'failed to read {frame.hex()}')
+        if len(frame) == 0:
             return False, None
+
+        if len(frame) < RX_FRAME_LEN:
+            logging.debug(f'failed to read {frame.hex()}')
+            return False, None
+        else:
+            frame = frame[-RX_FRAME_LEN:]
 
         success, status = unpack_frame(frame)
         if not success:
-            print(f'failed to unpack {frame.hex()}')
+            logging.debug(f'failed to unpack {frame.hex()}')
             return False, None
 
         self.read_time_s = read_time_s

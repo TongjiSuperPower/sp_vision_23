@@ -2,6 +2,7 @@ import cv2
 import time
 import queue
 import ctypes
+import logging
 import numpy as np
 from multiprocessing import Process, Queue, RawArray
 from modules.io.mindvision import Camera
@@ -10,7 +11,7 @@ from modules.tools import clear_queue
 
 
 def capture(exposure_ms: float, buffers: list[RawArray], tx_queue: Queue, quit_queue: Queue) -> None:
-    print('Capture started.')
+    logging.info('Capture started.')
 
     with Camera(exposure_ms) as camera:
         successed_count = 0
@@ -36,21 +37,21 @@ def capture(exposure_ms: float, buffers: list[RawArray], tx_queue: Queue, quit_q
 
             success, _ = camera.read(buffer_address)
             if not success:
-                print('Camera lost.')
+                logging.warning('Camera lost.')
                 camera.reopen()
                 continue
 
             try:
                 tx_queue.put_nowait((camera.read_time_s, buffer_index))
             except queue.Full:
-                print(f'Capture tx_queue full! Successed count: {successed_count}')
+                logging.debug(f'Capture tx_queue full! Successed count: {successed_count}')
                 successed_count = -1
             successed_count += 1
 
     clear_queue(tx_queue)
     clear_queue(quit_queue)
 
-    print('Capture ended.')
+    logging.info('Capture ended.')
 
 
 class ParallelCamera(ContextManager):
@@ -75,7 +76,7 @@ class ParallelCamera(ContextManager):
         '''注意阻塞'''
         self._quit_queue.put(True)
         self._process.join()
-        print('ParallelCamera closed.')
+        logging.info('ParallelCamera closed.')
 
     def update(self) -> None:
         '''注意阻塞'''
