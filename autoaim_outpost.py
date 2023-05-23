@@ -73,12 +73,12 @@ if __name__ == '__main__':
 
             if tracker.state in ('TRACKING', 'TEMP_LOST'):
                 target = tracker.target
-                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed, pitch_offset, robot)
 
                 aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
                 x, y, z = aim_point_in_imu_mm.T[0]
-                send_pitch_degree = tools.shoot_pitch(x, y, z, robot.bullet_speed) + pitch_offset
-                aim_point_in_imu_mm[1, 0] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(send_pitch_degree))
+                
+                aim_point_in_imu_mm = tools.trajectoryAdjust(aim_point_in_imu_mm, pitch_offset, robot, 1)
                 aim_point_in_imu_m = aim_point_in_imu_mm / 1e3
                 
                 robot.shoot(aim_point_in_imu_m, fire_time_s)
