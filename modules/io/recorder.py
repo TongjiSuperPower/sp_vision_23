@@ -11,9 +11,9 @@ from modules.io.context_manager import ContextManager
 
 
 H, W = 1024, 1280
-FPS = 60
+FPS = 30
 DIR = 'recordings'
-BUFFER_NUM = 2
+BUFFER_NUM = 4
 
 
 def record(buffer_names: tuple[str], index_with_status_queue: Queue, quit_queue: Queue) -> None:
