@@ -226,7 +226,7 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
     '''
     pos = np.reshape(target_pos, (3,))
     x, y, z = pos
-    pitch = shoot_pitch(x, y, z, robot.bullet_speed) + pitch_offset # 枪管向上抬为正
+    pitch = shoot_pitch(x, y, z, robot.bullet_speed) # 枪管向上抬为正
     
     if enableAirRes==1:
         try:
@@ -235,9 +235,11 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
             g = 9.794
             k = 0.00022802630547843214 if robot.id==1 else 6.0896287678629725e-05
             pitch = findPitch(robot.bullet_speed, k, m, g, math.sqrt(x**2+z**2), y, pitch-5, pitch+10)
-            pitch += pitch_offset
+            
         except:
             print("弹道空气阻力补偿计算出错")
+    
+    pitch += pitch_offset
     
     armor_in_gun = np.array([x, y, z]).reshape(3, 1)
     armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))

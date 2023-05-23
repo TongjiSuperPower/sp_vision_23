@@ -190,9 +190,9 @@ class Outpost:
 
             x[3, 0] = aim_yaw_rad
             aim_point_m = h_xyz(x)
-            aim_point_mm = aim_point_m*1000
-            aim_point_mm = trajectoryAdjust(aim_point_mm, pitch_offset=pitch_offset, robot=robot, enableAirRes=1)
-            aim_point_m = aim_point_mm/1000
+            # aim_point_mm = aim_point_m*1000
+            # aim_point_mm = trajectoryAdjust(aim_point_mm, pitch_offset=pitch_offset, robot=robot, enableAirRes=1)
+            # aim_point_m = aim_point_mm/1000
             _, fly_time_s = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
             fly_time_s += 1.05
 
