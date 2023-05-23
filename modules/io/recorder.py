@@ -48,7 +48,7 @@ def record(buffer_names: tuple[str], index_with_status_queue: Queue, quit_queue:
                 pass
 
             try:
-                index, status = index_with_status_queue.get()
+                index, status = index_with_status_queue.get_nowait()
                 img = imgs[index]
                 video_writer.write(img)
                 status_writer.write(f'{status}\n')
