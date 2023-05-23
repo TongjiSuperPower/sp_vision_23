@@ -59,7 +59,7 @@ class ParallelCamera(ContextManager):
         self._height = 1024
         self._width = 1280
         self._channel = 3
-        self._buffer_num = 3
+        self._buffer_num = 4
 
         img_size = self._height * self._width * self._channel
         self._buffers = [RawArray(ctypes.c_uint8, img_size) for _ in range(self._buffer_num)]
