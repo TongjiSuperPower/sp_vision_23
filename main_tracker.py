@@ -103,7 +103,7 @@ if __name__ == '__main__':
                     armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
 
                     fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
-                    robot.send(*armor_in_gun.T[0], flag=fire)
+                    robot.shoot(armor_in_gun/1000)
 
                     # 调试用
                     # visualizer.plot((cy, y, robot_yaw_degree*10, robot_pitch_degree*10), ('cy', 'y', 'yaw', 'pitch'))
