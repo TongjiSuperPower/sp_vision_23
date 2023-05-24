@@ -213,7 +213,7 @@ def find_closest_value(x: float, value: Tuple[float, ...]) -> float:
             
     return closest_val
 
-def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
+def trajectoryAdjust(target_pos, robot, enableAirRes=1):
     '''
     弹道调整，返回重力（及空气阻力）补偿后的目标位置。
 
@@ -239,7 +239,6 @@ def trajectoryAdjust(target_pos, pitch_offset, robot, enableAirRes=1):
         except:
             print("弹道空气阻力补偿计算出错")
     
-    pitch += pitch_offset
     
     armor_in_gun = np.array([x, y, z]).reshape(3, 1)
     armor_in_gun[1] = (x*x + z*z) ** 0.5 * -math.tan(math.radians(pitch))

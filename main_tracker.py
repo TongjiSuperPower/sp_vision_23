@@ -100,10 +100,10 @@ if __name__ == '__main__':
                     # tools.drawPoint(drawing, Shot.shot_point_in_pixel,(0,0,255),radius = 10)#red 预测时间后待击打装甲板的位置
 
                     # 重力补偿
-                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=1)
 
                     fire = 1 if tracker.tracker_state == TrackerState.TRACKING else 0
-                    robot.shoot(armor_in_gun/1000)
+                    robot.shoot(pitch_offset, armor_in_gun/1000)
 
                     # 调试用
                     # visualizer.plot((cy, y, robot_yaw_degree*10, robot_pitch_degree*10), ('cy', 'y', 'yaw', 'pitch'))
@@ -140,10 +140,10 @@ if __name__ == '__main__':
                                                                   enablePredict=0)
 
                 if predictedPtsInWorld is not None:
-                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, pitch_offset, robot, enableAirRes=1)
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=1)
                     # print(armor_in_gun)
 
-                    robot.shoot(armor_in_gun/1000)
+                    robot.shoot(pitch_offset, armor_in_gun/1000)
 
 
             # 调试用
