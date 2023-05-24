@@ -1,4 +1,5 @@
 import cv2
+import math
 import logging
 from enum import IntEnum
 from modules.ekf import ColumnVector
@@ -82,7 +83,13 @@ class Robot(ContextManager):
 
         return yaw_degree, pitch_degree
 
-    def shoot(self, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
+    def shoot(self, gun_up_degree: float, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
         aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
         x_in_imu_mm, y_in_imu_mm, z_in_imu_mm = aim_point_in_imu_mm.T[0]
+
+        gun_up_rad = math.radians(gun_up_degree)
+        distance_mm = (x_in_imu_mm**2 + z_in_imu_mm**2)**0.5
+        aim_pitch_rad = math.atan(-y_in_imu_mm/distance_mm)
+        y_in_imu_mm = -distance_mm * math.tan(aim_pitch_rad + gun_up_rad)
+
         self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)

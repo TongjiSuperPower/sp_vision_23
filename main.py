@@ -49,8 +49,6 @@ if __name__ == '__main__':
 
         armor_solver = ArmorSolver(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
-        tracker = Tracker()
-
         while True:
             robot.update()
 
@@ -60,41 +58,37 @@ if __name__ == '__main__':
             armors = armor_detector.detect(img)
 
             yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
+
             armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+            armors = sorted(armors, key=lambda a: a.in_imu_mm[2, 0])
 
             recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
-            # print(f'Tracker state: {tracker.state} ')
+            if len(armors) > 0:
+                armor = armors[0]
 
-            if tracker.state == 'LOST':
-                tracker.init(armors, img_time_s)
-            else:
-                tracker.update(armors, img_time_s)
+                aim_point_m = armor.in_imu_m
 
-            if tracker.state in ('TRACKING', 'TEMP_LOST'):
-                target = tracker.target
-                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed, pitch_offset, robot)
+                x, y, z = (aim_point_m * 1e3).T[0]
+                shoot_pitch_degree = tools.shoot_pitch(x, y, z, robot.bullet_speed)
+                shoot_y_mm = (x*x + z*z) ** 0.5 * -math.tan(math.radians(shoot_pitch_degree))
 
-                aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
-                x, y, z = aim_point_in_imu_mm.T[0]
-                
-                aim_point_in_imu_mm = tools.trajectoryAdjust(aim_point_in_imu_mm, pitch_offset, robot, 1)
-                aim_point_in_imu_m = aim_point_in_imu_mm / 1e3
-                
-                robot.shoot(pitch_offset, aim_point_in_imu_m, fire_time_s)
+                aim_point_m[1, 0] = shoot_y_mm / 1e3
+
+                robot.shoot(pitch_offset, aim_point_m)
 
             # 调试分割线
 
             if not visualizer.enable:
                 continue
 
-            # drawing = img.copy()
-            drawing = cv2.convertScaleAbs(img, alpha=5)
+            drawing = img.copy()
+            # drawing = cv2.convertScaleAbs(img, alpha=5)
 
             for i, l in enumerate(armor_detector._raw_lightbars):
                 if not is_lightbar(l):
                     continue
-                tools.drawContour(drawing, l.points, (0, 255, 255), 10)
+                tools.drawContour(drawing, l.points, (0, 0, 255), 1)
 
             # for i, lp in enumerate(armor_detector._raw_lightbar_pairs):
             #     if not is_lightbar_pair(lp):
@@ -105,44 +99,16 @@ if __name__ == '__main__':
             for i, a in enumerate(armor_detector._raw_armors):
                 if not is_armor(a):
                     continue
-                tools.drawContour(drawing, a.points)
+                # tools.drawContour(drawing, a.points)
                 tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
                 tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
                 
                 # cx, cy, cz = a.in_camera_mm.T[0]
                 # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
-            if tracker.state != 'LOST':
-                
-                center_in_imu_m = tracker.target._ekf.x[:3]
-                speed_rad_per_s = tracker.target._ekf.x[4, 0]
-                center_in_imu_mm = center_in_imu_m * 1e3
-                center_in_pixel = tools.project_imu2pixel(
-                    center_in_imu_mm,
-                    yaw_degree, pitch_degree,
-                    cameraMatrix, distCoeffs,
-                    R_camera2gimbal, t_camera2gimbal
-                )
-                tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
-                tools.putText(drawing, f'{speed_rad_per_s:.2f}', center_in_pixel, (255, 255, 255))
+            if len(armors) > 0:
+                armor = armors[0]
+                visualizer.plot((armor.in_camera_mm[0, 0]/10, armor.yaw_in_camera_degree,), ('x', 'yaw', ))
 
-                x, y, z = center_in_imu_m.T[0]
-                outpost_yaw_rad = tracker.target._ekf.x[3, 0]
-                messured_yaw_rad = tracker.target.debug_yaw_rad
-                outpost_yaw_degree = math.degrees(outpost_yaw_rad)
-                robot_yaw_rad = math.radians(yaw_degree)
-
-                # visualizer.plot((x, y, z), ('x', 'y', 'z'))
-                visualizer.plot((speed_rad_per_s, outpost_yaw_rad, messured_yaw_rad, robot_yaw_rad), ('speed', 'yaw', 'm_yaw', 'robot_yaw'))
-
-                for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
-                    armor_in_imu_mm = armor_in_imu_m * 1e3
-                    armor_in_pixel = tools.project_imu2pixel(
-                        armor_in_imu_mm,
-                        yaw_degree, pitch_degree,
-                        cameraMatrix, distCoeffs,
-                        R_camera2gimbal, t_camera2gimbal
-                    )
-                    tools.drawPoint(drawing, armor_in_pixel, (0, 0, 255), radius=10)
-
+            # visualizer.show(armor_detector._gray_img)
             visualizer.show(drawing)
