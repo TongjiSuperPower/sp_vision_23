@@ -12,7 +12,7 @@ from modules.autoaim.classifier import Classifier
 threshold_value = 90  # 二值化阈值
 
 # Lightbar
-min_lgihtbar_h = 25  # 保证灯条长度大于该值
+min_lgihtbar_h = 20  # 保证灯条长度大于该值
 max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
 min_color_difference = 50  # 最小颜色差
