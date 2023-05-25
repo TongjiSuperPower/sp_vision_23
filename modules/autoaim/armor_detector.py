@@ -12,7 +12,7 @@ from modules.autoaim.classifier import Classifier
 threshold_value = 90  # 二值化阈值
 
 # Lightbar
-min_contour_area = 10  # 保证6m以内灯条面积大于该值
+min_lgihtbar_h = 25  # 保证灯条长度大于该值
 max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
 min_color_difference = 50  # 最小颜色差
@@ -31,10 +31,10 @@ min_confidence = 0.8  # 判断为装甲板的最低置信度
 
 
 def is_lightbar(l: Lightbar) -> bool:
-    area_check = l.area > min_contour_area
+    h_check = l.h > min_lgihtbar_h
     angle_check = abs(l.angle-90) < max_lightbar_angle
     ratio_check = l.ratio > min_lightbar_ratio
-    return area_check and angle_check and ratio_check
+    return h_check and angle_check and ratio_check
 
 
 def is_lightbar_pair(lp: LightbarPair) -> bool:
@@ -69,14 +69,13 @@ class ArmorDetector:
 
     def _get_raw_lightbars(self, img: cv2.Mat, processed_img: cv2.Mat) -> list[Lightbar]:
         lightbars: list[Lightbar] = []
-        contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(processed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
         for contour in contours:
             rect = cv2.minAreaRect(contour)
             center = rect[0]  # (x, y)
             h, w = rect[1]
             angle = rect[2]
-            area = h * w
 
             # 调整宽高，获得比例
             if h < w:
@@ -97,7 +96,7 @@ class ArmorDetector:
             if color != self._enemy_color:
                 continue
 
-            lightbar = Lightbar(h, angle, center, color, area, ratio)
+            lightbar = Lightbar(h, angle, center, color, ratio)
             lightbars.append(lightbar)
 
         return lightbars

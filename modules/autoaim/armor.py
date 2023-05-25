@@ -5,12 +5,11 @@ from modules.autoaim.transformation import LazyTransformation
 
 
 class Lightbar:
-    def __init__(self, h: float, angle: float, center: tuple[float, float], color: str, area: float, ratio: float) -> None:
+    def __init__(self, h: float, angle: float, center: tuple[float, float], color: str, ratio: float) -> None:
         self.h = h  # 灯条长度
         self.angle = angle  # 与水平线夹角，顺时针增大，单位degree
         self.center = np.float32(center)
         self.color = color  # 'blue' or 'red'
-        self.area = area
         self.ratio = ratio
 
         # 获得沿长度方向的方向向量，指向灯条的上方
