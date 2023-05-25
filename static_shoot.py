@@ -59,10 +59,11 @@ if __name__ == '__main__':
 
             yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
 
-            armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
-            armors = sorted(armors, key=lambda a: a.in_imu_mm[2, 0])
-
             recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
+
+            armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+            
+            armors = sorted(armors, key=lambda a: a.in_imu_mm[2, 0])
 
             if len(armors) > 0:
                 armor = armors[0]
