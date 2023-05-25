@@ -7,8 +7,8 @@ from modules.tools import drawContour, drawPoint, drawAxis, putText, R_gimbal2im
 
 
 def calibrate_aperture():
-    '''调节光圈使相机能看清5m远装甲板的图案'''
-    with Camera(40) as camera:
+    '''调节光圈使相机能看清远处的装甲板的图案'''
+    with Camera(20) as camera:
         while True:
             success, img = camera.read()
             if not success:
