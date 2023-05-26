@@ -20,7 +20,7 @@ min_color_difference = 50  # 最小颜色差
 # LightbarPair
 max_angle = 10  # 装甲板左右灯条中点连线与水平线最大夹角
 max_side_ratio = 2  # 装甲板左右灯条长度最大比值，max/min
-min_ratio = 1.6  # 最小装甲板长宽比
+min_ratio = 1.5  # 最小装甲板长宽比
 max_ratio = 5  # 最大装甲板长宽比
 
 # Armor
