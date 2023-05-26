@@ -114,9 +114,9 @@ CENTER_DISTANCE_RATIO = (2.5, 4.2)
 
 # 轮廓面积最小值，用于筛除过小的轮廓，单位px
 # 注意过小时可能会把r标滤掉
-CONTOUR_MIN_AREA = 100
+CONTOUR_MIN_AREA = 500
 # R标大小范围
-R_AREA_RANGE = (100, 150)
+R_AREA_RANGE = (200, 450)
 
 # 最小误差
 DBL_EPSILON = 2.2204e-016
