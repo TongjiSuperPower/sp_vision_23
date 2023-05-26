@@ -300,8 +300,8 @@ def get_parent_contours(contours, hierarchy):
     parent_contours = {}
     # 寻找父轮廓
     for i, contour in enumerate(contours):
-        if cv2.contourArea(contour) < CONTOUR_MIN_AREA:
-            continue
+        # if cv2.contourArea(contour) < CONTOUR_MIN_AREA:
+        #     continue
         if hierarchy[0][i][3] == -1:
             parent_contours[i] = []
         else:
@@ -315,7 +315,7 @@ def get_parent_contours(contours, hierarchy):
 
 def get_target_fan(contours, parent_contours):
     # 统计子轮廓数量,找出没有子轮廓且长宽和符合要求的最大轮廓
-    max_area = float('-inf')
+    max_area = CONTOUR_MIN_AREA
     target_contour = None
     for parent_contour_number, child_contours in parent_contours.items():
         if len(child_contours) == 0:
@@ -325,7 +325,7 @@ def get_target_fan(contours, parent_contours):
             parent_height = min(parent_rect[1][0], parent_rect[1][1])
             # 找最大的子轮廓是方形的轮廓中最大的轮廓
             if ARMOR_WH_RATIO[0] < parent_width / parent_height < ARMOR_WH_RATIO[1] and cv2.contourArea(
-                    parent_contour) > max_area:
+                    parent_contour) > max_area>=CONTOUR_MIN_AREA:
                 max_area = cv2.contourArea(parent_contour)
                 target_contour = parent_contour
 
