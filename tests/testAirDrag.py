@@ -32,8 +32,7 @@ start_time = time.time()
 
 # 程序代码
 for i in range(1):
-    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, 
-                                      pitch_offset, 
+    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld,                                      
                                       robot, 
                                       enableAirRes=1)
 
@@ -46,7 +45,7 @@ run_time = (end_time - start_time)*1000
 print("程序运行时间为：", run_time, "ms")
 print(armor_in_gun)
 
-
+# 常规大弹丸
 c = 0.275
 r = 42.5/2/1000 
 A = np.pi * r**2
@@ -57,8 +56,18 @@ g = 9.794
 # For convenience, define  this constant.
 k = 0.5 * c * rho_air * A
 print(k/m)
-0.00022802630547843214
+# k/m: 0.0055616172067910275
+# k: 0.00022802630547843214
 
+# 发光大弹丸
+m = 41.25/1000
+o_k = 0.00530
+k = o_k * m
+print(k)
+# k/m: 0.00530
+# k: 0.00021862500000000002
+
+# 发光小弹丸
 c = 0.47
 r = 16.8/2/1000
 A = np.pi * r**2
@@ -69,4 +78,5 @@ g = 9.794
 # For convenience, define  this constant.
 k = 0.5 * c * rho_air * A
 print(k/m)
-6.0896287678629725e-05
+# k/m: 0.01903008989957179
+# k: 6.0896287678629725e-05

@@ -233,7 +233,8 @@ def trajectoryAdjust(target_pos, robot, enableAirRes=1):
             # Drag coefficient, projectile radius (m), area (m2) and mass (kg).
             m = 41/1000 if robot.id==1 else 0.0032
             g = 9.794
-            k = 0.00022802630547843214 if robot.id==1 else 6.0896287678629725e-05
+            # k = 0.00021862500000000002 if robot.id==1 else 6.0896287678629725e-05 # 发光大弹丸/发光小弹丸
+            k = 0.00022802630547843214 if robot.id==1 else 6.0896287678629725e-05 # 老的大弹丸/发光小弹丸
             pitch = findPitch(robot.bullet_speed, k, m, g, math.sqrt(x**2+z**2), y, pitch-5, pitch+10)
             
         except:
