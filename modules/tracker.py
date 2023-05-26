@@ -3,7 +3,7 @@ import numpy as np
 from enum import IntEnum
 from modules.NewEKF import ExtendedKalmanFilter
 from modules.autoaim.armor import Armor
-from modules.tools import shortest_angular_distance
+from modules.tools import shortest_angular_distance, printMsgWithTime
 from modules.target import NormalRobot, BalanceInfantry, Outpost, Base
 
 
@@ -104,7 +104,7 @@ class Tracker:
                 if self.detect_count > self.tracking_threshold:
                     self.detect_count = 0
                     self.tracker_state = TrackerState.TRACKING
-                    print("tracker start tracking")
+                    printMsgWithTime("tracker start tracking")
             else:
                 self.detect_count = 0
                 self.tracker_state = TrackerState.LOST
@@ -120,7 +120,7 @@ class Tracker:
                 if self.lost_count > self.lost_threshold:
                     self.lost_count = 0
                     self.tracker_state = TrackerState.LOST
-                    print("tracker has lost")
+                    printMsgWithTime("tracker has lost")
             else:
                 self.tracker_state = TrackerState.TRACKING
                 self.lost_count = 0

@@ -73,7 +73,7 @@ class NormalRobot():
 
         self.ekfilter.setState(self.target_state)
 
-        print(self.target_type + " --- Init EKF!")
+        tools.printMsgWithTime(self.target_type + " --- Init EKF!")
 
     def forwardPredict(self, dt):
         ekf_prediction = self.ekfilter.predict(dt)
@@ -211,7 +211,7 @@ class NormalRobot():
         yaw = self.get_continous_yaw(a.yaw_in_imu_rad)
 
         if abs(yaw - last_yaw) > 0.4:
-            print("Armor jump!")
+            tools.printMsgWithTime("Armor jump!")
             self.arrmor_jump = 1
             self.last_y = self.target_state[1]
             self.target_state[1] = np.reshape(a.in_imu_m, (3,))[1]
@@ -222,7 +222,7 @@ class NormalRobot():
         infer_p = self.getArmorPositionFromState(self.target_state)
 
         if np.linalg.norm(current_p - infer_p) > max_match_distance:
-            print("State wrong!")
+            tools.printMsgWithTime(f"State wrong! current:{current_p[0]} {current_p[1]} {current_p[2]} infer:{infer_p[0]} {infer_p[1]} {infer_p[2]}")
             self.state_error = 1
             r = self.target_state[8]
             self.target_state[0] = current_p[0] + r * math.sin(yaw)
@@ -243,7 +243,7 @@ class NormalRobot():
             self.ekfilter.setState(self.target_state)
 
         if (self.last_y - self.target_state[1]) > self.max_y_diff:
-            print("y - error!!  :" + f"last_y: {self.last_y}" + "; " + f"y: {self.target_state[1]}")
+            tools.printMsgWithTime("y - error!!  :" + f"last_y: {self.last_y}" + "; " + f"y: {self.target_state[1]}")
     
     def updatePreState(self, preTime):
         self.pre_target_state = self.f(self.target_state, preTime)
@@ -377,7 +377,7 @@ class Outpost(NormalRobot):
 
         self.ekfilter.setState(self.target_state)
 
-        print(self.target_type + " --- Init EKF!")
+        tools.printMsgWithTime(self.target_type + " --- Init EKF!")
 
     def j_f(self, x, dt):
         # J_f - Jacobian of process function
@@ -475,7 +475,7 @@ class Outpost(NormalRobot):
         yaw = self.get_continous_yaw(a.yaw_in_imu_rad)
 
         if abs(yaw - last_yaw) > 0.4:
-            print("Armor jump!")
+            tools.printMsgWithTime("Armor jump!")
             self.arrmor_jump = 1
             self.last_y = self.target_state[1]
             self.target_state[1] = np.reshape(a.in_imu_m, (3,))[1]
@@ -485,7 +485,7 @@ class Outpost(NormalRobot):
         infer_p = self.getArmorPositionFromState(self.target_state)
 
         if np.linalg.norm(current_p - infer_p) > max_match_distance:
-            print("State wrong!")
+            tools.printMsgWithTime(f"State wrong! current:{current_p[0]} {current_p[1]} {current_p[2]} infer:{infer_p[0]} {infer_p[1]} {infer_p[2]}")
             self.state_error = 1
             r = self.initial_r
             self.target_state[0] = current_p[0] + r * math.sin(yaw)
@@ -518,7 +518,7 @@ class Base(NormalRobot):
 
         self.armors_in_pixel = deque(maxlen=1)
 
-        print(self.target_type + " --- Init EKF!")
+        tools.printMsgWithTime(self.target_type + " --- Init EKF!")
 
     def forwardPredict(self, dt):
         return None

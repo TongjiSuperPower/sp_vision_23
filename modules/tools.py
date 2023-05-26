@@ -296,3 +296,11 @@ def findPitch(bulletSpeed, k, m, g, distance, y, x0, x1, tol=1, maxiter=100):
         x0, x1 = x1, x2
 
     raise RuntimeError('Failed to converge')
+
+def printMsgWithTime(msg):
+    now = datetime.datetime.now()
+    time_now = now.strftime("%H:%M:%S.%f")
+    date = now.strftime("%m-%d")
+    datetime_str = f"{date} {time_now} "
+    print(datetime_str + str(msg))
+    

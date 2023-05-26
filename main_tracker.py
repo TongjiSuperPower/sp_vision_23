@@ -59,7 +59,7 @@ if __name__ == '__main__':
         # Tracker
         max_match_distance = 0.2  # 单位:m
         tracking_threshold = 5  # 从检测到->跟踪的帧数
-        lost_threshold = 10  # 从暂时丢失->丢失的帧数
+        lost_threshold = 60  # 从暂时丢失->丢失的帧数
         tracker = Tracker(max_match_distance, tracking_threshold, lost_threshold)
         
         # 反能量机关:
