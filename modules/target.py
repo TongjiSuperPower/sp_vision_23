@@ -21,6 +21,7 @@ class NormalRobot():
         self.max_y_diff = 0.1 * 1.2  # 根据官方机器人制作规范，装甲板真实y坐标的最大可能差值(m)
 
         self.target_state = np.zeros((9,))
+        self.pre_target_state = np.zeros((9,))
 
         self.last_yaw = 0
         self.last_y = 0
@@ -242,7 +243,11 @@ class NormalRobot():
             self.ekfilter.setState(self.target_state)
 
         if (self.last_y - self.target_state[1]) > self.max_y_diff:
-            print("y - error!!")
+            print("y - error!!  :" + f"last_y: {self.last_y}" + "; " + f"y: {self.target_state[1]}")
+    
+    def updatePreState(self, preTime):
+        self.pre_target_state = self.f(self.target_state, preTime)
+        return self.pre_target_state
 
 
 class BalanceInfantry(NormalRobot):

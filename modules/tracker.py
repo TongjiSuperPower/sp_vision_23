@@ -31,7 +31,6 @@ class Tracker:
     def init(self, armors: list[Armor]):
         # 进入LOST状态后，必须要检测到装甲板才能初始化tracker
         if len(armors) == 0:
-            print('lost.')
             return
 
         # 选择最近的装甲板作为目标
@@ -105,6 +104,7 @@ class Tracker:
                 if self.detect_count > self.tracking_threshold:
                     self.detect_count = 0
                     self.tracker_state = TrackerState.TRACKING
+                    print("tracker start tracking")
             else:
                 self.detect_count = 0
                 self.tracker_state = TrackerState.LOST
@@ -120,6 +120,7 @@ class Tracker:
                 if self.lost_count > self.lost_threshold:
                     self.lost_count = 0
                     self.tracker_state = TrackerState.LOST
+                    print("tracker has lost")
             else:
                 self.tracker_state = TrackerState.TRACKING
                 self.lost_count = 0
