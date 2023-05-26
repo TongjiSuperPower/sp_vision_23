@@ -35,8 +35,8 @@ class NahsorMarker(object):
     last_time_for_fit = time.time()
     last_time_for_speed = time.time()  # 上帧图像的时间戳，为了计算两帧图像间的间隔
 
-    def __init__(self, color: COLOR = COLOR.RED, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
-                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.BGR, target_debug=0,
+    def __init__(self, color: COLOR = COLOR.BLUE, fit_speed_mode: FIT_SPEED_MODE = FIT_SPEED_MODE.CURVE_FIT,
+                 energy_mode: ENERGY_MODE = ENERGY_MODE.BIG, color_space: COLOR_SPACE = COLOR_SPACE.HSV, target_debug=0,
                  fit_debug=0):
         # def __init__(self, color=COLOR.RED, fit_speed_mode=FIT_SPEED_MODE.BY_SPEED,
         #              energy_mode=ENERGY_MODE.BIG, color_space=COLOR_SPACE.BGR, debug=1):
