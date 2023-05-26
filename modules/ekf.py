@@ -14,6 +14,7 @@ class ExtendedKalmanFilter:
         jacobian_f: Callable[[ColumnVector, float], Matrix],
         x0: ColumnVector,
         P0: Matrix,
+        Q: Matrix,
         x_add: Callable[[ColumnVector, ColumnVector], ColumnVector] = None,
     ) -> None:
         '''
@@ -21,25 +22,20 @@ class ExtendedKalmanFilter:
         jacobian_f: 状态转移函数的雅可比矩阵 jacobian_f(x, dt_s) -> F
         x0: 初始状态
         P0: 初始状态噪声
+        Q: 过程噪声
         x_add: 定义状态向量加法, 便于处理角度突变
         '''
         self.f = f
         self.jacobian_f = jacobian_f
         self.x = x0
         self.P = P0
+        self.Q = Q
         self._x_add = x_add
 
-    def predict(
-        self,
-        dt_s: float,
-        Q: Matrix
-    ) -> None:
-        '''
-        Q: 过程噪声
-        '''
+    def predict(self, dt_s: float) -> None:
         self.x = self.f(self.x, dt_s)
         F = self.jacobian_f(self.x, dt_s)
-        self.P = F @ self.P @ F.T + Q
+        self.P = F @ self.P @ F.T + self.Q
 
     def update(
         self,

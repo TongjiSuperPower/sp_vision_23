@@ -1,5 +1,7 @@
 from collections.abc import Iterable
 from modules.autoaim.armor import Armor
+from modules.autoaim.targets.target import Target
+from modules.autoaim.targets.standard import Standard
 from modules.autoaim.targets.outpost import Outpost
 
 
@@ -9,12 +11,12 @@ min_detect_count = 3
 
 class Tracker:
     def __init__(self) -> None:
-        self.target: Outpost = None
+        self.target: Target = None
         self.state = 'LOST'
 
     def init(self, armors: Iterable[Armor], img_time_s: float) -> None:
         # 按近远排序，同时将armors从Iterable转换为list
-        armors = sorted(armors, key=lambda a: a.in_camera_mm[2])
+        armors = sorted(armors, key=lambda a: a.in_camera_mm[2, 0])
 
         if len(armors) == 0:
             return
@@ -25,7 +27,7 @@ class Tracker:
         if armor.name == 'small_outpost':
             self.target = Outpost()
         else:
-            return
+            self.target = Standard()
 
         self.target.init(armor, img_time_s)
 
@@ -37,9 +39,10 @@ class Tracker:
     def update(self, armors: Iterable[Armor], img_time_s: float) -> None:
         self.target.predict(img_time_s)
 
-        # 按近远排序，同时将armors从Iterable转换为list
+        # 筛选装甲板
         target_armors = filter(lambda a: a.name == self._target_name, armors)
-        target_armors = sorted(target_armors, key=lambda a: a.in_camera_mm[2])
+        # 按左右排序，同时将armors从Iterable转换为list
+        target_armors = sorted(target_armors, key=lambda a: a.in_camera_mm[0, 0])
 
         matched = False
         reinit = False
