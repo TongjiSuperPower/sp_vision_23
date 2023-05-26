@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from collections.abc import Iterable
 
@@ -22,6 +23,13 @@ class ArmorSolver:
         def lazy_solve(armor: Armor) -> Armor:
             width = big_width if 'big' in armor.name else small_width
 
+            if 'outpost' in armor.name:
+                ideal_pitch_rad = math.radians(15)
+            elif 'base' in armor.name:
+                ideal_pitch_rad = None
+            else:
+                ideal_pitch_rad = math.radians(-15)
+
             points_2d = armor.points
             points_3d = np.float32([[-width / 2, -lightbar_length / 2, 0],
                                     [width / 2, -lightbar_length / 2, 0],
@@ -29,7 +37,7 @@ class ArmorSolver:
                                     [-width / 2, lightbar_length / 2, 0]])
 
             armor.lazy_solve_pnp(points_3d, points_2d, self._cameraMatrix, self._distCoeffs)
-            armor.lazy_transform(self._R_camera2gimbal, self._t_camera2gimbal, R_gimbal2imu)
+            armor.lazy_transform(self._R_camera2gimbal, self._t_camera2gimbal, R_gimbal2imu, ideal_pitch_rad)
 
             return armor
 

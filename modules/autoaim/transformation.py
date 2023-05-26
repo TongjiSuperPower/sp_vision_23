@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation
+from modules.tools import limit_rad
 
 
 class LazyPNP:
@@ -11,11 +12,12 @@ class LazyPNP:
         self._points_2d: np.ndarray = None
         self._points_3d: np.ndarray = None
 
-        self._rvec: np.ndarray = None
-        self._tvec: np.ndarray = None
+        self._tvecs: np.ndarray = None
+        self._rvecs: np.ndarray = None
+        self._errors: np.ndarray = None
 
     def _solve_pnp(self) -> None:
-        _, self._rvec, self._tvec = cv2.solvePnP(
+        _, self._rvecs, self._tvecs, self._errors = cv2.solvePnPGeneric(
             self._points_3d, self._points_2d, self._cameraMatrix, self._distCoeffs,
             flags=cv2.SOLVEPNP_IPPE
         )
@@ -27,16 +29,28 @@ class LazyPNP:
         self._points_3d = points_3d
 
     @property
-    def rvec(self) -> np.ndarray:
-        if self._rvec is None:
+    def rvecs(self) -> np.ndarray:
+        if self._rvecs is None:
             self._solve_pnp()
-        return self._rvec
+        return self._rvecs
+
+    @property
+    def tvecs(self) -> np.ndarray:
+        if self._tvecs is None:
+            self._solve_pnp()
+        return self._tvecs
+
+    @property
+    def rvec(self) -> np.ndarray:
+        if self._rvecs is None:
+            self._solve_pnp()
+        return self._rvecs[0]
 
     @property
     def tvec(self) -> np.ndarray:
-        if self._tvec is None:
+        if self._tvecs is None:
             self._solve_pnp()
-        return self._tvec
+        return self._tvecs[0]
 
 
 class LazyTransformation(LazyPNP):
@@ -46,32 +60,60 @@ class LazyTransformation(LazyPNP):
         self._R_camera2gimbal: np.ndarray = None
         self._t_camera2gimbal: np.ndarray = None
         self._R_gimbal2imu: np.ndarray = None
+        self._ideal_pitch_rad: float = None
 
+        self._in_camera_mm: np.ndarray = None
         self._in_imu_mm: np.ndarray = None
-        self._yaw_in_camera_degree: float = None
-        self._yaw_in_imu_degree: float = None
+        self._yaw_in_camera_rad: float = None
+        self._yaw_in_imu_rad: float = None
+        self._pitch_in_imu_rad: float = None
+
+    def _get_yaw_pitch_in_imu_rad(self, rvec: np.ndarray) -> None:
+        R_armor2camera, _ = cv2.Rodrigues(rvec)
+        R_armor2gimbal = R_armor2camera
+        R_armor2imu = self._R_gimbal2imu @ R_armor2gimbal
+        return Rotation.from_matrix(R_armor2imu).as_euler('YXZ')[:2]
 
     def _transform(self) -> None:
+        # 获得装甲板在imu坐标系下的朝向以及其中心点在相机坐标系下的坐标
+        if self._ideal_pitch_rad is None:
+            self.in_camera_mm = self.tvec  # points_3d是以装甲板中心点为原点, 所以tvec即为装甲板中心点在相机坐标系下的坐标
+            self._yaw_in_imu_rad, self._pitch_in_imu_rad = self._get_yaw_pitch_in_imu_rad(self.rvec)
+        else:
+            rvec1, rvec2 = self.rvecs
+            tvec1, tvec2 = self.tvecs
+
+            yaw1_rad, pitch1_rad = self._get_yaw_pitch_in_imu_rad(rvec1)
+            yaw2_rad, pitch2_rad = self._get_yaw_pitch_in_imu_rad(rvec2)
+
+            error1 = abs(limit_rad(pitch1_rad - self._ideal_pitch_rad))
+            error2 = abs(limit_rad(pitch2_rad - self._ideal_pitch_rad))
+
+            self._in_camera_mm = tvec1 if error1 < error2 else tvec2
+            self._yaw_in_imu_rad = yaw1_rad if error1 < error2 else yaw2_rad
+            self._pitch_in_imu_rad = pitch1_rad if error1 < error2 else pitch2_rad
+
         # 获得装甲板中心点在云台坐标系下的坐标
-        in_gimbal_mm = self._R_camera2gimbal @ self.in_camera_mm + self._t_camera2gimbal
+        in_gimbal_mm = self._R_camera2gimbal @ self._in_camera_mm + self._t_camera2gimbal
 
         # 获得装甲板中心点在imu坐标系下的坐标
         self._in_imu_mm = self._R_gimbal2imu @ in_gimbal_mm
 
-        # 获得装甲板在imu坐标系下的朝向
-        R_armor2camera, _ = cv2.Rodrigues(self.rvec)
-        R_armor2gimbal = R_armor2camera
-        R_armor2imu = self._R_gimbal2imu @ R_armor2gimbal
-        self._yaw_in_imu_degree = Rotation.from_matrix(R_armor2imu).as_euler('YXZ', degrees=True)[0]
-
-    def lazy_transform(self, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray, R_gimbal2imu: np.ndarray) -> None:
+    def lazy_transform(self, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray, R_gimbal2imu: np.ndarray, ideal_pitch_rad: float = None) -> None:
         self._R_camera2gimbal = R_camera2gimbal
         self._t_camera2gimbal = t_camera2gimbal
         self._R_gimbal2imu = R_gimbal2imu
+        self._ideal_pitch_rad = ideal_pitch_rad
 
     @property
     def in_camera_mm(self) -> np.ndarray:
-        return self.tvec  # points_3d是以装甲板中心点为原点, 所以tvec即为装甲板中心点在相机坐标系下的坐标
+        if self._in_camera_mm is None:
+            self._transform()
+        return self._in_camera_mm
+
+    @property
+    def in_camera_m(self) -> np.ndarray:
+        return self.in_camera_mm * 1e-3
 
     @property
     def in_imu_mm(self) -> np.ndarray:
@@ -84,22 +126,32 @@ class LazyTransformation(LazyPNP):
         return self.in_imu_mm * 1e-3
 
     @property
-    def yaw_in_camera_degree(self) -> float:
-        if self._yaw_in_camera_degree is None:
-            R_armor2camera, _ = cv2.Rodrigues(self.rvec)
-            self._yaw_in_camera_degree = Rotation.from_matrix(R_armor2camera).as_euler('YXZ', degrees=True)[0]
-        return self._yaw_in_camera_degree
-
-    @property
     def yaw_in_camera_rad(self) -> float:
-        return math.radians(self.yaw_in_camera_degree)
+        if self._yaw_in_camera_rad is None:
+            R_armor2camera, _ = cv2.Rodrigues(self.rvec)
+            self._yaw_in_camera_degree = Rotation.from_matrix(R_armor2camera).as_euler('YXZ')[0]
+        return self._yaw_in_camera_rad
 
     @property
-    def yaw_in_imu_degree(self) -> float:
-        if self._yaw_in_imu_degree is None:
-            self._transform()
-        return self._yaw_in_imu_degree
+    def yaw_in_camera_degree(self) -> float:
+        return math.degrees(self.yaw_in_camera_rad)
 
     @property
     def yaw_in_imu_rad(self) -> float:
-        return math.radians(self.yaw_in_imu_degree)
+        if self._yaw_in_imu_rad is None:
+            self._transform()
+        return self._yaw_in_imu_rad
+
+    @property
+    def yaw_in_imu_degree(self) -> float:
+        return math.degrees(self.yaw_in_imu_rad)
+
+    @property
+    def pitch_in_imu_rad(self) -> float:
+        if self._pitch_in_imu_rad is None:
+            self._transform()
+        return self._pitch_in_imu_rad
+
+    @property
+    def pitch_in_imu_degree(self) -> float:
+        return math.degrees(self.pitch_in_imu_rad)

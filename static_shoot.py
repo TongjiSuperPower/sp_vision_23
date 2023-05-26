@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
             if len(armors) > 0:
                 armor = armors[0]
-                # visualizer.plot((armor.in_camera_mm[0, 0]/10, armor.yaw_in_camera_degree,), ('x', 'yaw', ))
+                visualizer.plot((armor.yaw_in_imu_degree, armor.pitch_in_imu_degree), ('yaw', 'pitch'))
 
             # visualizer.show(armor_detector._gray_img)
             visualizer.show(drawing)
