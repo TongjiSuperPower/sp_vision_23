@@ -48,6 +48,7 @@ class LazyTransformation(LazyPNP):
         self._R_gimbal2imu: np.ndarray = None
 
         self._in_imu_mm: np.ndarray = None
+        self._yaw_in_camera_degree: float = None
         self._yaw_in_imu_degree: float = None
 
     def _transform(self) -> None:
@@ -83,11 +84,22 @@ class LazyTransformation(LazyPNP):
         return self.in_imu_mm * 1e-3
 
     @property
-    def yaw_in_imu_degree(self) -> np.ndarray:
+    def yaw_in_camera_degree(self) -> float:
+        if self._yaw_in_camera_degree is None:
+            R_armor2camera, _ = cv2.Rodrigues(self.rvec)
+            self._yaw_in_camera_degree = Rotation.from_matrix(R_armor2camera).as_euler('YXZ', degrees=True)[0]
+        return self._yaw_in_camera_degree
+
+    @property
+    def yaw_in_camera_rad(self) -> float:
+        return math.radians(self.yaw_in_camera_degree)
+
+    @property
+    def yaw_in_imu_degree(self) -> float:
         if self._yaw_in_imu_degree is None:
             self._transform()
         return self._yaw_in_imu_degree
 
     @property
-    def yaw_in_imu_rad(self) -> np.ndarray:
+    def yaw_in_imu_rad(self) -> float:
         return math.radians(self.yaw_in_imu_degree)
