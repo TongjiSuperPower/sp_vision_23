@@ -467,6 +467,7 @@ def get_pnp_points(contour, r_center):
     # 找到近似多边形中最接近矩形的四个顶点
     # 找到矩形四个边的中点
     corners = [(box[i] + box[(i + 1) % 4]) / 2 for i in range(4)]
+    return np.int0(corners)
     # for i in range(4):
     #     pt =
     #     corners.append(pt)
@@ -479,42 +480,43 @@ def get_pnp_points(contour, r_center):
     #             closest_corner = (approx[j][0] + pt) / 2
     #     # rect_corners.append(closest_corner)
     # return approx
-    rect = np.zeros((4, 2), dtype=np.float32)
+    # rect = np.zeros((4, 2), dtype=np.float32)
 
-    # 找到最靠近r_center的点的索引
-    closest_idx1 = np.argmin(np.linalg.norm(np.array(corners) - r_center, axis=1))
-    closest_idx2 = np.argmin(np.linalg.norm(approx - r_center, axis=2))
+    # # 找到最靠近r_center的点的索引
+    # closest_idx1 = np.argmin(np.linalg.norm(np.array(corners) - r_center, axis=1))
+    # closest_idx2 = np.argmin(np.linalg.norm(approx - r_center, axis=2))
 
-    farthest_idx1 = np.argmax(np.linalg.norm(np.array(corners) - r_center, axis=1))
-    farthest_idx2 = np.argmax(np.linalg.norm(approx - r_center, axis=2))
+    # farthest_idx1 = np.argmax(np.linalg.norm(np.array(corners) - r_center, axis=1))
+    # farthest_idx2 = np.argmax(np.linalg.norm(approx - r_center, axis=2))
 
-    rect[0] = (corners[closest_idx1] + approx[closest_idx2]) / 2
-    rect[2] = (corners[farthest_idx1] + approx[farthest_idx2]) / 2
-
-    # 从corners列表中删除最靠近的点
-    corners.pop(max(closest_idx1, farthest_idx1))
-    corners.pop(min(closest_idx1, farthest_idx1))
-    angles = []
-    for pt in corners:
-        dx = pt[0] - r_center[0]
-        dy = pt[1] - r_center[1]
-        angle = np.arctan2(dy, dx) * 180 / np.pi
-        angles.append(angle)
-    angles = np.array(angles)
-    pts_angles = list(zip(corners, angles))
-    if np.min(np.abs(angles)) > 120:
-        # 将所有点分成x轴正方向和x轴负方向两组
-        pos_pts = [(pt, angle) for pt, angle in pts_angles if angle >= 0]
-        neg_pts = [(pt, angle) for pt, angle in pts_angles if angle < 0]
-        # 分别按照夹角大小排序
-        pos_pts.sort(key=lambda x: x[1])
-        neg_pts.sort(key=lambda x: x[1])
-        pts_angles = pos_pts + neg_pts
-    else:
-        pts_angles.sort(key=lambda x: x[1])
-    sorted_pts = [pt for pt, _ in pts_angles]
-    # rect[0] = sorted_pts[0]
-    rect[1] = sorted_pts[0]
-    # rect[2] = sorted_pts[1]
-    rect[3] = sorted_pts[1]
-    return np.int0(rect)
+    # # rect[0] = (corners[closest_idx1] + approx[closest_idx2]) / 2
+    # # rect[2] = (corners[farthest_idx1] + approx[farthest_idx2]) / 2
+    # rect[0] = corners[closest_idx1]
+    # rect[2] = corners[farthest_idx1]
+    # # 从corners列表中删除最靠近的点
+    # corners.pop(max(closest_idx1, farthest_idx1))
+    # corners.pop(min(closest_idx1, farthest_idx1))
+    # angles = []
+    # for pt in corners:
+    #     dx = pt[0] - r_center[0]
+    #     dy = pt[1] - r_center[1]
+    #     angle = np.arctan2(dy, dx) * 180 / np.pi
+    #     angles.append(angle)
+    # angles = np.array(angles)
+    # pts_angles = list(zip(corners, angles))
+    # if np.min(np.abs(angles)) > 120:
+    #     # 将所有点分成x轴正方向和x轴负方向两组
+    #     pos_pts = [(pt, angle) for pt, angle in pts_angles if angle >= 0]
+    #     neg_pts = [(pt, angle) for pt, angle in pts_angles if angle < 0]
+    #     # 分别按照夹角大小排序
+    #     pos_pts.sort(key=lambda x: x[1])
+    #     neg_pts.sort(key=lambda x: x[1])
+    #     pts_angles = pos_pts + neg_pts
+    # else:
+    #     pts_angles.sort(key=lambda x: x[1])
+    # sorted_pts = [pt for pt, _ in pts_angles]
+    # # rect[0] = sorted_pts[0]
+    # rect[1] = sorted_pts[0]
+    # # rect[2] = sorted_pts[1]
+    # rect[3] = sorted_pts[1]
+    # return np.int0(rect)
