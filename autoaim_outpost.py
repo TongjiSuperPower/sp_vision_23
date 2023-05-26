@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
             if tracker.state in ('TRACKING', 'TEMP_LOST'):
                 target = tracker.target
-                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed, pitch_offset, robot)
+                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
 
                 aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
                 x, y, z = aim_point_in_imu_mm.T[0]
