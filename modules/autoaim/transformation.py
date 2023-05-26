@@ -60,7 +60,6 @@ class LazyTransformation(LazyPNP):
         self._R_camera2gimbal: np.ndarray = None
         self._t_camera2gimbal: np.ndarray = None
         self._R_gimbal2imu: np.ndarray = None
-        self._ideal_pitch_rad: float = None
 
         self._in_camera_mm: np.ndarray = None
         self._in_imu_mm: np.ndarray = None
@@ -76,22 +75,8 @@ class LazyTransformation(LazyPNP):
 
     def _transform(self) -> None:
         # 获得装甲板在imu坐标系下的朝向以及其中心点在相机坐标系下的坐标
-        if self._ideal_pitch_rad is None:
-            self.in_camera_mm = self.tvec  # points_3d是以装甲板中心点为原点, 所以tvec即为装甲板中心点在相机坐标系下的坐标
-            self._yaw_in_imu_rad, self._pitch_in_imu_rad = self._get_yaw_pitch_in_imu_rad(self.rvec)
-        else:
-            rvec1, rvec2 = self.rvecs
-            tvec1, tvec2 = self.tvecs
-
-            yaw1_rad, pitch1_rad = self._get_yaw_pitch_in_imu_rad(rvec1)
-            yaw2_rad, pitch2_rad = self._get_yaw_pitch_in_imu_rad(rvec2)
-
-            error1 = abs(limit_rad(pitch1_rad - self._ideal_pitch_rad))
-            error2 = abs(limit_rad(pitch2_rad - self._ideal_pitch_rad))
-
-            self._in_camera_mm = tvec1 if error1 < error2 else tvec2
-            self._yaw_in_imu_rad = yaw1_rad if error1 < error2 else yaw2_rad
-            self._pitch_in_imu_rad = pitch1_rad if error1 < error2 else pitch2_rad
+        self._in_camera_mm = self.tvec  # points_3d是以装甲板中心点为原点, 所以tvec即为装甲板中心点在相机坐标系下的坐标
+        self._yaw_in_imu_rad, self._pitch_in_imu_rad = self._get_yaw_pitch_in_imu_rad(self.rvec)
 
         # 获得装甲板中心点在云台坐标系下的坐标
         in_gimbal_mm = self._R_camera2gimbal @ self._in_camera_mm + self._t_camera2gimbal
@@ -99,11 +84,10 @@ class LazyTransformation(LazyPNP):
         # 获得装甲板中心点在imu坐标系下的坐标
         self._in_imu_mm = self._R_gimbal2imu @ in_gimbal_mm
 
-    def lazy_transform(self, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray, R_gimbal2imu: np.ndarray, ideal_pitch_rad: float = None) -> None:
+    def lazy_transform(self, R_camera2gimbal: np.ndarray, t_camera2gimbal: np.ndarray, R_gimbal2imu: np.ndarray) -> None:
         self._R_camera2gimbal = R_camera2gimbal
         self._t_camera2gimbal = t_camera2gimbal
         self._R_gimbal2imu = R_gimbal2imu
-        self._ideal_pitch_rad = ideal_pitch_rad
 
     @property
     def in_camera_mm(self) -> np.ndarray:
