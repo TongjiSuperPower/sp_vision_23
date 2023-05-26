@@ -8,12 +8,12 @@ class NahsorTracker():
     '''能量机关追踪器'''
     def __init__(self,robot_color) -> None:
         self.nahsor:NahsorMarker = None 
-        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.RED  
+        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.BLUE  
         self.init()     
 
     def init(self):        
         self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode=NahsorConfig.ENERGY_MODE.BIG,
-                                   color_space=NahsorConfig.COLOR_SPACE.BGR,
+                                   color_space=NahsorConfig.COLOR_SPACE.HSV,
                                    fit_debug=0, target_debug=1,
                                    fit_speed_mode=NahsorConfig.FIT_SPEED_MODE.CURVE_FIT)
 
@@ -38,8 +38,8 @@ class NahsorTracker():
             print("target corners is None")
             return None
         
-        current2DCorners = np.vstack((current2DCorners, self.nahsor.r_center)).astype(np.float32) # 图像坐标系中的5个角点的xy坐标
-        
+        # current2DCorners = np.vstack((current2DCorners, self.nahsor.r_center)).astype(np.float32) # 图像坐标系中的5个角点的xy坐标
+        current2DCorners = current2DCorners.astype(np.float32)
         current3DPos = nahsorSolver.solve(points_2d=current2DCorners, 
                                           yaw_degree=yaw_degree, 
                                           pitch_degree=pitch_degree).in_imu_mm # pnp解算出观测靶心的世界坐标系3d坐标
@@ -61,8 +61,9 @@ class NahsorTracker():
         predictTime_s = flyTime_s + deltatime # 预测时间
 
         predict2DCorners = self.nahsor.get_2d_predict_corners(predict_time=predictTime_s)
-        predict2DCorners = np.vstack((predict2DCorners, self.nahsor.r_center)).astype(np.float32) # 预测时间后图像坐标系中的5个角点的xy坐标
-
+        # predict2DCorners = np.vstack((predict2DCorners, self.nahsor.r_center)).astype(np.float32) # 预测时间后图像坐标系中的5个角点的xy坐标
+        predict2DCorners = predict2DCorners.astype(np.float32)
+        
         predict3DPos = nahsorSolver.solve(points_2d=predict2DCorners, 
                                           yaw_degree=yaw_degree, 
                                           pitch_degree=pitch_degree).in_imu_mm # pnp解算出观测靶心的世界坐标系3d坐标
