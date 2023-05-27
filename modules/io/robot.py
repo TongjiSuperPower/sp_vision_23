@@ -63,7 +63,7 @@ class Robot(ContextManager):
         # 百位: 0:我方为红方 1:我方为蓝方
         self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
-        self.id = self.flag % 100
+        self.id = self.flag % 10
         self.work_mode = WorkMode.NASHOR if (self.flag/10) % 10 == 2 else WorkMode.AUTOAIM
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
