@@ -32,108 +32,111 @@ if __name__ == '__main__':
         # 因为每次开机后第一次打开串口，其输出全都是0，原因未知。
         pass
 
-    with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer, Recorder() as recorder:
-        robot.update()
-
-        if robot.id == 1:
-            from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
-        elif robot.id == 3:
-            from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
-        elif robot.id == 4:
-            from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
-        elif robot.id == 7:
-            from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
-
-        enemy_color = 'red' if robot.color == 'blue' else 'blue'
-        armor_detector = ArmorDetector(enemy_color)
-
-        armor_solver = ArmorSolver(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
-
-        tracker = Tracker()
-
-        while True:
+    try:
+        with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer, Recorder() as recorder:
             robot.update()
 
-            img = robot.img
-            img_time_s = robot.img_time_s
+            if robot.id == 1:
+                from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+            elif robot.id == 3:
+                from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+            elif robot.id == 4:
+                from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+            elif robot.id == 7:
+                from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
 
-            armors = armor_detector.detect(img)
+            enemy_color = 'red' if robot.color == 'blue' else 'blue'
+            armor_detector = ArmorDetector(enemy_color)
 
-            yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
-            armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
-            armors = filter(lambda a: a.name != 'small_two', armors)
+            armor_solver = ArmorSolver(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
 
-            recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
+            tracker = Tracker()
 
-            # print(f'Tracker state: {tracker.state} ')
+            while True:
+                robot.update()
 
-            if tracker.state == 'LOST':
-                tracker.init(armors, img_time_s)
-            else:
-                tracker.update(armors, img_time_s)
+                img = robot.img
+                img_time_s = robot.img_time_s
 
-            if tracker.state in ('TRACKING', 'TEMP_LOST'):
-                target = tracker.target
-                aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
-                robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                armors = armor_detector.detect(img)
 
-            # 调试分割线
+                yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
+                armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+                armors = filter(lambda a: a.name != 'small_two', armors)
 
-            if not visualizer.enable:
-                continue
+                recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
-            # drawing = img.copy()
-            drawing = cv2.convertScaleAbs(img, alpha=5)
+                # print(f'Tracker state: {tracker.state} ')
 
-            for i, l in enumerate(armor_detector._raw_lightbars):
-                if not is_lightbar(l):
+                if tracker.state == 'LOST':
+                    tracker.init(armors, img_time_s)
+                else:
+                    tracker.update(armors, img_time_s)
+
+                if tracker.state in ('TRACKING', 'TEMP_LOST'):
+                    target = tracker.target
+                    aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                    robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+
+                # 调试分割线
+
+                if not visualizer.enable:
                     continue
-                tools.drawContour(drawing, l.points, (0, 255, 255), 10)
 
-            # for i, lp in enumerate(armor_detector._raw_lightbar_pairs):
-            #     if not is_lightbar_pair(lp):
-            #         continue
-            #     tools.drawContour(drawing, lp.points, (0, 255, 255), 1)
-            #     tools.putText(drawing, f'{lp.angle:.2f}', lp.left.top, (255, 255, 255))
+                # drawing = img.copy()
+                drawing = cv2.convertScaleAbs(img, alpha=5)
 
-            for i, a in enumerate(armor_detector._raw_armors):
-                if not is_armor(a):
-                    continue
-                tools.drawContour(drawing, a.points)
-                tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
-                tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
-                
-                # cx, cy, cz = a.in_camera_mm.T[0]
-                # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
+                for i, l in enumerate(armor_detector._raw_lightbars):
+                    if not is_lightbar(l):
+                        continue
+                    tools.drawContour(drawing, l.points, (0, 255, 255), 10)
 
-            if tracker.state != 'LOST' and tracker._target_name != 'outpost':
-                xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = tracker.target._ekf.x.T[0]
-                center_in_imu_m = np.float64([[xc, yc1, zc]]).T
+                # for i, lp in enumerate(armor_detector._raw_lightbar_pairs):
+                #     if not is_lightbar_pair(lp):
+                #         continue
+                #     tools.drawContour(drawing, lp.points, (0, 255, 255), 1)
+                #     tools.putText(drawing, f'{lp.angle:.2f}', lp.left.top, (255, 255, 255))
 
-                center_in_imu_mm = center_in_imu_m * 1e3
-                center_in_pixel = tools.project_imu2pixel(
-                    center_in_imu_mm,
-                    yaw_degree, pitch_degree,
-                    cameraMatrix, distCoeffs,
-                    R_camera2gimbal, t_camera2gimbal
-                )
-                tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
-                tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
+                for i, a in enumerate(armor_detector._raw_armors):
+                    if not is_armor(a):
+                        continue
+                    tools.drawContour(drawing, a.points)
+                    tools.drawAxis(drawing, a.center, a.rvec, a.tvec, cameraMatrix, distCoeffs)
+                    tools.putText(drawing, f'{i} {a.color} {a.name} {a.confidence:.2f}', a.left.top, (255, 255, 255))
+                    
+                    # cx, cy, cz = a.in_camera_mm.T[0]
+                    # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
-                z_yaw = tracker.target._last_z_yaw
+                if tracker.state != 'LOST' and tracker._target_name != 'outpost':
+                    xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = tracker.target._ekf.x.T[0]
+                    center_in_imu_m = np.float64([[xc, yc1, zc]]).T
 
-                # visualizer.plot((r1, r2), ('r1', 'r2'))
-                visualizer.plot((yc1, yc2), ('y1', 'y2'))
-
-                
-                for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
-                    armor_in_imu_mm = armor_in_imu_m * 1e3
-                    armor_in_pixel = tools.project_imu2pixel(
-                        armor_in_imu_mm,
+                    center_in_imu_mm = center_in_imu_m * 1e3
+                    center_in_pixel = tools.project_imu2pixel(
+                        center_in_imu_mm,
                         yaw_degree, pitch_degree,
                         cameraMatrix, distCoeffs,
                         R_camera2gimbal, t_camera2gimbal
                     )
-                    tools.drawPoint(drawing, armor_in_pixel, (0, 0, 255), radius=10)
+                    tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
+                    tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
 
-            visualizer.show(drawing)
+                    z_yaw = tracker.target._last_z_yaw
+
+                    # visualizer.plot((r1, r2), ('r1', 'r2'))
+                    visualizer.plot((yc1, yc2), ('y1', 'y2'))
+
+                    
+                    for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
+                        armor_in_imu_mm = armor_in_imu_m * 1e3
+                        armor_in_pixel = tools.project_imu2pixel(
+                            armor_in_imu_mm,
+                            yaw_degree, pitch_degree,
+                            cameraMatrix, distCoeffs,
+                            R_camera2gimbal, t_camera2gimbal
+                        )
+                        tools.drawPoint(drawing, armor_in_pixel, (0, 0, 255), radius=10)
+
+                visualizer.show(drawing)
+    except Exception as e:
+        logging.exception(e)
