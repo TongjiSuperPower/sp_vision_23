@@ -140,7 +140,7 @@ class Standard(Target):
         center_x, center_y1, center_y2, center_z = current_state[:4].T[0]
         center_m = np.float64([[center_x, min(center_y1, center_y2), center_z]]).T
         _, fly_to_center_s = get_trajectory_rad_and_s(center_m, bullet_speed_m_per_s)
-        predicted_state = f(current_state, fly_to_center_s)
+        predicted_state = f(current_state, fly_to_center_s + 0.1)
 
         speed_rad_per_s = predicted_state[-1, 0]
         predicted_yaw_rad = predicted_state[4, 0]
