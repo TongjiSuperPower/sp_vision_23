@@ -29,13 +29,16 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
 
                 # 发送命令
                 try:
-                    command, fire_time_s = rx_queue.get_nowait()
-                    communicator.send(*command)
+                    xyz, fire_time_s = rx_queue.get_nowait()
+                    if type(fire_time_s) == str and fire_time_s == 'now':
+                        communicator.send(*xyz, flag=TX_FLAG_FIRE)
+                    else:
+                        communicator.send(*xyz)
 
-                    x, y, z = command
+                    x, y, z = xyz
                     scheduled_command = (x, y, z, TX_FLAG_FIRE)                        
 
-                    if scheduled_time_s is None:
+                    if scheduled_time_s is None and type(fire_time_s) != float:
                         scheduled_time_s = fire_time_s
 
                 except queue.Empty:
@@ -101,9 +104,9 @@ class ParallelCommunicator(ContextManager):
         self.history.extend(buffer)
         self.latest_read_time_s, self.latest_status = self.history[-1]
 
-    def send(self, x_in_imu_mm: float, y_in_imu_mm: float, z_in_imu_mm: float, fire_time_s: float | None) -> None:
-        command = (x_in_imu_mm, y_in_imu_mm, z_in_imu_mm)
+    def send(self, x_in_imu_mm: float, y_in_imu_mm: float, z_in_imu_mm: float, fire_time_s: float | str | None) -> None:
+        xyz = (x_in_imu_mm, y_in_imu_mm, z_in_imu_mm)
         try:
-            self._tx_queue.put_nowait((command, fire_time_s))
+            self._tx_queue.put_nowait((xyz, fire_time_s))
         except queue.Full:
             logging.debug(f'ParallelCommunicator tx_queue full!')
