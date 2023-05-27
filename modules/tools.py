@@ -226,7 +226,11 @@ def trajectoryAdjust(target_pos, robot, enableAirRes=1):
     '''
     pos = np.reshape(target_pos, (3,))
     x, y, z = pos
-    pitch = shoot_pitch(x, y, z, robot.bullet_speed) # 枪管向上抬为正
+    try:
+        pitch = shoot_pitch(x, y, z, robot.bullet_speed) # 枪管向上抬为正
+    except:
+        print("error when calzulate pitch with gravity")
+        return None
     
     if enableAirRes==1:
         try:

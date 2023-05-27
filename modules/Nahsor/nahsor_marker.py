@@ -212,7 +212,7 @@ class NahsorMarker(object):
                                         1, (0, 255, 0), 2)
 
             # 绘制多边形
-            if self.r_center is not None:
+            if self.r_center is not None and self.target_corners is not None:
                 for i, p in enumerate(self.target_corners):
                     point = p
                     dx = point[0] - self.r_center[0]

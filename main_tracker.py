@@ -140,10 +140,21 @@ if __name__ == '__main__':
                                                                   enablePredict=0)
 
                 if predictedPtsInWorld is not None:
-                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=1)
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)
                     # print(armor_in_gun)
+                    if armor_in_gun is not None:
+                        robot.shoot(pitch_offset, predictedPtsInWorld/1000)
+                        current_point_in_pixel = tools.project_imu2pixel(predictedPtsInWorld, robot_yaw_degree, 
+                                                                      robot_pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        shot_point_in_pixel = tools.project_imu2pixel(armor_in_gun, robot_yaw_degree, 
+                                                                      robot_pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        tools.drawPoint(drawing, current_point_in_pixel, (0,255,0))
+                        tools.drawPoint(drawing, shot_point_in_pixel, (0,0,255))
 
-                    robot.shoot(pitch_offset, armor_in_gun/1000)
+                    predictedPtsInWorld = np.reshape(predictedPtsInWorld, (3,))
+                    visualizer.plot((predictedPtsInWorld[0], predictedPtsInWorld[1], predictedPtsInWorld[2]), ('x', 'y', 'z'))
+                
+                cv2.waitKey(1)
 
 
             # 调试用

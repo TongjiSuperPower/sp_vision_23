@@ -8,13 +8,13 @@ class NahsorTracker():
     '''能量机关追踪器'''
     def __init__(self,robot_color) -> None:
         self.nahsor:NahsorMarker = None 
-        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.BLUE  
+        self.nahsor_color = NahsorConfig.COLOR.BLUE if robot_color == 'red' else NahsorConfig.COLOR.RED 
         self.init()     
 
     def init(self):        
         self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode=NahsorConfig.ENERGY_MODE.BIG,
                                    color_space=NahsorConfig.COLOR_SPACE.HSV,
-                                   fit_debug=0, target_debug=1,
+                                   fit_debug=0, target_debug=0,
                                    fit_speed_mode=NahsorConfig.FIT_SPEED_MODE.CURVE_FIT)
 
     def update(self, frame):
