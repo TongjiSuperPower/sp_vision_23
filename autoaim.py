@@ -61,6 +61,7 @@ if __name__ == '__main__':
 
             yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
             armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+            armors = filter(lambda a: a.name != 'small_two', armors)
 
             recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
