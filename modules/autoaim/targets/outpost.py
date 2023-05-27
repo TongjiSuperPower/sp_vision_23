@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from math import sin, cos, atan, pi, radians
+from math import sin, cos, tan, atan, pi, radians
 from modules.ekf import ExtendedKalmanFilter, ColumnVector, Matrix
 from modules.tools import limit_rad
 from modules.autoaim.armor import Armor
@@ -152,6 +152,10 @@ class Outpost(Target):
                 if fly_time_s < arrive_time_s:
                     fire_time_s = arrive_time_s - fly_time_s + current_time_s
                     break
+
+        # 重力补偿
+        gun_pitch_rad, _ = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
+        aim_point_m[1, 0] = -(aim_point_m[0, 0]**2 + aim_point_m[2, 0]**2)**0.5 * tan(gun_pitch_rad)
 
         return aim_point_m, fire_time_s
 

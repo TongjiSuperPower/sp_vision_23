@@ -74,15 +74,6 @@ if __name__ == '__main__':
             if tracker.state in ('TRACKING', 'TEMP_LOST'):
                 target = tracker.target
                 aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
-
-                aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
-                x, y, z = aim_point_in_imu_mm.T[0]
-                                
-
-                shoot_pitch_degree = tools.shoot_pitch(x, y, z, robot.bullet_speed)
-                shoot_y_mm = (x*x + z*z) ** 0.5 * -math.tan(math.radians(shoot_pitch_degree))
-                aim_point_in_imu_m[1, 0] = shoot_y_mm / 1e3
-
                 robot.shoot(pitch_offset, aim_point_in_imu_m, fire_time_s)
 
             # 调试分割线
