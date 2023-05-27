@@ -113,7 +113,7 @@ class LazyTransformation(LazyPNP):
     def yaw_in_camera_rad(self) -> float:
         if self._yaw_in_camera_rad is None:
             R_armor2camera, _ = cv2.Rodrigues(self.rvec)
-            self._yaw_in_camera_degree = Rotation.from_matrix(R_armor2camera).as_euler('YXZ')[0]
+            self._yaw_in_camera_rad = Rotation.from_matrix(R_armor2camera).as_euler('YXZ')[0]
         return self._yaw_in_camera_rad
 
     @property
