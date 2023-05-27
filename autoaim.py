@@ -75,8 +75,11 @@ if __name__ == '__main__':
 
                 if tracker.state in ('TRACKING', 'TEMP_LOST'):
                     target = tracker.target
-                    aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
-                    robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                    try:
+                        aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                        robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                    except:
+                        print("error occured in target aim")
 
                 # 调试分割线
 
