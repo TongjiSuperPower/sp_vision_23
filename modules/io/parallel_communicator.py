@@ -38,7 +38,7 @@ def communicate(port: str, tx_queue: Queue, rx_queue: Queue, quit_queue: Queue) 
                     x, y, z = xyz
                     scheduled_command = (x, y, z, TX_FLAG_FIRE)                        
 
-                    if scheduled_time_s is None and type(fire_time_s) != float:
+                    if scheduled_time_s is None and type(fire_time_s) == float:
                         scheduled_time_s = fire_time_s
 
                 except queue.Empty:
