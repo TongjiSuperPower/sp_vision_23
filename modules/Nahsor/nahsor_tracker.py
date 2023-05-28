@@ -8,13 +8,13 @@ class NahsorTracker():
     '''能量机关追踪器'''
     def __init__(self,robot_color) -> None:
         self.nahsor:NahsorMarker = None 
-        self.nahsor_color = NahsorConfig.COLOR.RED if robot_color == 'blue' else NahsorConfig.COLOR.BLUE  
+        self.nahsor_color = NahsorConfig.COLOR.BLUE if robot_color == 'red' else NahsorConfig.COLOR.RED 
         self.init()     
 
     def init(self):        
         self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode=NahsorConfig.ENERGY_MODE.BIG,
                                    color_space=NahsorConfig.COLOR_SPACE.HSV,
-                                   fit_debug=0, target_debug=1,
+                                   fit_debug=0, target_debug=0,
                                    fit_speed_mode=NahsorConfig.FIT_SPEED_MODE.CURVE_FIT)
 
     def update(self, frame):
@@ -23,7 +23,7 @@ class NahsorTracker():
         
         self.nahsor.mark(frame)
 
-    def getShotPoint(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw_degree=0, pitch_degree=0, enablePredict = 1):
+    def getShotPoint(self, deltatime, bulletSpeed, R_camera2gimbal, t_camera2gimbal, cameraMatrix, distCoeffs, yaw_degree=0, pitch_degree=0, enablePredict = NahsorConfig.USE_PREDICT):
         '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
         # 如果没有找到风车,就返回None
         if self.nahsor.getTargetStatus() == NahsorConfig.STATUS.NOT_FOUND:
@@ -44,7 +44,7 @@ class NahsorTracker():
                                           yaw_degree=yaw_degree, 
                                           pitch_degree=pitch_degree).in_imu_mm # pnp解算出观测靶心的世界坐标系3d坐标
         
-        print(current2DCorners)
+        # print(current2DCorners)
 
         if not enablePredict:
             return current3DPos
