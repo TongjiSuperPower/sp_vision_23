@@ -78,9 +78,8 @@ if __name__ == '__main__':
 
             robot_yaw_degree, robot_pitch_degree = robot.yaw_pitch_degree_at(robot.img_time_s)
             armors = armor_solver.solve(armors, robot_yaw_degree, robot_pitch_degree)
-
-            # 优先击打最近的
-            armors = sorted(armors, key=lambda a: a.in_camera_mm[2])
+            armors = list(armors)
+            armors = tools.sort_armor_by_name(armors , robot.id)
 
             twoTimeStampMs.append(robot_stamp_ms)
             dtMs = (twoTimeStampMs[1] - twoTimeStampMs[0]) if len(twoTimeStampMs) == 2 else 8  # (ms)
