@@ -9,7 +9,26 @@ from multiprocessing import Queue
 from typing import Tuple
 from scipy.integrate import solve_ivp
 
+# big_one:英雄;
+# small_two:工程;
+# small_three, small_four, small_five:步兵;
+# big_three, big_four, big_five:平衡步兵
 
+#哨兵击打顺序： 英雄 普通步兵 平衡步兵  基地 前哨站（工程不打）  可以试试打前哨站（） 7m之内
+names_order_sentry = ['big_one','small_three', 'small_four', 'small_five' , 'big_three', 'big_four', 'big_five', 'big_base','small_base',  'small_outpost']
+def sort_armor_by_name(armors : list[Armor], robot_id : int):
+    armors = list(armors)
+    if robot_id == 7:
+        filtered_armors  =  [armor for armor in armors if armor.in_imu_mm < 7 * 1000]   #7m以内攻击
+        sorted_list = sorted(filtered_armors, key=lambda x: (names_order_sentry.index(x.name), x.in_imu_mm))
+        return sorted_list
+    else:
+        filtered_armors  =  [armor for armor in armors if armor.in_imu_mm < 5 * 1000]   #5m以内攻击
+        # 优先击打最近的
+        armors = filter(lambda a: a.name != 'small_two', armors)
+        sorted_list = sorted(filtered_armors, key=lambda a: a.in_imu_mm)
+        return sorted_list     
+    
 def config_logging():
     log_dir = 'logs'
     log_filename = f'{log_dir}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}.log'
