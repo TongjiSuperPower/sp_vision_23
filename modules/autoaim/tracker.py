@@ -14,7 +14,7 @@ class Tracker:
         self.target: Target = None
         self.state = 'LOST'
 
-    def init(self, armors: Iterable[Armor], img_time_s: float) -> None:
+    def init(self, armors: list[Armor], img_time_s: float) -> None:
         # 按近远排序，同时将armors从Iterable转换为list
         armors = sorted(armors, key=lambda a: a.in_camera_mm[2, 0])
 
@@ -36,7 +36,7 @@ class Tracker:
         self._lost_count = 0
         self._detect_count = 1
 
-    def update(self, armors: Iterable[Armor], img_time_s: float) -> None:
+    def update(self, armors: list[Armor], img_time_s: float) -> None:
         self.target.predict(img_time_s)
 
         # 筛选装甲板
