@@ -8,6 +8,7 @@ from queue import Empty
 from multiprocessing import Queue
 from typing import Tuple
 from scipy.integrate import solve_ivp
+from modules.autoaim.armor import Armor
 
 # big_one:英雄;
 # small_two:工程;
