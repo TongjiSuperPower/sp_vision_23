@@ -36,13 +36,13 @@ if __name__ == '__main__':
         robot.update()
 
         if robot.id == 1:
-            from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
+            from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
         elif robot.id == 3:
-            from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
+            from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
         elif robot.id == 4:
-            from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
+            from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
         elif robot.id == 7:
-            from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, pitch_offset
+            from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
 
         enemy_color = 'red' if robot.color == 'blue' else 'blue'
         armor_detector = ArmorDetector(enemy_color)
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
                 aim_point_m[1, 0] = shoot_y_mm / 1e3
 
-                robot.shoot(pitch_offset, aim_point_m)
+                robot.shoot(gun_up_degree, gun_right_degree, aim_point_m)
 
             # 调试分割线
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
             if len(armors) > 0:
                 armor = armors[0]
-                # visualizer.plot((armor.in_camera_mm[0, 0]/10, armor.yaw_in_camera_degree,), ('x', 'yaw', ))
+                visualizer.plot((armor.yaw_in_imu_degree, armor.pitch_in_imu_degree), ('yaw', 'pitch'))
 
             # visualizer.show(armor_detector._gray_img)
             visualizer.show(drawing)

@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from math import sin, cos, atan, pi, radians
+from math import sin, cos, tan, atan, pi, radians
 from modules.ekf import ExtendedKalmanFilter, ColumnVector, Matrix
 from modules.tools import limit_rad
 from modules.autoaim.armor import Armor
@@ -10,7 +10,8 @@ from modules.autoaim.targets.target import Target, z_yaw_subtract, get_z_xyz, ge
 armor_num = 4
 
 min_jump_rad = radians(60)
-max_valid_rad = radians(10)
+min_anittop_rad_per_s = 1.5  # 反小陀螺最小角速度
+max_aim_yaw_rad = radians(20)  # 子弹射出方向与装甲板法线最大yaw
 
 inital_r_m = 0.3
 max_speed_rad_per_s = 10
@@ -130,35 +131,47 @@ class Standard(Target):
 
         return False
 
-    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float]:
-        speed_rad_per_s = self._ekf.x[-1, 0]
+    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | str | None]:
+        current_time_s = time.time()
+        current_state = f(self._ekf.x, current_time_s - self._last_time_s)
+        current_yaw_rad = current_state[4, 0]
 
-        if abs(speed_rad_per_s) < max_speed_rad_per_s / 100:
-            aim_point_m = h_xyz(self._ekf.x, self._use_r1_r2)
-            fire_time_s = None
+        # 近似估计子弹射出后目标的状态
+        center_x, center_y1, center_y2, center_z = current_state[:4].T[0]
+        center_m = np.float64([[center_x, min(center_y1, center_y2), center_z]]).T
+        _, fly_to_center_s = get_trajectory_rad_and_s(center_m, bullet_speed_m_per_s)
+        predicted_state = f(current_state, fly_to_center_s + 0.1)
 
+        speed_rad_per_s = predicted_state[-1, 0]
+        predicted_yaw_rad = predicted_state[4, 0]
+        best_aim_yaw_rad = atan(predicted_state[0, 0] / predicted_state[3, 0])
+
+        # 直接瞄准当前装甲板
+        if abs(speed_rad_per_s) < min_anittop_rad_per_s:
+            aim_point_m = h_xyz(predicted_state, self._use_r1_r2)
+
+            if abs(limit_rad(predicted_yaw_rad - best_aim_yaw_rad)) < max_aim_yaw_rad:
+                fire_time_s = 'now'
+            else:
+                fire_time_s = None
+
+        # 反小陀螺
         else:
-            center_x, _, _, center_z = self._ekf.x[:4].T[0]
-            aim_yaw_rad = atan(center_x / center_z)
+            if abs(limit_rad(predicted_yaw_rad - best_aim_yaw_rad)) > max_aim_yaw_rad:
+                predicted_state[4, 0] = best_aim_yaw_rad
+            aim_point_m = h_xyz(predicted_state, self._use_r1_r2)
+            _, fly_to_armor_s = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
+            fly_to_armor_s += 0
 
-            current_time_s = time.time()
-            x = f(self._ekf.x, current_time_s - self._last_time_s)
-            current_yaw_rad = x[4, 0]
-
-            x[4, 0] = aim_yaw_rad
-            aim_point_m = h_xyz(x, self._use_r1_r2)
-            _, fly_time_s = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
-            fly_time_s += 0
-
-            arrive_time_s = limit_rad(aim_yaw_rad - current_yaw_rad) / speed_rad_per_s
-            rotate_to_next_time_s = 2 * pi / armor_num / abs(speed_rad_per_s)
+            arrive_time_s = limit_rad(best_aim_yaw_rad - current_yaw_rad) / speed_rad_per_s
 
             fire_time_s = None
-            for _ in range(armor_num):
-                arrive_time_s += rotate_to_next_time_s
-                if fly_time_s < arrive_time_s:
-                    fire_time_s = arrive_time_s - fly_time_s + current_time_s
-                    break
+            if fly_to_armor_s < arrive_time_s:
+                fire_time_s = arrive_time_s - fly_to_armor_s + current_time_s
+
+        # 重力补偿
+        gun_pitch_rad, _ = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
+        aim_point_m[1, 0] = -(aim_point_m[0, 0]**2 + aim_point_m[2, 0]**2)**0.5 * tan(gun_pitch_rad)
 
         return aim_point_m, fire_time_s
 

@@ -65,7 +65,7 @@ class Target:
     def update(self, armor: Armor) -> bool:
         raise NotImplementedError('该函数需子类实现')
 
-    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float]:
+    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | str | None]:
         raise NotImplementedError('该函数需子类实现')
 
     def get_all_armor_positions_m(self) -> list[ColumnVector]:

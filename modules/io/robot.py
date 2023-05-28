@@ -1,15 +1,18 @@
 import cv2
 import math
 import logging
+import numpy as np
 from enum import IntEnum
 from modules.ekf import ColumnVector
 from modules.io.parallel_camera import ParallelCamera
 from modules.io.parallel_communicator import ParallelCommunicator
 from modules.io.context_manager import ContextManager
 
+
 class WorkMode(IntEnum):
     AUTOAIM = 1
     NASHOR = 2
+
 
 def limit_degree(angle_degree: float) -> float:
     '''(-180,180]'''
@@ -60,8 +63,8 @@ class Robot(ContextManager):
         # 百位: 0:我方为红方 1:我方为蓝方
         self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
-        self.id = self.flag % 100
-        self.work_mode = WorkMode.NASHOR if (self.flag/10)%10 == 2 else WorkMode.NASHOR
+        self.id = self.flag % 10
+        self.work_mode = WorkMode.NASHOR if (self.flag/10) % 10 == 2 else WorkMode.AUTOAIM
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''
@@ -83,7 +86,14 @@ class Robot(ContextManager):
 
         return yaw_degree, pitch_degree
 
-    def shoot(self, gun_up_degree: float, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
+    def shoot(self, gun_up_degree: float, gun_right_degree: float, aim_point_in_imu_m: ColumnVector, fire_time_s: float | str | None = None) -> None:
+        yaw = math.radians(gun_right_degree)
+        R_y = np.array([[math.cos(yaw), 0, math.sin(yaw)],
+                        [0, 1, 0],
+                        [-math.sin(yaw), 0, math.cos(yaw)]])
+        
+        aim_point_in_imu_m = R_y @ aim_point_in_imu_m
+
         aim_point_in_imu_mm = aim_point_in_imu_m * 1e3
         x_in_imu_mm, y_in_imu_mm, z_in_imu_mm = aim_point_in_imu_mm.T[0]
 
@@ -93,5 +103,3 @@ class Robot(ContextManager):
         y_in_imu_mm = -distance_mm * math.tan(aim_pitch_rad + gun_up_rad)
 
         self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)
-
-        return (x_in_imu_mm, y_in_imu_mm, z_in_imu_mm)
