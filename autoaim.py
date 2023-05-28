@@ -37,13 +37,13 @@ if __name__ == '__main__':
             robot.update()
 
             if robot.id == 1:
-                from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+                from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
             elif robot.id == 3:
-                from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+                from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
             elif robot.id == 4:
-                from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+                from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
             elif robot.id == 7:
-                from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree
+                from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
 
             enemy_color = 'red' if robot.color == 'blue' else 'blue'
             armor_detector = ArmorDetector(enemy_color)
@@ -61,8 +61,9 @@ if __name__ == '__main__':
                 armors = armor_detector.detect(img)
 
                 yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
+                
                 armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
-                armors = filter(lambda a: a.name != 'small_two', armors)
+                armors = filter(lambda a: a.name not in whitelist, armors)
 
                 recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 

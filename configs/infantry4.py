@@ -9,3 +9,5 @@ t_camera2gimbal = np.float32([[-0.4843357023401955], [62.636469719758225], [166.
 
 gun_up_degree = -1.5
 gun_right_degree = 0
+
+whitelist = ('small_two',)
