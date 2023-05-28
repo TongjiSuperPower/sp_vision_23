@@ -140,10 +140,41 @@ if __name__ == '__main__':
                                                                   enablePredict=0)
 
                 if predictedPtsInWorld is not None:
-                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=1)
+                    armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
                     # print(armor_in_gun)
+                    if armor_in_gun is not None:
+                        shoot_pts = robot.shoot(pitch_offset, armor_in_gun/1000)
 
-                    robot.shoot(pitch_offset, armor_in_gun/1000)
+                        # debug输出
+                        current_point_in_pixel = tools.project_imu2pixel(predictedPtsInWorld, robot_yaw_degree, 
+                                                                      robot_pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        shot_point_in_pixel = tools.project_imu2pixel(shoot_pts, robot_yaw_degree, 
+                                                                      robot_pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        tools.drawPoint(drawing, current_point_in_pixel, (0,255,0))
+                        tools.drawPoint(drawing, shot_point_in_pixel, (0,0,255))
+
+                        predictedPtsInWorld = np.reshape(predictedPtsInWorld, (3,))
+                        x,y,z = predictedPtsInWorld[0], predictedPtsInWorld[1], predictedPtsInWorld[2]
+                        nah_distance = math.sqrt(x**2 + z**2)
+                        nah_height = -y
+
+                        shoot_pts = np.reshape(shoot_pts, (3,))
+                        shoot_x, shoot_y, shoot_z = shoot_pts[0], shoot_pts[1], shoot_pts[2]                        
+                        nah_pitch = math.degrees(math.atan(-shoot_y/nah_distance))
+
+                        tools.putText(drawing, f"distance: {nah_distance}", (30,30))
+                        tools.putText(drawing, f"height: {nah_height}", (30,60))
+                        tools.putText(drawing, f"pitch: {nah_pitch}", (30,90))
+                        tools.putText(drawing, f"adjust height:: {-shoot_y}", (30,120))
+                        tools.putText(drawing, f"bullet_speed:: {robot.bullet_speed}", (30,150))
+
+
+
+
+                    predictedPtsInWorld = np.reshape(predictedPtsInWorld, (3,))
+                    visualizer.plot((predictedPtsInWorld[0], predictedPtsInWorld[1], predictedPtsInWorld[2]), ('x', 'y', 'z'))
+                
+                cv2.waitKey(1)
 
 
             # 调试用

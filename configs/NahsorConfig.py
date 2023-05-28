@@ -52,7 +52,7 @@ OPEN_PARA = 1
 CLOS_PARA = 1
 
 # 使用预测
-USE_PREDICT = True
+USE_PREDICT = False
 
 # 目标颜色设置合集
 HSV_RED_UPPER_1 = (180, 255, 255)
@@ -114,7 +114,7 @@ CENTER_DISTANCE_RATIO = (2.5, 4.2)
 
 # 轮廓面积最小值，用于筛除过小的轮廓，单位px
 # 注意过小时可能会把r标滤掉
-CONTOUR_MIN_AREA = 200
+CONTOUR_MIN_AREA = 100
 FAN_MIN_AREA = 600
 # R标大小范围
 R_AREA_RANGE = (200, 450)
@@ -146,8 +146,7 @@ SPEED_PARAM_BOUNDS = {
     # "a": (0.780, 1.045),
     # "w": (1.884, 2.000),
     # "b": (2.090 - 1.045, 2.090 - 0.780)
-
-    "a": [0.50, 1.2],
+    "a": [0.0, 2],
     "w": [1.6, 2.200],
     "b": [0.8, 1.3]
 }
@@ -157,6 +156,6 @@ SPEED_PARAM_MAXERROR = {
     "b": 0.05
 }
 # 小符旋转速度  RPM
-SMALL_ROT_SPEED = 16
+SMALL_ROT_SPEED = 12
 # 延迟时间
 DELAY_TIME = 0.50

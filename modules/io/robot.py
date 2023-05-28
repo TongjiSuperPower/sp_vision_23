@@ -61,7 +61,7 @@ class Robot(ContextManager):
         self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
         self.id = self.flag % 100
-        self.work_mode = WorkMode.NASHOR if (self.flag/10)%10 == 2 else WorkMode.AUTOAIM
+        self.work_mode = WorkMode.NASHOR if (self.flag/10)%10 == 2 else WorkMode.NASHOR
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''
@@ -93,3 +93,5 @@ class Robot(ContextManager):
         y_in_imu_mm = -distance_mm * math.tan(aim_pitch_rad + gun_up_rad)
 
         self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)
+
+        return (x_in_imu_mm, y_in_imu_mm, z_in_imu_mm)

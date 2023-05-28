@@ -212,7 +212,7 @@ class NahsorMarker(object):
                                         1, (0, 255, 0), 2)
 
             # 绘制多边形
-            if self.r_center is not None:
+            if self.r_center is not None and self.target_corners is not None:
                 for i, p in enumerate(self.target_corners):
                     point = p
                     dx = point[0] - self.r_center[0]
@@ -472,7 +472,7 @@ class NahsorMarker(object):
         #
         # speed_params, cov = leastsq(residual, [1, 1, 1, 1], args=(fit_times, smooth_angles))
 
-        if self.fit_debug == 1:
+        if self.fit_debug == 1 and speed_params is not None:
             plt.figure(figsize=(30, 10), dpi=100, num=1)
             plt.clf()
             plt.plot(fit_times, self.fit_speeds, alpha=0.8, linewidth=1)
