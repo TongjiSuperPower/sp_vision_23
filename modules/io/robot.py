@@ -5,8 +5,10 @@ import numpy as np
 from enum import IntEnum
 from modules.ekf import ColumnVector
 from modules.io.parallel_camera import ParallelCamera
-from modules.io.parallel_communicator import ParallelCommunicator
+from modules.io.parallel_rx_communicator import ParallelRxCommunicator
+from modules.io.parallel_tx_communicator import ParallelTxCommunicator
 from modules.io.context_manager import ContextManager
+from modules.io.communication import TX_FLAG_FIRE
 
 
 class WorkMode(IntEnum):
@@ -32,7 +34,8 @@ def interpolate_degree(from_degree: float, to_degree: float, k: float) -> float:
 class Robot(ContextManager):
     def __init__(self, exposure_ms: float, port: str) -> None:
         self._camera = ParallelCamera(exposure_ms)
-        self._communicator = ParallelCommunicator(port)
+        self._rx_communicator = ParallelRxCommunicator(port)
+        self._tx_communicator = ParallelTxCommunicator(port)
 
         self.img: cv2.Mat = None
         self.img_time_s: float = None
@@ -44,7 +47,8 @@ class Robot(ContextManager):
 
     def _close(self) -> None:
         self._camera._close()
-        self._communicator._close()
+        self._rx_communicator._close()
+        self._tx_communicator._close()
         logging.info('Robot closed.')
 
     def update(self):
@@ -53,8 +57,8 @@ class Robot(ContextManager):
         self.img = self._camera.img
         self.img_time_s = self._camera.read_time_s
 
-        self._communicator.update()
-        _, _, _, bullet_speed, flag = self._communicator.latest_status
+        self._rx_communicator.update()
+        _, _, _, bullet_speed, flag = self._rx_communicator.latest_status
         self.bullet_speed = bullet_speed if bullet_speed > 5 else 15
 
         # flag:
@@ -68,10 +72,10 @@ class Robot(ContextManager):
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''
-        while self._communicator.latest_read_time_s < time_s:
-            self._communicator.update()
+        while self._rx_communicator.latest_read_time_s < time_s:
+            self._rx_communicator.update()
 
-        for read_time_s, status in reversed(self._communicator.history):
+        for read_time_s, status in reversed(self._rx_communicator.history):
             if read_time_s < time_s:
                 time_s_before, status_before = read_time_s, status
                 break
@@ -86,7 +90,7 @@ class Robot(ContextManager):
 
         return yaw_degree, pitch_degree
 
-    def shoot(self, gun_up_degree: float, gun_right_degree: float, aim_point_in_imu_m: ColumnVector, fire_time_s: float | str | None = None) -> None:
+    def shoot(self, gun_up_degree: float, gun_right_degree: float, aim_point_in_imu_m: ColumnVector, fire_time_s: float | None = None) -> None:
         yaw = math.radians(gun_right_degree)
         R_y = np.array([[math.cos(yaw), 0, math.sin(yaw)],
                         [0, 1, 0],
@@ -102,4 +106,7 @@ class Robot(ContextManager):
         aim_pitch_rad = math.atan(-y_in_imu_mm/distance_mm)
         y_in_imu_mm = -distance_mm * math.tan(aim_pitch_rad + gun_up_rad)
 
-        self._communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s)
+        if fire_time_s == 0:
+            self._tx_communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, flag=TX_FLAG_FIRE)
+        else:
+            self._tx_communicator.send(x_in_imu_mm, y_in_imu_mm, z_in_imu_mm, fire_time_s=fire_time_s)

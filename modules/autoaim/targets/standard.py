@@ -131,7 +131,7 @@ class Standard(Target):
 
         return False
 
-    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | str | None]:
+    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | None]:
         current_time_s = time.time()
         current_state = f(self._ekf.x, current_time_s - self._last_time_s)
         current_yaw_rad = current_state[4, 0]
@@ -151,7 +151,7 @@ class Standard(Target):
             aim_point_m = h_xyz(predicted_state, self._use_r1_r2)
 
             if abs(limit_rad(predicted_yaw_rad - best_aim_yaw_rad)) < max_aim_yaw_rad:
-                fire_time_s = 'now'
+                fire_time_s = 0.0  # 立即射击
             else:
                 fire_time_s = None
 

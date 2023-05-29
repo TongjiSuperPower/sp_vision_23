@@ -122,7 +122,7 @@ class Outpost(Target):
 
         return reinit
 
-    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float]:
+    def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | None]:
         speed_rad_per_s = self._ekf.x[4, 0]
 
         if abs(speed_rad_per_s) < max_speed_rad_per_s / 100:

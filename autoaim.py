@@ -53,6 +53,8 @@ if __name__ == '__main__':
             tracker = Tracker()
 
             while True:
+                time.sleep(1e-4)
+
                 robot.update()
 
                 img = robot.img
@@ -79,8 +81,8 @@ if __name__ == '__main__':
                     try:
                         aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
                         robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
-                    except:
-                        print("error occured in target aim")
+                    except Exception as e:
+                        logging.exception(e)
 
                 # 调试分割线
 
@@ -112,23 +114,23 @@ if __name__ == '__main__':
                     # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
                 if tracker.state != 'LOST' and tracker._target_name != 'outpost':
-                    xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = tracker.target._ekf.x.T[0]
-                    center_in_imu_m = np.float64([[xc, yc1, zc]]).T
+                    # xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = tracker.target._ekf.x.T[0]
+                    # center_in_imu_m = np.float64([[xc, yc1, zc]]).T
 
-                    center_in_imu_mm = center_in_imu_m * 1e3
-                    center_in_pixel = tools.project_imu2pixel(
-                        center_in_imu_mm,
-                        yaw_degree, pitch_degree,
-                        cameraMatrix, distCoeffs,
-                        R_camera2gimbal, t_camera2gimbal
-                    )
-                    tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
-                    tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
+                    # center_in_imu_mm = center_in_imu_m * 1e3
+                    # center_in_pixel = tools.project_imu2pixel(
+                    #     center_in_imu_mm,
+                    #     yaw_degree, pitch_degree,
+                    #     cameraMatrix, distCoeffs,
+                    #     R_camera2gimbal, t_camera2gimbal
+                    # )
+                    # tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
+                    # tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
 
-                    z_yaw = tracker.target._last_z_yaw
+                    # z_yaw = tracker.target._last_z_yaw
 
-                    # visualizer.plot((r1, r2), ('r1', 'r2'))
-                    visualizer.plot((yc1, yc2), ('y1', 'y2'))
+                    # # visualizer.plot((r1, r2), ('r1', 'r2'))
+                    # visualizer.plot((yc1, yc2), ('y1', 'y2'))
 
                     
                     for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):

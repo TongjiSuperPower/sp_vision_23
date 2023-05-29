@@ -17,6 +17,7 @@ TX_FLAG_EMPTY = 0
 TX_FLAG_FIRE = 1
 
 Status: TypeAlias = tuple[int, float, float, float, int]
+Command: TypeAlias = tuple[float, float, float, int]
 
 crc8Table = [
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
@@ -81,15 +82,19 @@ def yaw_pitch_to_xyz(yaw: float, pitch: float) -> tuple[float, float, float]:
 
 
 class Communicator(ContextManager):
-    def __init__(self, port: str) -> None:
+    def __init__(self, port: str, use_rx=True, ues_tx=True) -> None:
         self._port = port
+        self._use_rx = use_rx
+        self._use_tx = ues_tx
         self.read_time_s: float = None
         self._open()
 
     def _open(self) -> None:
         self._serial = serial.Serial(self._port, 115200)
-        self._serial.reset_input_buffer()
-        self._serial.reset_output_buffer()
+        if self._use_rx:
+            self._serial.reset_input_buffer()
+        if self._use_tx:
+            self._serial.reset_output_buffer()
         logging.info('Communicator opened.')
 
     def _close(self) -> None:
