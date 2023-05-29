@@ -120,6 +120,7 @@ if __name__ == '__main__':
 
                     if tracker._target_name == 'small_outpost':
                         xc, yc, zc, target_yaw, w = target._ekf.x.T[0]
+                        center_in_imu_m = np.float64([[xc, yc, zc]]).T
 
                         visualizer.plot((target_yaw, messured_yaw, w), ('yaw', 'm_yaw', 'w'))
 
