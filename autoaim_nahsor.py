@@ -53,6 +53,8 @@ if __name__ == '__main__':
 
             tracker = Tracker()
 
+            nahsor_tracker = NahsorTracker(robot_color=robot.color)
+
             while True:
                 time.sleep(1e-4)
 
@@ -67,10 +69,33 @@ if __name__ == '__main__':
 
                 if robot.work_mode == 2 or robot.work_mode == 3:                    
                     # 能量机关模式
-                    pass
-                    
+                    nahsor_tracker.update(frame=img)
 
-        
+                    try:
+                        target = nahsor_tracker.nahsor
+                        predictedPtsInWorld = nahsor_tracker.getShotPoint(0.15, robot.bullet_speed, 
+                                                                  R_camera2gimbal, t_camera2gimbal, 
+                                                                  cameraMatrix, distCoeffs, 
+                                                                  yaw_degree, pitch_degree
+                                                                  )
+                        
+                        if predictedPtsInWorld is not None:
+                            prepts = np.reshape(predictedPtsInWorld, (3,))
+                            p_x = predictedPtsInWorld[0]
+                            p_y = predictedPtsInWorld[1]
+                            p_z = predictedPtsInWorld[2]
+                            p_distance = (p_x**2 + p_z**2)**0.5
+                            if p_distance>8000 or p_distance<5000:
+                                logging.info(f"nahsor distance error--p_distance = {p_distance}")                                
+                                continue
+                            
+                        armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
+                        if armor_in_gun is not None:                        
+                            robot.shoot(gun_up_degree, gun_right_degree, armor_in_gun/1000)
+
+                    except Exception as e:
+                        logging.exception(e)
+                
                 else :
                     # 自瞄模式
                    
