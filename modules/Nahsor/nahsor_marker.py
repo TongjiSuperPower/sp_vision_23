@@ -268,7 +268,7 @@ class NahsorMarker(object):
             if USE_PREDICT == 1:
                 if self.energy_mode == ENERGY_MODE.BIG:
                     # if self.__r_change == 0 and self.last_center is not None:
-                    if self.__target_status == STATUS.NOT_FOUND or self.r_center is None:
+                    if self.__target_status == STATUS.NOT_FOUND or self.r_center is None and self.__fit_status != FIT_STATUS.SUCCESS:
                         self.__fit_status = FIT_STATUS.FAILED
                     elif self.__fan_change == 1:
                         # 需要调整上一个点的位置
