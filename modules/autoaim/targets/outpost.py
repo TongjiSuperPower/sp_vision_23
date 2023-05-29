@@ -115,15 +115,6 @@ class Outpost(Target):
             fire_time_s = 0.0  # 立即射击
 
         else:
-            if bullet_speed_m_per_s > 2:
-                bullet_speed_m_per_s = 0.4 * 2 * pi
-            elif bullet_speed_m_per_s < -2:
-                bullet_speed_m_per_s = -0.4 * 2 * pi
-            elif bullet_speed_m_per_s > 0:
-                bullet_speed_m_per_s = 0.2 * 2 * pi
-            else:
-                bullet_speed_m_per_s = -0.2 * 2 * pi
-
             center_in_imu_m = self._ekf.x[:3]
             center_x, _, center_z = center_in_imu_m.T[0]
             best_aim_yaw_rad = atan(center_x / center_z)
