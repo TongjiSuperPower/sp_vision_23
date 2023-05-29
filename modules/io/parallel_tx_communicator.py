@@ -44,15 +44,15 @@ def transmit(port: str, rx_queue: Queue, quit_queue: Queue) -> None:
                 if scheduled_time_s is not None:
                     current_time_s = time.time()
                     dt_s = scheduled_time_s - current_time_s
-                    if dt_s < 0:
+                    if abs(dt_s) < 1e-3:
+                        print(f'Scheduled command sent.')
+                        communicator.send(*scheduled_command)
+                        scheduled_time_s = None
+                    elif dt_s < 0:
                         print(f'Scheduled command expired over {-dt_s}s.')
                         scheduled_time_s = None
                     elif dt_s > 1:
                         print(f'Scheduled command is so far over {dt_s}s.')
-                        scheduled_time_s = None
-                    elif dt_s < 1e-3:
-                        print(f'Scheduled command sent.')
-                        communicator.send(*scheduled_command)
                         scheduled_time_s = None
 
             except OSError:
