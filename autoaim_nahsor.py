@@ -98,7 +98,8 @@ if __name__ == '__main__':
                 
                 else :
                     # 自瞄模式                 
-                    nahsor_tracker.last_mode = 0  
+                    nahsor_tracker = NahsorTracker(robot_color=robot.color)
+                    
                     armors = armor_detector.detect(img)
                     
                     armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
