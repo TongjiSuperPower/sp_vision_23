@@ -29,8 +29,8 @@ if __name__ == '__main__':
         enable = (sys.argv[1] == '-y')
 
     with Communicator(port):
-        # ÕâÀïµÄ×÷ÓÃÊÇÔÚ³ÌÐòÕýÊ½ÔËÐÐÇ°£¬´ò¿ª´®¿ÚÔÙ¹Ø±Õ¡£
-        # ÒòÎªÃ¿´Î¿ª»úºóµÚÒ»´Î´ò¿ª´®¿Ú£¬ÆäÊä³öÈ«¶¼ÊÇ0£¬Ô­ÒòÎ´Öª¡£
+        # è¿™é‡Œçš„ä½œç”¨æ˜¯åœ¨ç¨‹åºæ­£å¼è¿è¡Œå‰ï¼Œæ‰“å¼€ä¸²å£å†å…³é—­ã€‚
+        # å› ä¸ºæ¯æ¬¡å¼€æœºåŽç¬¬ä¸€æ¬¡æ‰“å¼€ä¸²å£ï¼Œå…¶è¾“å‡ºå…¨éƒ½æ˜¯0ï¼ŒåŽŸå› æœªçŸ¥ã€‚
         pass
 
     try:
@@ -53,6 +53,8 @@ if __name__ == '__main__':
 
             tracker = Tracker()
 
+            nahsor_tracker = NahsorTracker(robot_color=robot.color)
+
             while True:
                 time.sleep(1e-4)
 
@@ -61,31 +63,66 @@ if __name__ == '__main__':
                 img = robot.img
                 img_time_s = robot.img_time_s
 
-                armors = armor_detector.detect(img)
-
-                yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
-                
-                armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
-                armors = filter(lambda a: a.name not in whitelist, armors)
+                yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)                
 
                 recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
-                # print(f'Tracker state: {tracker.state} ')
+                if robot.work_mode == 2 or robot.work_mode == 3:                    
+                    # èƒ½é‡æœºå…³æ¨¡å¼
+                    nahsor_tracker.update(frame=img)
 
-                if tracker.state == 'LOST':
-                    tracker.init(armors, img_time_s)
-                else:
-                    tracker.update(armors, img_time_s)
-
-                if tracker.state in ('TRACKING', 'TEMP_LOST'):
-                    target = tracker.target
                     try:
-                        aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
-                        robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                        target = nahsor_tracker.nahsor
+                        predictedPtsInWorld = nahsor_tracker.getShotPoint(0.15, robot.bullet_speed, 
+                                                                  R_camera2gimbal, t_camera2gimbal, 
+                                                                  cameraMatrix, distCoeffs, 
+                                                                  yaw_degree, pitch_degree
+                                                                  )
+                        
+                        if predictedPtsInWorld is None:
+                            continue
+                        else:
+                            prepts = np.reshape(predictedPtsInWorld, (3,))
+                            p_x = predictedPtsInWorld[0]
+                            p_y = predictedPtsInWorld[1]
+                            p_z = predictedPtsInWorld[2]
+                            p_distance = (p_x**2 + p_z**2)**0.5
+                            if p_distance>8000 or p_distance<5000:
+                                logging.info(f"nahsor distance error--p_distance = {p_distance}")                                
+                                continue
+                        
+                        armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
+                        if armor_in_gun is not None:                        
+                            robot.shoot(gun_up_degree, gun_right_degree, armor_in_gun/1000)
+
                     except Exception as e:
                         logging.exception(e)
+                
+                else :
+                    # è‡ªçž„æ¨¡å¼
+                    nahsor_tracker = NahsorTracker(robot_color=robot.color)
+                   
+                    armors = armor_detector.detect(img)
+                    
+                    armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+                    armors = filter(lambda a: a.name not in whitelist, armors)
+                    
+                    if tracker.state == 'LOST':
+                        tracker.init(armors, img_time_s)
+                    else:
+                        tracker.update(armors, img_time_s)
 
-                # µ÷ÊÔ·Ö¸îÏß
+                    if tracker.state in ('TRACKING', 'TEMP_LOST'):
+                        target = tracker.target
+                        try:
+                            aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                            robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                        except Exception as e:
+                            logging.exception(e)
+                    # print(f'Tracker state: {tracker.state} ')                
+                    
+
+                # è°ƒè¯•åˆ†å‰²çº¿---------------------------------------------------------
 
                 if not visualizer.enable:
                     continue

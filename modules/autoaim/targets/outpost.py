@@ -126,7 +126,7 @@ class Outpost(Target):
             x[3, 0] = best_aim_yaw_rad
             aim_point_m = h_xyz(x)
             _, fly_time_s = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
-            # fly_time_s += 1.05
+            fly_time_s += 0.15
 
             arrive_time_s = limit_rad(best_aim_yaw_rad - current_yaw_rad) / speed_rad_per_s
             rotate_to_next_time_s = 2 * pi / armor_num / abs(speed_rad_per_s)

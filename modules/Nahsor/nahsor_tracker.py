@@ -52,8 +52,7 @@ class NahsorTracker():
         # 预测一段时间后的靶心坐标
 
         # 如果速度拟合还没有完成,就不进行预测,返回None
-        if self.nahsor.speed_params is None:
-            print("speed fit not complete")
+        if self.nahsor.__fit_status is not NahsorConfig.FIT_STATUS.SUCCESS:            
             return None
             
         flyTime_s = tools.getParaTime(current3DPos, bulletSpeed=bulletSpeed) / 1000 # 到观测靶心的子弹飞行时间(秒)(s)
