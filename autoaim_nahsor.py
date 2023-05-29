@@ -87,11 +87,10 @@ if __name__ == '__main__':
                             p_distance = (p_x**2 + p_z**2)**0.5
                             if p_distance>8000 or p_distance<5000:
                                 logging.info(f"nahsor distance error--p_distance = {p_distance}")                                
-                                continue
-                        
-                            armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
-                            if armor_in_gun is not None:                        
-                                robot.shoot(gun_up_degree, gun_right_degree, armor_in_gun/1000)
+                            else:                        
+                                armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
+                                if armor_in_gun is not None:                        
+                                    robot.shoot(gun_up_degree, gun_right_degree, armor_in_gun/1000)
 
                     except Exception as e:
                         logging.exception(e)
@@ -99,7 +98,7 @@ if __name__ == '__main__':
                 else :
                     # 自瞄模式                 
                     nahsor_tracker = NahsorTracker(robot_color=robot.color)
-                    
+
                     armors = armor_detector.detect(img)
                     
                     armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
