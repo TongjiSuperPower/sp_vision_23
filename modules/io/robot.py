@@ -13,7 +13,8 @@ from modules.io.communication import TX_FLAG_FIRE
 
 class WorkMode(IntEnum):
     AUTOAIM = 1
-    NASHOR = 2
+    SMALLNASHOR = 2
+    BIGNASHOR = 3
 
 
 def limit_degree(angle_degree: float) -> float:
@@ -68,7 +69,13 @@ class Robot(ContextManager):
         self.flag = flag
         self.color = 'red' if self.flag < 100 else 'blue'
         self.id = self.flag % 10
-        self.work_mode = WorkMode.NASHOR if (self.flag/10) % 10 == 2 else WorkMode.AUTOAIM
+        workModeFlag = (self.flag/10) % 10
+        if workModeFlag == 2:
+            self.work_mode = WorkMode.SMALLNASHOR
+        elif workModeFlag == 3:
+            self.work_mode = WorkMode.BIGNASHOR
+        else:
+            self.work_mode = WorkMode.AUTOAIM
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''
