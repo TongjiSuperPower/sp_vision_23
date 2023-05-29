@@ -79,7 +79,9 @@ if __name__ == '__main__':
                                                                   yaw_degree, pitch_degree
                                                                   )
                         
-                        if predictedPtsInWorld is not None:
+                        if predictedPtsInWorld is None:
+                            continue
+                        else:
                             prepts = np.reshape(predictedPtsInWorld, (3,))
                             p_x = predictedPtsInWorld[0]
                             p_y = predictedPtsInWorld[1]
@@ -88,7 +90,7 @@ if __name__ == '__main__':
                             if p_distance>8000 or p_distance<5000:
                                 logging.info(f"nahsor distance error--p_distance = {p_distance}")                                
                                 continue
-                            
+                        
                         armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
                         if armor_in_gun is not None:                        
                             robot.shoot(gun_up_degree, gun_right_degree, armor_in_gun/1000)
