@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
                 if robot.work_mode == 2 or robot.work_mode == 3:                    
                     # 能量机关模式
-                    nahsor_tracker.update(frame=img)
+                    nahsor_tracker.update(frame=img, robot_work_mode = robot.work_mode)
 
                     try:
                         target = nahsor_tracker.nahsor
@@ -97,9 +97,8 @@ if __name__ == '__main__':
                         logging.exception(e)
                 
                 else :
-                    # 自瞄模式
-                    nahsor_tracker = NahsorTracker(robot_color=robot.color)
-                   
+                    # 自瞄模式                 
+                    nahsor_tracker.last_mode = 0  
                     armors = armor_detector.detect(img)
                     
                     armors = armor_solver.solve(armors, yaw_degree, pitch_degree)

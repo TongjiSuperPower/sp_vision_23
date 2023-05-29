@@ -9,17 +9,31 @@ class NahsorTracker():
     def __init__(self,robot_color) -> None:
         self.nahsor:NahsorMarker = None 
         self.nahsor_color = NahsorConfig.COLOR.BLUE if robot_color == 'red' else NahsorConfig.COLOR.RED 
-        self.init()     
+        self.last_mode = 0
+        self.init(False)     
 
-    def init(self):        
-        self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode=NahsorConfig.ENERGY_MODE.BIG,
+    def init(self, isBig):    
+        if isBig:    
+            energy_mode=NahsorConfig.ENERGY_MODE.BIG
+            
+        else:
+            energy_mode=NahsorConfig.ENERGY_MODE.SMALL
+
+        self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode = energy_mode,
                                    color_space=NahsorConfig.COLOR_SPACE.HSV,
                                    fit_debug=0, target_debug=0,
                                    fit_speed_mode=NahsorConfig.FIT_SPEED_MODE.CURVE_FIT)
 
-    def update(self, frame):
+
+    def update(self, frame, robot_work_mode):
         '''用图像帧更新,进行: 风车轮廓识别识别,叶片识别,R标拟合,速度估计'''
-        # TODO: 根据时间进行重新初始化
+        # 根据robot工作模式重新初始化风车对象
+        if robot_work_mode != self.last_mode:
+            if robot_work_mode == 2:
+                self.init(False)
+            else:
+                self.init(True)
+            self.last_mode = robot_work_mode
         
         self.nahsor.mark(frame)
 
