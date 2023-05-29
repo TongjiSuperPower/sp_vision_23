@@ -100,6 +100,7 @@ if __name__ == '__main__':
                 
                 else :
                     # 自瞄模式
+                    nahsor_tracker = NahsorTracker(robot_color=robot.color)
                    
                     armors = armor_detector.detect(img)
                     
