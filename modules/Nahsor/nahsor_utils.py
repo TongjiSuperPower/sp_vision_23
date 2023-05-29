@@ -66,8 +66,13 @@ def get_clockwise(center, last_center, current_center):
     current_center = np.array(current_center)
     center = np.array(center)
     # 计算向量
-    vec1 = last_center - center
-    vec2 = current_center - center
+    try:
+        vec1 = last_center - center
+        vec2 = current_center - center
+    except:
+        print(f"center:{center}")
+        print(f"last_center:{last_center}")
+        
 
     # 计算向量夹角
     angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))) * 180 / np.pi
@@ -219,8 +224,7 @@ def get_r_by_contours(contours, hierarchy, target_center, target_radius):
                 width = max(rect[1][0], rect[1][1])
                 height = min(rect[1][0], rect[1][1])
                 # 方形且距离在一定范围
-                if SQUARE_WH_RATIO[0] < width / height < SQUARE_WH_RATIO[1] and CENTER_DISTANCE_RATIO[
-                    0] < get_distance(target_center, rect[0]) / target_radius < CENTER_DISTANCE_RATIO[1]:
+                if SQUARE_WH_RATIO[0] < width / height < SQUARE_WH_RATIO[1] :
                     if cv2.contourArea(contour) > max_area:
                         max_area = cv2.contourArea(contour)
                         r_contour = contour

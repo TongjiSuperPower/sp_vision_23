@@ -75,7 +75,7 @@ class Robot(ContextManager):
         elif workModeFlag == 3:
             self.work_mode = WorkMode.BIGNASHOR
         else:
-            self.work_mode = WorkMode.AUTOAIM
+            self.work_mode = WorkMode.BIGNASHOR
 
     def yaw_pitch_degree_at(self, time_s: float) -> tuple[float, float]:
         '''注意阻塞'''

@@ -47,6 +47,8 @@ class NahsorMarker(object):
         self.fit_debug = fit_debug
         self.fit_speed_mode = fit_speed_mode
 
+        self.show_img = None
+
         self.speed_func = speed_func
 
         params = inspect.signature(self.speed_func).parameters
@@ -92,7 +94,7 @@ class NahsorMarker(object):
 
         self.__target_status = STATUS.NOT_FOUND  # 状态指示--> not_found(0), found(1)
         self.__R_status = STATUS.NOT_FOUND  # 圆心状态
-        self.__fit_status = FIT_STATUS.FAILED  # 是否拟合成功
+        self.fit_status = FIT_STATUS.FAILED  # 是否拟合成功
         self.__fan_change = 0
 
         self.__pause = 0
@@ -152,7 +154,7 @@ class NahsorMarker(object):
         # mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4)))
         mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)), 2)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)), 2)
         # mask = cv2.medianBlur(mask, 3)
 
         return mask
@@ -171,10 +173,11 @@ class NahsorMarker(object):
         mask = cv2.blur(frame, (3, 3))
         mask = self.binaryzate(mask)
         mask = self.morphological_operation(mask)
-        if self.target_debug:
-            cv2.namedWindow('mask', 0)
-            cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
-            cv2.imshow('mask', mask)
+        self.show_img = mask
+        # if self.target_debug:
+        #     cv2.namedWindow('mask', 0)
+        #     cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
+            # cv2.imshow('mask', mask)
         # ----------- 图像预处理 end ------------
         # ----------- 寻找目标 start ----------
         # 获取轮廓
@@ -227,9 +230,11 @@ class NahsorMarker(object):
                     orig1 = cv2.putText(orig1, f'{i}', tuple(point), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 5)
 
                     orig1 = cv2.circle(orig1, tuple(point), 1, (0, 255, 255), 10)
-            cv2.namedWindow('contours', 0)
-            cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
-            cv2.imshow('contours', orig1)
+            # cv2.namedWindow('contours', 0)
+            # cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
+            # cv2.imshow('contours', orig1)
+            self.show_img = orig1
+
         ##############
         # ----------- 寻找目标 end ----------
 
@@ -247,7 +252,8 @@ class NahsorMarker(object):
             # R_by_centers = get_r_by_centers(self.target_centers)
 
             # if 0 <= get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
-            self.r_center = R_by_contours
+            if R_by_contours is not None:
+                self.r_center = R_by_contours
             # self.__R_status = STATUS.FOUND
             # else:
             #     if R_by_contours is not None:
@@ -265,23 +271,23 @@ class NahsorMarker(object):
             # ----------- 寻找圆心的位置 end -----------
 
             # ----------- 预测 start -----------------
-            if USE_PREDICT == 1:
+            if USE_PREDICT == True:
                 if self.energy_mode == ENERGY_MODE.BIG:
                     # if self.__r_change == 0 and self.last_center is not None:
-                    if self.__target_status == STATUS.NOT_FOUND or self.r_center is None and self.__fit_status != FIT_STATUS.SUCCESS:
-                        self.__fit_status = FIT_STATUS.FAILED
+                    if self.__target_status == STATUS.NOT_FOUND or self.r_center is None and self.fit_status != FIT_STATUS.SUCCESS:
+                        self.fit_status = FIT_STATUS.FAILED
                     elif self.__fan_change == 1:
                         # 需要调整上一个点的位置
 
                         self.last_time_for_speed = time.time()
                         self.last_center_for_speed = self.current_center
                         self.__fan_change = 0
-                    elif self.__fit_status == FIT_STATUS.FAILED:
-                        self.__fit_status = FIT_STATUS.FITTING
+                    elif self.fit_status == FIT_STATUS.FAILED:
+                        self.fit_status = FIT_STATUS.FITTING
 
                         self.last_time_for_speed = time.time()
                         self.last_center_for_speed = self.current_center
-                    elif self.__fit_status == FIT_STATUS.FITTING:
+                    elif self.fit_status == FIT_STATUS.FITTING:
                         if time.time() - self.last_time_for_speed > FIT_INTERVAL:
                             self.set_fit_speeds()
 
@@ -295,14 +301,14 @@ class NahsorMarker(object):
                                     print("error: ", speed_err)
                                     if np.all(speed_err < self.speed_params_maxerror) and len(
                                             self.fit_speeds) > 5 * FIT_MIN_LEN:
-                                        self.__fit_status = FIT_STATUS.SUCCESS
+                                        self.fit_status = FIT_STATUS.SUCCESS
                                         self.last_time_for_fit = time.time()
                                     self.speed_params = speed_params
 
-                    elif self.__fit_status == FIT_STATUS.SUCCESS:
+                    elif self.fit_status == FIT_STATUS.SUCCESS:
                         pass
                         # if time.time() - self.last_time_for_fit > SPEED_REFIT_INTERVAL:
-                        #     self.__fit_status = FIT_STATUS.FITTING
+                        #     self.fit_status = FIT_STATUS.FITTING
                         # if time.time() - self.last_time_for_speed > FIT_INTERVAL:
                         #     self.set_fit_speeds()
 
@@ -314,8 +320,8 @@ class NahsorMarker(object):
                     self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
                 # if self.__R_status == STATUS.FOUND and len(self.target_centers) > FIT_MIN_LEN:
-                if self.__fit_status != FIT_STATUS.SUCCESS and self.rot_speed is not None and len(
-                        self.target_centers) > FIT_MIN_LEN:
+                if self.fit_status != FIT_STATUS.SUCCESS and self.rot_speed is not None and len(
+                        self.target_centers) > FIT_MIN_LEN and self.r_center is not None:
                     clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
                                                self.target_centers[-1])
                     if self.rot_direction is None or self.rot_direction != clockwise1:
@@ -518,7 +524,7 @@ class NahsorMarker(object):
             self.__target_status = STATUS.NOT_FOUND
             self.current_center = None
             self.__fan_change = 0
-            self.__fit_status = FIT_STATUS.FAILED
+            self.fit_status = FIT_STATUS.FAILED
             self.last_center_for_r = None
             self.last_time_for_R = None
             self.predict_center = None
