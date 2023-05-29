@@ -182,7 +182,15 @@ if __name__ == '__main__':
                                 R_camera2gimbal, t_camera2gimbal
                             )
                             tools.drawPoint(drawing, armor_in_pixel, (0, 0, 255), radius=10)
-
+                
+                else:
+                    if predictedPtsInWorld is not None and armor_in_gun is not None:  
+                        current_point_in_pixel = tools.project_imu2pixel(predictedPtsInWorld, yaw_degree, 
+                                                                        pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        shot_point_in_pixel = tools.project_imu2pixel(armor_in_gun, yaw_degree, 
+                                                                        pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
+                        tools.drawPoint(drawing, current_point_in_pixel, (0,255,0))
+                        tools.drawPoint(drawing, shot_point_in_pixel, (0,0,255))
                 visualizer.show(drawing)
 
     except Exception as e:

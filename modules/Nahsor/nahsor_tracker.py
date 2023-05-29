@@ -10,6 +10,7 @@ class NahsorTracker():
         self.nahsor:NahsorMarker = None 
         self.nahsor_color = NahsorConfig.COLOR.BLUE if robot_color == 'red' else NahsorConfig.COLOR.RED 
         self.last_mode = 0
+        self.color_space = NahsorConfig.COLOR_SPACE.HSV if robot_color == 'red' else NahsorConfig.COLOR_SPACE.YUV
         self.init(False)     
 
     def init(self, isBig):    
@@ -20,7 +21,7 @@ class NahsorTracker():
             energy_mode=NahsorConfig.ENERGY_MODE.SMALL
 
         self.nahsor = NahsorMarker(color=self.nahsor_color, energy_mode = energy_mode,
-                                   color_space=NahsorConfig.COLOR_SPACE.HSV,
+                                   color_space=self.color_space,
                                    fit_debug=0, target_debug=0,
                                    fit_speed_mode=NahsorConfig.FIT_SPEED_MODE.CURVE_FIT)
 
