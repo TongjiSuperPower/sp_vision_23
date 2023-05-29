@@ -94,7 +94,9 @@ class NahsorMarker(object):
         self.__R_status = STATUS.NOT_FOUND  # 圆心状态
         self.__fit_status = FIT_STATUS.FAILED  # 是否拟合成功
         self.__fan_change = 0
-    
+
+        self.__pause = 0
+
     def getTargetStatus(self):
         return self.__target_status
 
@@ -156,6 +158,8 @@ class NahsorMarker(object):
         return mask
 
     def mark(self, frame):
+        if self.__pause == 1:
+            return
         # mark之前先初始化
         self.origin_frame = frame
         # self.target_radius = 0  # 击打半径
@@ -236,7 +240,7 @@ class NahsorMarker(object):
                 self.__fan_change = 1
                 print('fan error')
 
-            if self.__R_status:
+            if self.__R_status == STATUS.NOT_FOUND:
                 R_by_contours = get_r_by_contours(contours, hierarchy, self.current_center,
                                                   self.target_radius)
                 self.set_target_centers()
@@ -337,9 +341,9 @@ class NahsorMarker(object):
 
         if self.r_center is not None:
             orig = cv2.circle(orig, (int(self.r_center[0]), int(self.r_center[1])), 5, (0, 255, 0), 3)
-        # if self.target_centers is not None:
-        #     for p in self.target_centers:
-        #         orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
+        if self.target_centers is not None:
+            for p in self.target_centers:
+                orig = cv2.circle(orig, (int(p[0]), int(p[1])), 3, (0, 255, 0), 1)
 
         if self.__target_status == STATUS.FOUND:
             s = 'found'
@@ -504,3 +508,19 @@ class NahsorMarker(object):
             plt.pause(0.0001)
             # print("Speed paras:", speed_params)
             # print('speed cov:', speed_cov)
+
+    def resume(self):
+        if self.__pause == 0:
+            self.__pause = 1
+            self.target_centers = []
+            self.r_center = None
+            self.__target_status = STATUS.NOT_FOUND
+            self.current_center = None
+            self.__fan_change = 0
+            self.__fit_status = FIT_STATUS.FAILED
+            self.last_center_for_r = None
+            self.last_time_for_R = None
+            self.predict_center = None
+            self.__R_status = STATUS.NOT_FOUND
+        else:
+            self.__pause = 0
