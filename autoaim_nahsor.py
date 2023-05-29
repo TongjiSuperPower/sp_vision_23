@@ -29,8 +29,8 @@ if __name__ == '__main__':
         enable = (sys.argv[1] == '-y')
 
     with Communicator(port):
-        # ÕâÀïµÄ×÷ÓÃÊÇÔÚ³ÌĞòÕıÊ½ÔËĞĞÇ°£¬´ò¿ª´®¿ÚÔÙ¹Ø±Õ¡£
-        # ÒòÎªÃ¿´Î¿ª»úºóµÚÒ»´Î´ò¿ª´®¿Ú£¬ÆäÊä³öÈ«¶¼ÊÇ0£¬Ô­ÒòÎ´Öª¡£
+        # è¿™é‡Œçš„ä½œç”¨æ˜¯åœ¨ç¨‹åºæ­£å¼è¿è¡Œå‰ï¼Œæ‰“å¼€ä¸²å£å†å…³é—­ã€‚
+        # å› ä¸ºæ¯æ¬¡å¼€æœºåç¬¬ä¸€æ¬¡æ‰“å¼€ä¸²å£ï¼Œå…¶è¾“å‡ºå…¨éƒ½æ˜¯0ï¼ŒåŸå› æœªçŸ¥ã€‚
         pass
 
     try:
@@ -61,31 +61,40 @@ if __name__ == '__main__':
                 img = robot.img
                 img_time_s = robot.img_time_s
 
-                armors = armor_detector.detect(img)
-
-                yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)
-                
-                armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
-                armors = filter(lambda a: a.name not in whitelist, armors)
+                yaw_degree, pitch_degree = robot.yaw_pitch_degree_at(img_time_s)                
 
                 recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
-                # print(f'Tracker state: {tracker.state} ')
+                if robot.work_mode == 2 or robot.work_mode == 3:                    
+                    # èƒ½é‡æœºå…³æ¨¡å¼
+                    pass
+                    
 
-                if tracker.state == 'LOST':
-                    tracker.init(armors, img_time_s)
-                else:
-                    tracker.update(armors, img_time_s)
+        
+                else :
+                    # è‡ªç„æ¨¡å¼
+                   
+                    armors = armor_detector.detect(img)
+                    
+                    armors = armor_solver.solve(armors, yaw_degree, pitch_degree)
+                    armors = filter(lambda a: a.name not in whitelist, armors)
+                    
+                    if tracker.state == 'LOST':
+                        tracker.init(armors, img_time_s)
+                    else:
+                        tracker.update(armors, img_time_s)
 
-                if tracker.state in ('TRACKING', 'TEMP_LOST'):
-                    target = tracker.target
-                    try:
-                        aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
-                        robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
-                    except Exception as e:
-                        logging.exception(e)
+                    if tracker.state in ('TRACKING', 'TEMP_LOST'):
+                        target = tracker.target
+                        try:
+                            aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                            robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
+                        except Exception as e:
+                            logging.exception(e)
+                    # print(f'Tracker state: {tracker.state} ')                
+                    
 
-                # µ÷ÊÔ·Ö¸îÏß
+                # è°ƒè¯•åˆ†å‰²çº¿---------------------------------------------------------
 
                 if not visualizer.enable:
                     continue
