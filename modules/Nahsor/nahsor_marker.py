@@ -240,29 +240,28 @@ class NahsorMarker(object):
                 self.__fan_change = 1
                 print('fan error')
 
-            if self.__R_status == STATUS.NOT_FOUND:
-                R_by_contours = get_r_by_contours(contours, hierarchy, self.current_center,
-                                                  self.target_radius)
-                self.set_target_centers()
-                R_by_centers = get_r_by_centers(self.target_centers)
+            self.set_target_centers()
+            # if self.__R_status == STATUS.NOT_FOUND:
+            R_by_contours = get_r_by_contours(contours, hierarchy, self.current_center,
+                                              self.target_radius)
+            # R_by_centers = get_r_by_centers(self.target_centers)
 
-                if 0 <= get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
-                    self.r_center = R_by_contours
-                    self.__R_status = STATUS.FOUND
-                else:
-                    if R_by_contours is not None:
-                        self.r_center = R_by_contours
-                    elif R_by_centers is not None:
-                        self.r_center = R_by_centers
-                    self.__R_status = STATUS.NOT_FOUND
-                self.last_time_for_R = time.time()
-            else:
-                self.set_target_centers()
-                if time.time() - self.last_time_for_R > FIND_R_INTERVAL:
-                    R_by_centers = get_r_by_centers(self.target_centers)
-                    if get_distance(self.r_center, R_by_centers) > R_MAX_DISTANCE or \
-                            get_distance(self.current_center, self.last_center_for_r) > CENTER_MAX_DISTANCE:
-                        self.__R_status = STATUS.NOT_FOUND
+            # if 0 <= get_distance(R_by_contours, R_by_centers) < R_MAX_DISTANCE:
+            self.r_center = R_by_contours
+            # self.__R_status = STATUS.FOUND
+            # else:
+            #     if R_by_contours is not None:
+            #         self.r_center = R_by_contours
+            #     elif R_by_centers is not None:
+            #         self.r_center = R_by_centers
+            #     self.__R_status = STATUS.NOT_FOUND
+            # self.last_time_for_R = time.time()
+            # else:
+            #     if time.time() - self.last_time_for_R > FIND_R_INTERVAL:
+            #         R_by_centers = get_r_by_centers(self.target_centers)
+            #         if get_distance(self.r_center, R_by_centers) > R_MAX_DISTANCE or \
+            #                 get_distance(self.current_center, self.last_center_for_r) > CENTER_MAX_DISTANCE:
+            #             self.__R_status = STATUS.NOT_FOUND
             # ----------- 寻找圆心的位置 end -----------
 
             # ----------- 预测 start -----------------
@@ -301,10 +300,11 @@ class NahsorMarker(object):
                                     self.speed_params = speed_params
 
                     elif self.__fit_status == FIT_STATUS.SUCCESS:
-                        if time.time() - self.last_time_for_fit > SPEED_REFIT_INTERVAL:
-                            self.__fit_status = FIT_STATUS.FITTING
-                        if time.time() - self.last_time_for_speed > FIT_INTERVAL:
-                            self.set_fit_speeds()
+                        pass
+                        # if time.time() - self.last_time_for_fit > SPEED_REFIT_INTERVAL:
+                        #     self.__fit_status = FIT_STATUS.FITTING
+                        # if time.time() - self.last_time_for_speed > FIT_INTERVAL:
+                        #     self.set_fit_speeds()
 
                     # if self.fit_params is not None:
                     #     self.rot_speed = speed_func(time.time() - self.big_start_time, self.fit_params[0],
@@ -314,7 +314,8 @@ class NahsorMarker(object):
                     self.rot_speed = SMALL_ROT_SPEED * 2 * np.pi / 60  # RPM->rad/s
 
                 # if self.__R_status == STATUS.FOUND and len(self.target_centers) > FIT_MIN_LEN:
-                if self.rot_speed is not None and len(self.target_centers) > FIT_MIN_LEN:
+                if self.__fit_status != FIT_STATUS.SUCCESS and self.rot_speed is not None and len(
+                        self.target_centers) > FIT_MIN_LEN:
                     clockwise1 = get_clockwise(self.r_center, self.target_centers[-4],
                                                self.target_centers[-1])
                     if self.rot_direction is None or self.rot_direction != clockwise1:
