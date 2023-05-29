@@ -4,7 +4,7 @@ from math import sin, cos, tan, atan, pi, radians
 from modules.ekf import ExtendedKalmanFilter, ColumnVector, Matrix
 from modules.tools import limit_rad
 from modules.autoaim.armor import Armor
-from modules.autoaim.targets.target import Target, z_yaw_subtract, get_z_xyz, get_z_yaw, get_trajectory_rad_and_s, R_xyz, R_yaw
+from modules.autoaim.targets.target import Target, z_yaw_subtract, get_z_xyz, get_z_yaw, get_trajectory_rad_and_s, R_xyz, adaptive_R_yaw
 
 
 armor_num = 4
@@ -123,11 +123,7 @@ class Standard(Target):
 
         self._ekf.x = x
         self._ekf.update(z_xyz, lambda x: h_xyz(x, self._use_r1_r2), lambda x: jacobian_h_xyz(x, self._use_r1_r2), R_xyz)
-
-        if abs(armor.yaw_in_camera_rad) < radians(15):
-            self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, np.diag([8e-1]), z_yaw_subtract)
-        else:
-            self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, R_yaw, z_yaw_subtract)
+        self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, adaptive_R_yaw(armor), z_yaw_subtract)
 
         return False
 

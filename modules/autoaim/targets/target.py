@@ -1,13 +1,19 @@
 import numpy as np
-from math import sin, cos, atan, sqrt
+from math import sin, cos, atan, sqrt, radians
 from modules.ekf import ExtendedKalmanFilter, ColumnVector
 from modules.autoaim.armor import Armor
 from modules.tools import limit_rad
 
 
 R_xyz = np.diag([8e-2, 8e-2, 8e-2])
-R_yaw = np.diag([1.0])
 
+
+def adaptive_R_yaw(armor: Armor):
+    if abs(armor.yaw_in_camera_rad) < radians(15):
+        return np.diag([1.0])
+    else:
+        return np.diag([8e-1])
+    
 
 def z_yaw_subtract(z1: ColumnVector, z2: ColumnVector) -> ColumnVector:
     z3 = z1 - z2
@@ -53,6 +59,9 @@ class Target:
     def __init__(self) -> None:
         self._last_time_s: float = None
         self._ekf: ExtendedKalmanFilter = None
+
+        # 调试用
+        self._last_z_yaw: ColumnVector = None
 
     def init(self, armor: Armor, img_time_s: float) -> None:
         raise NotImplementedError('该函数需子类实现')

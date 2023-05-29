@@ -113,25 +113,28 @@ if __name__ == '__main__':
                     # cx, cy, cz = a.in_camera_mm.T[0]
                     # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
-                if tracker.state != 'LOST' and tracker._target_name != 'outpost':
-                    # xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = tracker.target._ekf.x.T[0]
-                    # center_in_imu_m = np.float64([[xc, yc1, zc]]).T
+                if tracker.state in ('TRACKING', 'TEMP_LOST'):
+                    target = tracker.target
 
-                    # center_in_imu_mm = center_in_imu_m * 1e3
-                    # center_in_pixel = tools.project_imu2pixel(
-                    #     center_in_imu_mm,
-                    #     yaw_degree, pitch_degree,
-                    #     cameraMatrix, distCoeffs,
-                    #     R_camera2gimbal, t_camera2gimbal
-                    # )
-                    # tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
-                    # tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
+                    messured_yaw = target._last_z_yaw[0, 0]
 
-                    # z_yaw = tracker.target._last_z_yaw
+                    if tracker._target_name == 'small_outpost':
+                        xc, yc, zc, target_yaw, w = target._ekf.x.T[0]
 
-                    # # visualizer.plot((r1, r2), ('r1', 'r2'))
-                    # visualizer.plot((yc1, yc2), ('y1', 'y2'))
+                        visualizer.plot((target_yaw, messured_yaw, w), ('yaw', 'm_yaw', 'w'))
 
+                    else:
+                        xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = target._ekf.x.T[0]
+                        center_in_imu_m = np.float64([[xc, yc1, zc]]).T
+
+                    center_in_pixel = tools.project_imu2pixel(
+                        center_in_imu_m * 1e3,
+                        yaw_degree, pitch_degree,
+                        cameraMatrix, distCoeffs,
+                        R_camera2gimbal, t_camera2gimbal
+                    )
+                    tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
+                    tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
                     
                     for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
                         armor_in_imu_mm = armor_in_imu_m * 1e3
@@ -144,5 +147,6 @@ if __name__ == '__main__':
                         tools.drawPoint(drawing, armor_in_pixel, (0, 0, 255), radius=10)
 
                 visualizer.show(drawing)
+
     except Exception as e:
         logging.exception(e)

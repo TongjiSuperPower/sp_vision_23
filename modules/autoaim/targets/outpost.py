@@ -4,14 +4,14 @@ from math import sin, cos, tan, atan, pi, radians
 from modules.ekf import ExtendedKalmanFilter, ColumnVector, Matrix
 from modules.tools import limit_rad
 from modules.autoaim.armor import Armor
-from modules.autoaim.targets.target import Target, z_yaw_subtract, get_z_xyz, get_z_yaw, get_trajectory_rad_and_s, R_xyz, R_yaw
+from modules.autoaim.targets.target import Target, z_yaw_subtract, get_z_xyz, get_z_yaw, get_trajectory_rad_and_s, R_xyz, adaptive_R_yaw
 
 
 radius_m = 0.2765
 armor_num = 3
 
-max_difference_m = 0.5
-max_difference_rad = radians(20)
+min_jump_rad = radians(60)
+min_anittop_rad_per_s = 0.5  # 反小陀螺最小角速度
 
 max_speed_rad_per_s = 0.4 * 2 * pi
 P0 = np.diag([1e-2, 1e-2, 1e-2, 1, max_speed_rad_per_s**2])
@@ -95,63 +95,57 @@ class Outpost(Target):
         x = self._ekf.x.copy()
         old_yaw_rad = x[3, 0]
 
-        min_norm = np.inf
-        for i in range(armor_num):
-            x[3, 0] = limit_rad(old_yaw_rad + i * 2 * pi / armor_num)
-            distance_m = np.linalg.norm(z_xyz - h_xyz(x))
-            norm = (distance_m**2 + limit_rad(x[3, 0] - z_yaw[0, 0])**2)**0.5
-            if norm < min_norm:
-                min_norm = norm
-                min_distance_m = distance_m
-                new_yaw_rad = x[3, 0]
+        error_rad = limit_rad(armor.yaw_in_imu_rad - old_yaw_rad)
+        if error_rad > min_jump_rad:
+            x[3, 0] = limit_rad(old_yaw_rad + 2*pi/armor_num)
+        elif error_rad < -min_jump_rad:
+            x[3, 0] = limit_rad(old_yaw_rad - 2*pi/armor_num)
 
-        if min_distance_m < max_difference_m:
-            reinit = False
+        self._ekf.x = x
+        self._ekf.update(z_xyz, h_xyz, h_xyz, R_xyz)
+        self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, adaptive_R_yaw(armor), z_yaw_subtract)
 
-            x[3, 0] = new_yaw_rad
-            self._ekf.x = x
-            self._ekf.update(z_xyz, h_xyz, jacobian_h_xyz, R_xyz)
-
-            difference_rad = abs(limit_rad(new_yaw_rad - z_yaw[0, 0]))
-            if difference_rad < max_difference_rad:
-                self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, R_yaw, z_yaw_subtract)
-
-        else:
-            reinit = True
-            self.init(armor, self._last_time_s)
-
-        return reinit
+        return False
 
     def aim(self, bullet_speed_m_per_s: float) -> tuple[ColumnVector, float | None]:
-        speed_rad_per_s = self._ekf.x[4, 0]
+        speed_rad_per_s = self._ekf.x[-1, 0]
 
-        if abs(speed_rad_per_s) < max_speed_rad_per_s / 100:
+        if abs(speed_rad_per_s) < min_anittop_rad_per_s:
             aim_point_m = h_xyz(self._ekf.x)
-            fire_time_s = None
+            fire_time_s = 0.0  # 立即射击
 
         else:
+            if bullet_speed_m_per_s > 2:
+                bullet_speed_m_per_s = 0.4 * 2 * pi
+            elif bullet_speed_m_per_s < -2:
+                bullet_speed_m_per_s = -0.4 * 2 * pi
+            elif bullet_speed_m_per_s > 0:
+                bullet_speed_m_per_s = 0.2 * 2 * pi
+            else:
+                bullet_speed_m_per_s = -0.2 * 2 * pi
+
             center_in_imu_m = self._ekf.x[:3]
             center_x, _, center_z = center_in_imu_m.T[0]
-            aim_yaw_rad = atan(center_x / center_z)
+            best_aim_yaw_rad = atan(center_x / center_z)
 
             current_time_s = time.time()
             x = f(self._ekf.x, current_time_s - self._last_time_s)
             current_yaw_rad = x[3, 0]
 
-            x[3, 0] = aim_yaw_rad
+            x[3, 0] = best_aim_yaw_rad
             aim_point_m = h_xyz(x)
             _, fly_time_s = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
-            fly_time_s += 1.05
+            # fly_time_s += 1.05
 
-            arrive_time_s = limit_rad(aim_yaw_rad - current_yaw_rad) / speed_rad_per_s
+            arrive_time_s = limit_rad(best_aim_yaw_rad - current_yaw_rad) / speed_rad_per_s
             rotate_to_next_time_s = 2 * pi / armor_num / abs(speed_rad_per_s)
 
             fire_time_s = None
             for _ in range(3):
-                arrive_time_s += rotate_to_next_time_s
                 if fly_time_s < arrive_time_s:
                     fire_time_s = arrive_time_s - fly_time_s + current_time_s
                     break
+                arrive_time_s += rotate_to_next_time_s
 
         # 重力补偿
         gun_pitch_rad, _ = get_trajectory_rad_and_s(aim_point_m, bullet_speed_m_per_s)
