@@ -102,7 +102,7 @@ class Outpost(Target):
             x[3, 0] = limit_rad(old_yaw_rad - 2*pi/armor_num)
 
         self._ekf.x = x
-        self._ekf.update(z_xyz, h_xyz, h_xyz, R_xyz)
+        self._ekf.update(z_xyz, h_xyz, jacobian_h_xyz, R_xyz)
         self._ekf.update(z_yaw, h_yaw, jacobian_h_yaw, adaptive_R_yaw(armor), z_yaw_subtract)
 
         return False
