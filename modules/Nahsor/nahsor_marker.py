@@ -47,7 +47,8 @@ class NahsorMarker(object):
         self.fit_debug = fit_debug
         self.fit_speed_mode = fit_speed_mode
 
-        self.show_img = None
+        self.show_img_mask = None
+        self.show_img_contours = None
 
         self.speed_func = speed_func
 
@@ -173,7 +174,7 @@ class NahsorMarker(object):
         mask = cv2.blur(frame, (3, 3))
         mask = self.binaryzate(mask)
         mask = self.morphological_operation(mask)
-        self.show_img = mask
+        self.show_img_mask = mask
         # if self.target_debug:
         #     cv2.namedWindow('mask', 0)
         #     cv2.resizeWindow('mask', int(1200 * (800 - 80) / 800), 800 - 80)
@@ -230,10 +231,12 @@ class NahsorMarker(object):
                     orig1 = cv2.putText(orig1, f'{i}', tuple(point), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 5)
 
                     orig1 = cv2.circle(orig1, tuple(point), 1, (0, 255, 255), 10)
+
+                    orig1 = cv2.circle(orig1, self.r_center, 1, (0, 0, 255), 10)
             # cv2.namedWindow('contours', 0)
             # cv2.resizeWindow('contours', int(1200 * (800 - 80) / 800), 800 - 80)
             # cv2.imshow('contours', orig1)
-            self.show_img = orig1
+            self.show_img_contours = orig1
 
         ##############
         # ----------- 寻找目标 end ----------

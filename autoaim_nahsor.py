@@ -126,7 +126,7 @@ if __name__ == '__main__':
                     continue
 
                 # drawing = img.copy()
-                img = nahsor_tracker.nahsor.show_img
+                img = nahsor_tracker.nahsor.show_img_contours
                 if img is None:
                     continue
                 drawing = cv2.convertScaleAbs(img, alpha=5)
@@ -195,6 +195,8 @@ if __name__ == '__main__':
                                                                         pitch_degree, cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
                         tools.drawPoint(drawing, current_point_in_pixel, (0,255,0))
                         tools.drawPoint(drawing, shot_point_in_pixel, (0,0,255))
+                        tools.putText(drawing, f"{predictedPtsInWorld}", {30,30})
+                        tools.putText(drawing, f"{p_distance}", {30,60})
                 visualizer.show(drawing)
 
     except Exception as e:
