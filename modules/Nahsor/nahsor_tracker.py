@@ -42,7 +42,6 @@ class NahsorTracker():
         '''获取预测时间后待击打点的位置(单位:mm)(无重力补偿)'''
         # 如果没有找到风车,就返回None
         if self.nahsor.getTargetStatus() == NahsorConfig.STATUS.NOT_FOUND:
-            print("lost nahsor")
             return None
         
         # 观测到的靶心坐标
@@ -66,8 +65,10 @@ class NahsorTracker():
         
         # 预测一段时间后的靶心坐标
 
-        # 如果速度拟合还没有完成,就不进行预测,返回None
-        if self.nahsor.fit_status is not NahsorConfig.FIT_STATUS.SUCCESS:            
+        # 如果是大符，并且速度拟合还没有完成,就不进行预测,返回None
+        if (self.nahsor.energy_mode == NahsorConfig.ENERGY_MODE.BIG 
+            and 
+            self.nahsor.fit_status is not NahsorConfig.FIT_STATUS.SUCCESS):            
             return None
             
         flyTime_s = tools.getParaTime(current3DPos, bulletSpeed=bulletSpeed) / 1000 # 到观测靶心的子弹飞行时间(秒)(s)
