@@ -42,6 +42,8 @@ if __name__ == '__main__':
                 from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
             elif robot.id == 4:
                 from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
+            elif robot.id == 5:
+                from configs.infantry5 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
             elif robot.id == 7:
                 from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
 
