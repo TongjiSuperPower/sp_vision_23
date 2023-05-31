@@ -52,7 +52,7 @@ OPEN_PARA = 1
 CLOS_PARA = 1
 
 # 使用预测
-USE_PREDICT = False
+USE_PREDICT = True
 
 # 目标颜色设置合集
 HSV_RED_UPPER_1 = (180, 255, 255)
@@ -98,7 +98,7 @@ ARMOR_AREA_RATIO = (0.15, 0.29)
 # 目标装甲板长宽比
 ARMOR_WH_RATIO = (0.8, 2.5)
 # 正方形长宽比
-SQUARE_WH_RATIO = (0.9, 1.1)
+SQUARE_WH_RATIO = (0.1, 3)
 # 装甲板上半部分长宽比
 UPPER_WH_RATIO = (0.9, 1.2)
 # 能量机关中心与目标中心距离和目标半径的比值
