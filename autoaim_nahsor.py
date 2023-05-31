@@ -68,10 +68,10 @@ if __name__ == '__main__':
                 recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
                 if robot.work_mode == 2 or robot.work_mode == 3:                    
-                    # 能量机关模式
-                    nahsor_tracker.update(frame=img, robot_work_mode = robot.work_mode)
-
+                    # 能量机关模式                  
                     try:
+                        nahsor_tracker.update(frame=img, robot_work_mode = robot.work_mode)
+                        
                         target = nahsor_tracker.nahsor
                         predictedPtsInWorld = nahsor_tracker.getShotPoint(0.15, robot.bullet_speed, 
                                                                   R_camera2gimbal, t_camera2gimbal, 
