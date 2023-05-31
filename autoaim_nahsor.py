@@ -34,7 +34,7 @@ if __name__ == '__main__':
         pass
 
     try:
-        with Robot(exposure_ms, port) as robot, Visualizer(enable=True) as visualizer, Recorder() as recorder:
+        with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer, Recorder() as recorder:
             robot.update()
 
             if robot.id == 1:
@@ -86,8 +86,7 @@ if __name__ == '__main__':
                             p_z = predictedPtsInWorld[2]
                             p_distance = (p_x**2 + p_z**2)**0.5
                             if p_distance>8000 or p_distance<5000:
-                                logging.info(f"nahsor distance error--p_distance = {p_distance}")   
-                                armor_in_gun = None                             
+                                logging.info(f"nahsor distance error--p_distance = {p_distance}")                                
                             else:                        
                                 armor_in_gun = tools.trajectoryAdjust(predictedPtsInWorld, robot, enableAirRes=0)                   
                                 if armor_in_gun is not None:                        
@@ -126,9 +125,6 @@ if __name__ == '__main__':
                     continue
 
                 # drawing = img.copy()
-                img = nahsor_tracker.nahsor.show_img
-                if img is None:
-                    continue
                 drawing = cv2.convertScaleAbs(img, alpha=5)
 
                 if robot.work_mode != 2 and robot.work_mode !=3:
