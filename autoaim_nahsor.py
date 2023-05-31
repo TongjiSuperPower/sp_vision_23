@@ -85,7 +85,7 @@ if __name__ == '__main__':
                             p_y = predictedPtsInWorld[1]
                             p_z = predictedPtsInWorld[2]
                             p_distance = (p_x**2 + p_z**2)**0.5
-                            if p_distance>8500 or p_distance<5000:
+                            if p_distance>8500 or p_distance<6000:
                                 logging.info(f"nahsor distance error--p_distance = {p_distance}")   
                                 armor_in_gun = None                             
                             else:                        
