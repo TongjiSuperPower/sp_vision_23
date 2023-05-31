@@ -6,7 +6,7 @@ from modules.autoaim.targets.outpost import Outpost
 
 
 max_lost_count = 50
-min_detect_count = 5
+min_detect_count = 3
 
 
 class Tracker:

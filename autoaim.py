@@ -113,7 +113,7 @@ if __name__ == '__main__':
                     # cx, cy, cz = a.in_camera_mm.T[0]
                     # tools.putText(drawing, f'cx{cx:.1f} cy{cy:.1f} cz{cz:.1f}', a.left.bottom, (255, 255, 255))
 
-                if tracker.state in ('TRACKING', 'TEMP_LOST'):
+                if tracker.state == 'TRACKING':
                     target = tracker.target
 
                     messured_yaw = target._last_z_yaw[0, 0]
