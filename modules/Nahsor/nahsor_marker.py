@@ -194,7 +194,7 @@ class NahsorMarker(object):
             cx, cy = int(M['m10'] / M['m00']), int(M['m01'] / M['m00'])
             fan_rect = cv2.minAreaRect(target_contour)
             # 将中心点坐标四舍五入为整数
-            target_center = (int(cx), int(cy))
+            target_center = (cx, cy)
 
             self.last_center_for_r = self.current_center
             self.current_center = target_center
@@ -299,8 +299,8 @@ class NahsorMarker(object):
                                     diag_of_speed_cov = np.diag(speed_cov)
                                     speed_err = np.sqrt(diag_of_speed_cov)
                                     print("error: ", speed_err)
-                                    if np.all(speed_err < self.speed_params_maxerror) and len(
-                                            self.fit_speeds) > 5 * FIT_MIN_LEN:
+                                    if (np.all(speed_err < self.speed_params_maxerror) and len(
+                                            self.fit_speeds) > 5 * FIT_MIN_LEN):
                                         self.fit_status = FIT_STATUS.SUCCESS
                                         self.last_time_for_fit = time.time()
                                     self.speed_params = speed_params
@@ -455,7 +455,11 @@ class NahsorMarker(object):
         fit_times = np.array(self.fit_times)
 
         # smooth_data = gaussian_filter1d(self.fit_speeds, sigma=1)
-        smooth_data = medfilt(self.fit_speeds)
+        # smooth_data = medfilt(self.fit_speeds)
+        # smooth_data = medfilt(smooth_data)
+        smooth_data = self.fit_speeds
+        # smooth_data = gaussian_filter1d(self.fit_speeds, sigma=1)
+        # smooth_data = medfilt(smooth_data)
         # smooth_data = medfilt(smooth_data)
         smooth_data = gaussian_filter1d(smooth_data, sigma=1)
 

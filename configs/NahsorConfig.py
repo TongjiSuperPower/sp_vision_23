@@ -138,7 +138,7 @@ FIT_MIN_LEN = 5
 FIND_R_INTERVAL = 5
 SPEED_REFIT_INTERVAL = 2
 # 每个拟合点的采样间隔
-FIT_INTERVAL = 0.2
+FIT_INTERVAL = 0.1
 # # 拟合最大误差
 # FIT_MAX_ERROR = 0.1
 # 拟合正弦函数的参数上下限
@@ -151,9 +151,9 @@ SPEED_PARAM_BOUNDS = {
     "b": [0.8, 1.3]
 }
 SPEED_PARAM_MAXERROR = {
-    "a": 0.05,
-    "w": 0.05,
-    "b": 0.05
+    "a": 0.1,
+    "w": 0.1,
+    "b": 0.1
 }
 # 小符旋转速度  RPM
 SMALL_ROT_SPEED = 12
