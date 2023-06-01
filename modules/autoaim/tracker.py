@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from modules.autoaim.armor import Armor
 from modules.autoaim.targets.target import Target
 from modules.autoaim.targets.standard import Standard
+from modules.autoaim.targets.simple import Simple
 from modules.autoaim.targets.outpost import Outpost
 
 
@@ -27,7 +28,7 @@ class Tracker:
         if armor.name == 'small_outpost':
             self.target = Outpost()
         else:
-            self.target = Standard()
+            self.target = Simple()
 
         self.target.init(armor, img_time_s)
 

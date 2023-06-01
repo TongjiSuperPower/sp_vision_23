@@ -126,20 +126,20 @@ if __name__ == '__main__':
                         xc, yc, zc, target_yaw, w = target._ekf.x.T[0]
                         center_in_imu_m = np.float64([[xc, yc, zc]]).T
 
+                        center_in_pixel = tools.project_imu2pixel(
+                            center_in_imu_m * 1e3,
+                            yaw_degree, pitch_degree,
+                            cameraMatrix, distCoeffs,
+                            R_camera2gimbal, t_camera2gimbal
+                        )
+                        tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
+                        tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
+
                         visualizer.plot((target_yaw, messured_yaw, w), ('yaw', 'm_yaw', 'w'))
 
                     else:
-                        xc, yc1, yc2, zc, target_yaw, r1, r2, vx, vy, vz, w = target._ekf.x.T[0]
-                        center_in_imu_m = np.float64([[xc, yc1, zc]]).T
+                        x_in_imu, _, y_in_imu, _, z_in_imu, _ = target._ekf.x.T[0]
 
-                    center_in_pixel = tools.project_imu2pixel(
-                        center_in_imu_m * 1e3,
-                        yaw_degree, pitch_degree,
-                        cameraMatrix, distCoeffs,
-                        R_camera2gimbal, t_camera2gimbal
-                    )
-                    tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
-                    tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
                     
                     for i, armor_in_imu_m in enumerate(tracker.target.get_all_armor_positions_m()):
                         armor_in_imu_mm = armor_in_imu_m * 1e3
