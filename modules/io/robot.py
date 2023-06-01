@@ -8,7 +8,7 @@ from modules.io.parallel_camera import ParallelCamera
 from modules.io.parallel_rx_communicator import ParallelRxCommunicator
 from modules.io.parallel_tx_communicator import ParallelTxCommunicator
 from modules.io.context_manager import ContextManager
-from modules.io.communication import TX_FLAG_FIRE
+from modules.io.communication import Status, TX_FLAG_FIRE
 
 
 class WorkMode(IntEnum):
@@ -82,6 +82,7 @@ class Robot(ContextManager):
         while self._rx_communicator.latest_read_time_s < time_s:
             self._rx_communicator.update()
 
+        status_before: Status = None
         for read_time_s, status in reversed(self._rx_communicator.history):
             if read_time_s < time_s:
                 time_s_before, status_before = read_time_s, status
@@ -89,6 +90,10 @@ class Robot(ContextManager):
             time_s_after, status_after = read_time_s, status
 
         _, yaw_degree_after, pitch_degree_after, _, _, = status_after
+
+        if status_before is None:
+            return yaw_degree_after, pitch_degree_after
+
         _, yaw_degree_before, pitch_degree_before, _, _, = status_before
 
         k = (time_s - time_s_before) / (time_s_after - time_s_before)
