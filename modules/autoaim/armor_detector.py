@@ -12,7 +12,7 @@ from modules.autoaim.classifier import Classifier
 threshold_value = 90  # 二值化阈值
 
 # Lightbar
-min_lgihtbar_h = 20  # 保证灯条长度大于该值
+min_lgihtbar_h = 10  # 保证灯条长度大于该值
 max_lightbar_angle = 45  # 灯条与竖直线最大夹角
 min_lightbar_ratio = 2  # 最小灯条长宽比
 min_color_difference = 50  # 最小颜色差
@@ -20,7 +20,7 @@ min_color_difference = 50  # 最小颜色差
 # LightbarPair
 max_angle = 10  # 装甲板左右灯条中点连线与水平线最大夹角
 max_side_ratio = 2  # 装甲板左右灯条长度最大比值，max/min
-min_ratio = 1.5  # 最小装甲板长宽比
+min_ratio = 1  # 最小装甲板长宽比
 max_ratio = 5  # 最大装甲板长宽比
 
 # Armor
