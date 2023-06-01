@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
                 recorder.record(img, (img_time_s, yaw_degree, pitch_degree, robot.bullet_speed, robot.flag))
 
-                # print(f'Tracker state: {tracker.state} ')
+                print(f'Tracker state: {tracker.state} ')
 
                 if tracker.state == 'LOST':
                     tracker.init(armors, img_time_s)
@@ -84,6 +84,7 @@ if __name__ == '__main__':
                     target = tracker.target
                     try:
                         aim_point_in_imu_m, fire_time_s = target.aim(robot.bullet_speed)
+                        # print(aim_point_in_imu_m)
                         robot.shoot(gun_up_degree, gun_right_degree, aim_point_in_imu_m, fire_time_s)
                     except Exception as e:
                         logging.exception(e)
@@ -120,7 +121,7 @@ if __name__ == '__main__':
                 if tracker.state == 'TRACKING':
                     target = tracker.target
 
-                    messured_yaw = target._last_z_yaw[0, 0]
+                    # messured_yaw = target._last_z_yaw[0, 0]
 
                     if tracker._target_name == 'small_outpost':
                         xc, yc, zc, target_yaw, w = target._ekf.x.T[0]
@@ -135,7 +136,7 @@ if __name__ == '__main__':
                         tools.drawPoint(drawing, center_in_pixel, (0, 255, 255), radius=10)
                         tools.putText(drawing, f'{w:.2f}', center_in_pixel, (255, 255, 255))
 
-                        visualizer.plot((target_yaw, messured_yaw, w), ('yaw', 'm_yaw', 'w'))
+                        # visualizer.plot((target_yaw, messured_yaw, w), ('yaw', 'm_yaw', 'w'))
 
                     else:
                         x_in_imu, _, y_in_imu, _, z_in_imu, _ = target._ekf.x.T[0]

@@ -25,10 +25,11 @@ class Tracker:
         # 优先打最近的
         armor = armors[0]
 
-        if armor.name == 'small_outpost':
-            self.target = Outpost()
-        else:
-            self.target = Simple()
+        # if armor.name == 'small_outpost':
+        #     self.target = Outpost()
+        # else:
+        #     self.target = Simple()
+        self.target = Simple()
 
         self.target.init(armor, img_time_s)
 

@@ -72,7 +72,7 @@ def jacobian_h(x: ColumnVector, R_imu2camera: Matrix) -> Matrix:
 
 
 def get_x0(armor: Armor) -> ColumnVector:
-    x, y, z = armor.in_imu_mm.T[0]
+    x, y, z = armor.in_imu_m.T[0]
     return np.float64([[x, 0, y, 0, z, 0]]).T
 
 
@@ -86,8 +86,9 @@ class Simple(Target):
         predicted_armor_in_camera = h(self._ekf.x, armor)
         error_m = np.linalg.norm(predicted_armor_in_camera - armor.in_camera_m)
 
-        if error_m < max_match_m:
+        if error_m > max_match_m:
             self.init(armor, self._last_time_s)
+            print('reinit')
             return True
 
         R_camera2imu = armor._R_gimbal2imu @ armor._R_camera2gimbal
