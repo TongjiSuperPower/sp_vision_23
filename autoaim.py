@@ -16,6 +16,10 @@ from modules.autoaim.tracker import Tracker
 from remote_visualizer import Visualizer
 
 
+robot_id = 3
+enemy_color = 'red'
+# enemy_color = 'blue'
+
 exposure_ms = 3
 port = '/dev/ttyUSB0'
 
@@ -34,20 +38,18 @@ if __name__ == '__main__':
 
     try:
         with Robot(exposure_ms, port) as robot, Visualizer(enable=enable) as visualizer, Recorder() as recorder:
-            robot.update()
 
-            if robot.id == 1:
+            if robot_id == 1:
                 from configs.hero import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
-            elif robot.id == 3:
+            elif robot_id == 3:
                 from configs.infantry3 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
-            elif robot.id == 4:
+            elif robot_id == 4:
                 from configs.infantry4 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
-            elif robot.id == 5:
+            elif robot_id == 5:
                 from configs.infantry5 import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
-            elif robot.id == 7:
+            elif robot_id == 7:
                 from configs.sentry import cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal, gun_up_degree, gun_right_degree, whitelist
 
-            enemy_color = 'red' if robot.color == 'blue' else 'blue'
             armor_detector = ArmorDetector(enemy_color)
 
             armor_solver = ArmorSolver(cameraMatrix, distCoeffs, R_camera2gimbal, t_camera2gimbal)
