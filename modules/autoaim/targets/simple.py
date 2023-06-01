@@ -102,7 +102,7 @@ class Simple(Target):
 
         _, fly_time_s = get_trajectory_rad_and_s(armor_in_imu, bullet_speed_m_per_s)
 
-        predicted_x = f(self._ekf.x, fly_time_s)
+        predicted_x = f(self._ekf.x, fly_time_s + 0.05)
         x_in_imu, _, y_in_imu, _, z_in_imu, _ = predicted_x.T[0]
         aim_point_m = np.float64([[x_in_imu, y_in_imu, z_in_imu]]).T
 
