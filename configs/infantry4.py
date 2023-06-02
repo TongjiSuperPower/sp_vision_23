@@ -7,7 +7,7 @@ t_camera2gimbal = np.float32([[-0.4843357023401955], [62.636469719758225], [166.
 # 重投影误差: 0.0121px
 # 相机相对于云台: yaw=0.16 pitch=0.73 roll=0.12
 
-gun_up_degree = -1.5
+gun_up_degree = -2
 gun_right_degree = 0
 
 whitelist = ('small_two',)
