@@ -17,8 +17,8 @@ from remote_visualizer import Visualizer
 
 
 robot_id = 3
-enemy_color = 'red'
-# enemy_color = 'blue'
+# enemy_color = 'red'
+enemy_color = 'blue'
 
 exposure_ms = 3
 port = '/dev/ttyUSB0'
