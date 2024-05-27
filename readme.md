@@ -1,3 +1,8 @@
+# 说明
+[赛场效果](https://www.bilibili.com/video/BV1yh411T75p/)
+建议后人不要用Python写自瞄，速度不够快CPU占用率又高
+感谢上海交通大学交龙战队、四川大学火锅战队、华南师范大学Pioneer战队的开源
+
 # 环境
 [工业相机SDK](https://mindvision.com.cn/rjxz/list_12.aspx?lcid=138)
 
