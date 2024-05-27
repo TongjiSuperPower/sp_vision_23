@@ -1,7 +1,9 @@
 # 说明
 [赛场效果](https://www.bilibili.com/video/BV1yh411T75p/)
+
 建议后人不要用Python写自瞄，速度不够快CPU占用率又高
-感谢上海交通大学交龙战队、四川大学火锅战队、华南师范大学Pioneer战队的开源
+
+感谢上海交通大学交龙战队、四川大学火锅战队、华南师范大学PIONEER战队的开源
 
 # 环境
 [工业相机SDK](https://mindvision.com.cn/rjxz/list_12.aspx?lcid=138)
@@ -11,9 +13,6 @@
 `pip3 install -r requirements.txt`
 
 如果需要运行`classifier_training.py`，需要额外安装`torch`以及`torchvision`
-
-# Demo
-demo.py实现了装甲板的识别、分类、解算
 
 # 部署
 ## 自启
